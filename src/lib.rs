@@ -1,12 +1,11 @@
+use winnow::Parser;
+mod parser;
+mod state;
+mod types;
 mod utils;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, world!");
+pub fn run() -> String {
+    format!("{:?}", parser::euphrates.parse_next(&mut "asdf"))
 }
