@@ -30,13 +30,26 @@ use winnow::{
     },
 };
 
-use crate::types::EuType;
+use crate::types::{
+    EuChar,
+    EuF32,
+    EuF64,
+    EuI32,
+    EuI64,
+    EuIsize,
+    EuStr,
+    EuType,
+    EuU32,
+    EuU64,
+    EuUsize,
+    EuWord,
+};
 
-pub fn euphrates<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<Vec<EuType<'eu>>> {
+pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<Vec<EuType<'i>>> {
     delimited(ws, repeat(0.., preceded(ws, eu_type)), ws).parse_next(input)
 }
 
-fn eu_type<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
+fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     dispatch!(peek(any);
         '"' => eu_str,
         '\'' => eu_char,
@@ -47,7 +60,7 @@ fn eu_type<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
     .parse_next(input)
 }
 
-fn eu_str<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
+fn eu_str<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     delimited(
         '"',
         repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
@@ -61,14 +74,14 @@ fn eu_str<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
         ),
         opt('"'),
     )
-    .map(|s| EuType::Str(s))
+    .map(|s| EuStr(s).into())
     .parse_next(input)
 }
 
-fn eu_char<'eu, 'i>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
+fn eu_char<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     preceded(
         '\'',
-        cut_err(eu_char_atom.verify_map(|x| x.map(EuType::Char)))
+        cut_err(eu_char_atom.verify_map(|x| x.map(|c| EuChar(c).into())))
             .context(StrContext::Label("char")),
     )
     .parse_next(input)
@@ -125,7 +138,7 @@ fn eu_char_uni<'i>(input: &mut &'i str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_num<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
+fn eu_num<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     let ((_, dec, exp), ns) = (
         digit0,
         opt(preceded('.', digit0)),
@@ -146,30 +159,30 @@ fn eu_num<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
 fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
     cut_err(alt((
         "isize"
-            .try_map(|_| ns.parse().map(EuType::ISize))
+            .try_map(|_| ns.parse().map(|n| EuIsize(n).into()))
             .context(StrContext::Label("ISize")),
         "usize"
-            .try_map(|_| ns.parse().map(EuType::USize))
+            .try_map(|_| ns.parse().map(|n| EuUsize(n).into()))
             .context(StrContext::Label("USize")),
         "i32"
-            .try_map(|_| ns.parse().map(EuType::I32))
+            .try_map(|_| ns.parse().map(|n| EuI32(n).into()))
             .context(StrContext::Label("I32")),
         "u32"
-            .try_map(|_| ns.parse().map(EuType::U32))
+            .try_map(|_| ns.parse().map(|n| EuU32(n).into()))
             .context(StrContext::Label("U32")),
         "f32"
-            .try_map(|_| ns.parse().map(EuType::F32))
+            .try_map(|_| ns.parse().map(|n| EuF32(n).into()))
             .context(StrContext::Label("F32")),
         "i64"
-            .try_map(|_| ns.parse().map(EuType::I64))
+            .try_map(|_| ns.parse().map(|n| EuI64(n).into()))
             .context(StrContext::Label("I64")),
         "u64"
-            .try_map(|_| ns.parse().map(EuType::U64))
+            .try_map(|_| ns.parse().map(|n| EuU64(n).into()))
             .context(StrContext::Label("U64")),
         "f64"
-            .try_map(|_| ns.parse().map(EuType::F64))
+            .try_map(|_| ns.parse().map(|n| EuF64(n).into()))
             .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse().map(EuType::I64)),
+        empty.try_map(|_| ns.parse().map(|n| EuI64(n).into())),
     )))
     .parse_next(input)
 }
@@ -183,21 +196,21 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
         .parse_next(input)?;
     cut_err(alt((
         "f32"
-            .try_map(|_| ns.parse().map(EuType::F32))
+            .try_map(|_| ns.parse().map(|n| EuF32(n).into()))
             .context(StrContext::Label("F32")),
         "f64"
-            .try_map(|_| ns.parse().map(EuType::F64))
+            .try_map(|_| ns.parse().map(|n| EuF64(n).into()))
             .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse().map(EuType::F64)),
+        empty.try_map(|_| ns.parse().map(|n| EuF64(n).into())),
     )))
     .parse_next(input)
 }
 
-fn eu_word<'eu, 'i: 'eu>(input: &mut &'i str) -> ModalResult<EuType<'eu>> {
+fn eu_word<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     take_while(0.., |c: char| {
         !matches!(c, '"' | '\'') && !c.is_whitespace()
     })
-    .map(|s: &str| EuType::Word(HipStr::borrowed(s)))
+    .map(|s| EuWord(HipStr::borrowed(s)).into())
     .parse_next(input)
 }
 

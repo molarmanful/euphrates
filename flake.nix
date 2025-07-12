@@ -59,6 +59,7 @@
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
               wasm-pack
+              taplo
             ];
 
             inputsFrom = [ (craneLibDev.devShell { }) ];

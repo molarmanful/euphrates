@@ -11,15 +11,15 @@ fn test_empty() {
 fn test_int() {
     assert_eq!(
         euphrates.parse_peek("1234"),
-        Ok(("", vec![EuType::I64(1234)]))
+        Ok(("", vec![EuI64(1234).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("1234u32"),
-        Ok(("", vec![EuType::U32(1234)]))
+        Ok(("", vec![EuU32(1234).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("1234isize"),
-        Ok(("", vec![EuType::ISize(1234)]))
+        Ok(("", vec![EuIsize(1234).into()]))
     );
 }
 
@@ -27,43 +27,43 @@ fn test_int() {
 fn test_float() {
     assert_eq!(
         euphrates.parse_peek("1234.5"),
-        Ok(("", vec![EuType::F64(1234.5)]))
+        Ok(("", vec![EuF64(1234.5).into()]))
     );
     assert_eq!(
         euphrates.parse_peek(".1234"),
-        Ok(("", vec![EuType::F64(0.1234)]))
+        Ok(("", vec![EuF64(0.1234).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("1234.0"),
-        Ok(("", vec![EuType::F64(1234.0)]))
+        Ok(("", vec![EuF64(1234.0).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123e4"),
-        Ok(("", vec![EuType::F64(123e4)]))
+        Ok(("", vec![EuF64(123e4).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123e-4"),
-        Ok(("", vec![EuType::F64(123e-4)]))
+        Ok(("", vec![EuF64(123e-4).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123.e4"),
-        Ok(("", vec![EuType::F64(123e4)]))
+        Ok(("", vec![EuF64(123e4).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("12.34e5"),
-        Ok(("", vec![EuType::F64(12.34e5)]))
+        Ok(("", vec![EuF64(12.34e5).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123f32"),
-        Ok(("", vec![EuType::F32(123.0)]))
+        Ok(("", vec![EuF32(123.0).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123.f32"),
-        Ok(("", vec![EuType::F32(123.0)]))
+        Ok(("", vec![EuF32(123.0).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123e-4f32"),
-        Ok(("", vec![EuType::F32(123e-4)]))
+        Ok(("", vec![EuF32(123e-4).into()]))
     );
 }
 
@@ -76,26 +76,26 @@ fn test_float_invalid() {
 fn test_num_and_num() {
     assert_eq!(
         euphrates.parse_peek("1234 5678"),
-        Ok(("", vec![EuType::I64(1234), EuType::I64(5678)]))
+        Ok(("", vec![EuI64(1234).into(), EuI64(5678).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("1234.5.678"),
-        Ok(("", vec![EuType::F64(1234.5), EuType::F64(0.678)]))
+        Ok(("", vec![EuF64(1234.5).into(), EuF64(0.678).into()]))
     );
     assert_eq!(
         euphrates.parse_peek(".1234.5.678"),
         Ok((
             "",
-            vec![EuType::F64(0.1234), EuType::F64(0.5), EuType::F64(0.678)]
+            vec![EuF64(0.1234).into(), EuF64(0.5).into(), EuF64(0.678).into()]
         ))
     );
     assert_eq!(
         euphrates.parse_peek("1234..5678"),
-        Ok(("", vec![EuType::F64(1234.0), EuType::F64(0.5678)]))
+        Ok(("", vec![EuF64(1234.0).into(), EuF64(0.5678).into()]))
     );
     assert_eq!(
         euphrates.parse_peek("12e3.4"),
-        Ok(("", vec![EuType::F64(12e3), EuType::F64(0.4)]))
+        Ok(("", vec![EuF64(12e3).into(), EuF64(0.4).into()]))
     );
 }
 
@@ -103,11 +103,11 @@ fn test_num_and_num() {
 fn test_word() {
     assert_eq!(
         euphrates.parse_peek("asdf"),
-        Ok(("", vec![EuType::Word("asdf".into())]))
+        Ok(("", vec![EuWord::from("asdf").into()]))
     );
     assert_eq!(
         euphrates.parse_peek("asdf1234"),
-        Ok(("", vec![EuType::Word("asdf1234".into())]))
+        Ok(("", vec![EuWord::from("asdf1234").into()]))
     );
 }
 
@@ -115,15 +115,15 @@ fn test_word() {
 fn test_dec() {
     assert_eq!(
         euphrates.parse_peek(".1234"),
-        Ok(("", vec![EuType::F64(0.1234)]))
+        Ok(("", vec![EuF64(0.1234).into()]))
     );
     assert_eq!(
         euphrates.parse_peek(".asdf"),
-        Ok(("", vec![EuType::Word(".asdf".into())]))
+        Ok(("", vec![EuWord::from(".asdf").into()]))
     );
     assert_eq!(
         euphrates.parse_peek("..1234"),
-        Ok(("", vec![EuType::Word("..1234".into())]))
+        Ok(("", vec![EuWord::from("..1234").into()]))
     );
 }
 
@@ -131,15 +131,15 @@ fn test_dec() {
 fn test_str() {
     assert_eq!(
         euphrates.parse_peek(r#""testing testing 123""#),
-        Ok(("", vec![EuType::Str("testing testing 123".into())]))
+        Ok(("", vec![EuStr::from("testing testing 123").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""testing testing 123"#),
-        Ok(("", vec![EuType::Str("testing testing 123".into())]))
+        Ok(("", vec![EuStr::from("testing testing 123").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""asdf \" 123""#),
-        Ok(("", vec![EuType::Str("asdf \" 123".into())]))
+        Ok(("", vec![EuStr::from("asdf \" 123").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""asdf 123 \""#),
@@ -147,23 +147,23 @@ fn test_str() {
     );
     assert_eq!(
         euphrates.parse_peek(r#""asdf 123 \\""#),
-        Ok(("", vec![EuType::Str("asdf 123 \\".into())]))
+        Ok(("", vec![EuStr::from("asdf 123 \\").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""\n""#),
-        Ok(("", vec![EuType::Str("\n".into())]))
+        Ok(("", vec![EuStr::from("\n").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""\x5a\xff""#),
-        Ok(("", vec![EuType::Str("\x5a\u{ff}".into())]))
+        Ok(("", vec![EuStr::from("\x5a\u{ff}").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""\u{5}\u{ff}\u{321ab}""#),
-        Ok(("", vec![EuType::Str("\u{5}\u{ff}\u{321ab}".into())]))
+        Ok(("", vec![EuStr::from("\u{5}\u{ff}\u{321ab}").into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#""\u{ff""#),
-        Ok(("", vec![EuType::Str("\u{ff}".into())]))
+        Ok(("", vec![EuStr::from("\u{ff}").into()]))
     );
 }
 
@@ -184,15 +184,15 @@ fn test_str_invalid() {
 fn test_char() {
     assert_eq!(
         euphrates.parse_peek("'a"),
-        Ok(("", vec![EuType::Char('a')]))
+        Ok(("", vec![EuChar('a').into()]))
     );
     assert_eq!(
         euphrates.parse_peek(r#"'\n"#),
-        Ok(("", vec![EuType::Char('\n')]))
+        Ok(("", vec![EuChar('\n').into()]))
     );
     assert_eq!(
         euphrates.parse_peek("''"),
-        Ok(("", vec![EuType::Char('\'')]))
+        Ok(("", vec![EuChar('\'').into()]))
     );
 }
 
@@ -207,7 +207,10 @@ fn test_all() {
         euphrates.parse_peek(r#"1234"testing testing 123"#),
         Ok((
             "",
-            vec![EuType::I64(1234), EuType::Str("testing testing 123".into())]
+            vec![
+                EuI64(1234).into(),
+                EuStr::from("testing testing 123").into()
+            ]
         ))
     );
     assert_eq!(
@@ -215,25 +218,25 @@ fn test_all() {
         Ok((
             "",
             vec![
-                EuType::Word("asdf".into()),
-                EuType::Str("testing testing 123".into())
+                EuWord::from("asdf").into(),
+                EuStr::from("testing testing 123").into()
             ]
         ))
     );
     assert_eq!(
         euphrates.parse_peek("1234e5asdf"),
-        Ok(("", vec![EuType::F64(1234e5), EuType::Word("asdf".into())]))
+        Ok(("", vec![EuF64(1234e5).into(), EuWord::from("asdf").into()]))
     );
     assert_eq!(
         euphrates.parse_peek("1234isizetest"),
-        Ok(("", vec![EuType::ISize(1234), EuType::Word("test".into())]))
+        Ok(("", vec![EuIsize(1234).into(), EuWord::from("test").into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123ever"),
-        Ok(("", vec![EuType::I64(123), EuType::Word("ever".into())]))
+        Ok(("", vec![EuI64(123).into(), EuWord::from("ever").into()]))
     );
     assert_eq!(
         euphrates.parse_peek("123e.4"),
-        Ok(("", vec![EuType::I64(123), EuType::Word("e.4".into())]))
+        Ok(("", vec![EuI64(123).into(), EuWord::from("e.4").into()]))
     );
 }
