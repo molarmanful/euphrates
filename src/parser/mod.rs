@@ -51,6 +51,7 @@ pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<Vec<EuType<'i>>> {
 
 fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     dispatch!(peek(any);
+        '`' => eu_str_raw,
         '"' => eu_str,
         '\'' => eu_char,
         '.' => alt((eu_num, eu_word)),
@@ -76,6 +77,12 @@ fn eu_str<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     )
     .map(|s| EuStr(s).into())
     .parse_next(input)
+}
+
+fn eu_str_raw<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+    delimited('`', take_while(0.., |c| c != '`'), opt('`'))
+        .map(|s| EuStr::from(s).into())
+        .parse_next(input)
 }
 
 fn eu_char<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
@@ -208,7 +215,7 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
 
 fn eu_word<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     take_while(0.., |c: char| {
-        !matches!(c, '"' | '\'') && !c.is_whitespace()
+        !matches!(c, '`' | '"' | '\'') && !c.is_whitespace()
     })
     .map(|s| EuWord(HipStr::borrowed(s)).into())
     .parse_next(input)

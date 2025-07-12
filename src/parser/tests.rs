@@ -168,6 +168,22 @@ fn test_str() {
 }
 
 #[test]
+fn test_str_raw() {
+    assert_eq!(
+        euphrates.parse_peek("`testing testing 123`"),
+        Ok(("", vec![EuStr::from("testing testing 123").into()]))
+    );
+    assert_eq!(
+        euphrates.parse_peek("`testing testing 123"),
+        Ok(("", vec![EuStr::from("testing testing 123").into()]))
+    );
+    assert_eq!(
+        euphrates.parse_peek(r#"`asdf \n 123`"#),
+        Ok(("", vec![EuStr::from(r#"asdf \n 123"#).into()]))
+    );
+}
+
+#[test]
 fn test_str_invalid() {
     assert!(euphrates.parse(r#""\"#).is_err());
     assert!(euphrates.parse(r#""\x1""#).is_err());
