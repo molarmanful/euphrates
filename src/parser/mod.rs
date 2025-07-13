@@ -34,6 +34,7 @@ use crate::types::{
     EuChar,
     EuF32,
     EuF64,
+    EuFn,
     EuI32,
     EuI64,
     EuIsize,
@@ -45,8 +46,8 @@ use crate::types::{
     EuWord,
 };
 
-pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<Vec<EuType<'i>>> {
-    delimited(ws, repeat(0.., preceded(ws, eu_type)), ws).parse_next(input)
+pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<EuFn<'i>> {
+    delimited(ws, repeat(0.., preceded(ws, eu_type)).map(EuFn), ws).parse_next(input)
 }
 
 fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
@@ -54,6 +55,8 @@ fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
         '`' => eu_str_raw,
         '"' => eu_str,
         '\'' => eu_char,
+        '(' => eu_fn,
+        ')' => fail,
         '.' => alt((eu_num, eu_word)),
         '0'..='9' => eu_num,
         _ => eu_word,
@@ -145,6 +148,10 @@ fn eu_char_uni<'i>(input: &mut &'i str) -> ModalResult<char> {
     .parse_next(input)
 }
 
+fn eu_fn<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+    delimited('(', euphrates.map(EuType::from), opt(')')).parse_next(input)
+}
+
 fn eu_num<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     let ((_, dec, exp), ns) = (
         digit0,
@@ -215,7 +222,7 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
 
 fn eu_word<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     take_while(0.., |c: char| {
-        !matches!(c, '`' | '"' | '\'') && !c.is_whitespace()
+        !matches!(c, '`' | '"' | '\'' | '(' | ')') && !c.is_whitespace()
     })
     .map(|s| EuWord(HipStr::borrowed(s)).into())
     .parse_next(input)

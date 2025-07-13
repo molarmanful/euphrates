@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use derive_more::{
     Debug,
     From,
@@ -83,13 +81,6 @@ pub struct EuOpt<'eu>(pub Option<Box<EuType<'eu>>>);
 #[from(forward)]
 pub struct EuVec<'eu>(pub Vec<EuType<'eu>>);
 
-#[derive(Debug, Clone, From)]
+#[derive(Debug, PartialEq, Clone, From)]
 #[from(forward)]
-#[debug("<iterator>")]
-pub struct EuFn<'eu>(pub Arc<dyn Iterator<Item = EuType<'eu>>>);
-
-impl PartialEq for EuFn<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
-    }
-}
+pub struct EuFn<'eu>(pub Vec<EuType<'eu>>);

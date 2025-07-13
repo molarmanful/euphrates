@@ -12,7 +12,7 @@ struct State<'eu> {
     scope: HashMap<String, EuType<'eu>>,
 }
 
-impl<'eu> State<'eu> {
+impl State<'_> {
     pub fn new() -> Self {
         todo!()
     }
