@@ -78,20 +78,22 @@ fn eu_str<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
         ),
         opt('"'),
     )
-    .map(|s| EuStr(s).into())
+    .map(EuStr)
+    .output_into()
     .parse_next(input)
 }
 
 fn eu_str_raw<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
-        .map(|s| EuStr::from(s).into())
+        .map(EuStr::from)
+        .output_into()
         .parse_next(input)
 }
 
 fn eu_char<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     preceded(
         '\'',
-        cut_err(eu_char_atom.verify_map(|x| x.map(|c| EuChar(c).into())))
+        cut_err(eu_char_atom.verify_map(|x| x.map(EuChar)).output_into())
             .context(StrContext::Label("char")),
     )
     .parse_next(input)
@@ -118,7 +120,7 @@ fn eu_char_hex<'i>(input: &mut &'i str) -> ModalResult<char> {
     cut_err(
         take_while(2, |c: char| c.is_ascii_hexdigit())
             .try_map(|hex| u8::from_str_radix(hex, 16))
-            .map(u8::into),
+            .output_into(),
     )
     .context(StrContext::Label("hex pair escape"))
     .context(StrContext::Expected(StrContextValue::Description(
@@ -173,30 +175,49 @@ fn eu_num<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
 fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
     cut_err(alt((
         "isize"
-            .try_map(|_| ns.parse().map(|n| EuIsize(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuIsize)
+            .output_into()
             .context(StrContext::Label("ISize")),
         "usize"
-            .try_map(|_| ns.parse().map(|n| EuUsize(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuUsize)
+            .output_into()
             .context(StrContext::Label("USize")),
         "i32"
-            .try_map(|_| ns.parse().map(|n| EuI32(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuI32)
+            .output_into()
             .context(StrContext::Label("I32")),
         "u32"
-            .try_map(|_| ns.parse().map(|n| EuU32(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuU32)
+            .output_into()
             .context(StrContext::Label("U32")),
         "f32"
-            .try_map(|_| ns.parse().map(|n| EuF32(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuF32)
+            .output_into()
             .context(StrContext::Label("F32")),
         "i64"
-            .try_map(|_| ns.parse().map(|n| EuI64(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuI64)
+            .output_into()
             .context(StrContext::Label("I64")),
         "u64"
-            .try_map(|_| ns.parse().map(|n| EuU64(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuU64)
+            .output_into()
             .context(StrContext::Label("U64")),
         "f64"
-            .try_map(|_| ns.parse().map(|n| EuF64(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuF64)
+            .output_into()
             .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse().map(|n| EuI64(n).into())),
+        empty
+            .try_map(|_| ns.parse())
+            .map(|n| EuI64(n))
+            .output_into(),
     )))
     .parse_next(input)
 }
@@ -210,12 +231,19 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
         .parse_next(input)?;
     cut_err(alt((
         "f32"
-            .try_map(|_| ns.parse().map(|n| EuF32(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuF32)
+            .output_into()
             .context(StrContext::Label("F32")),
         "f64"
-            .try_map(|_| ns.parse().map(|n| EuF64(n).into()))
+            .try_map(|_| ns.parse())
+            .map(EuF64)
+            .output_into()
             .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse().map(|n| EuF64(n).into())),
+        empty
+            .try_map(|_| ns.parse())
+            .map(|n| EuF64(n))
+            .output_into(),
     )))
     .parse_next(input)
 }
@@ -224,7 +252,8 @@ fn eu_word<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     take_while(0.., |c: char| {
         !matches!(c, '`' | '"' | '\'' | '(' | ')') && !c.is_whitespace()
     })
-    .map(|s| EuWord(HipStr::borrowed(s)).into())
+    .map(EuWord::from)
+    .output_into()
     .parse_next(input)
 }
 
