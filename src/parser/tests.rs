@@ -51,7 +51,7 @@ fn test_float() {
 
 #[test]
 fn test_float_invalid() {
-    assert!(parse("123e4usize").is_err());
+    assert!(is_err("123e4usize"));
 }
 
 #[test]
@@ -164,15 +164,15 @@ fn test_str_raw() {
 
 #[test]
 fn test_str_invalid() {
-    assert!(parse(r#""\"#).is_err());
-    assert!(parse(r#""\x1""#).is_err());
-    assert!(parse(r#""\x1x""#).is_err());
-    assert!(parse(r#""\ux""#).is_err());
-    assert!(parse(r#""\u{""#).is_err());
-    assert!(parse(r#""\u}""#).is_err());
-    assert!(parse(r#""\u{}""#).is_err());
-    assert!(parse(r#""\u{ffffff}""#).is_err());
-    assert!(parse(r#""\u{dddd}""#).is_err());
+    assert!(is_err(r#""\"#));
+    assert!(is_err(r#""\x1""#));
+    assert!(is_err(r#""\x1x""#));
+    assert!(is_err(r#""\ux""#));
+    assert!(is_err(r#""\u{""#));
+    assert!(is_err(r#""\u}""#));
+    assert!(is_err(r#""\u{}""#));
+    assert!(is_err(r#""\u{ffffff}""#));
+    assert!(is_err(r#""\u{dddd}""#));
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_char() {
 
 #[test]
 fn test_char_invalid() {
-    assert!(parse(r#"'"#).is_err());
+    assert!(is_err(r#"'"#));
 }
 
 #[test]
@@ -230,6 +230,12 @@ fn test_fn() {
             .into()])
         ))
     );
+}
+
+#[test]
+fn test_fn_invalid() {
+    assert!(is_err(")"));
+    assert!(is_err("())asdf"));
 }
 
 #[test]
@@ -296,4 +302,8 @@ fn test_all() {
 
 fn parse(input: &str) -> ModalResult<(&str, EuFn<'_>)> {
     euphrates.parse_peek(input)
+}
+
+fn is_err(input: &str) -> bool {
+    euphrates.parse(input).is_err()
 }

@@ -1,7 +1,5 @@
 use hipstr::string::HipStr;
 use winnow::{
-    ModalResult,
-    Parser,
     ascii::{
         digit0,
         digit1,
@@ -18,11 +16,13 @@ use winnow::{
         peek,
         preceded,
         repeat,
+        terminated,
     },
     error::{
         StrContext,
         StrContextValue,
     },
+    prelude::*,
     token::{
         any,
         one_of,
@@ -47,7 +47,7 @@ use crate::types::{
 };
 
 pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<EuFn<'i>> {
-    delimited(ws, repeat(0.., preceded(ws, eu_type)).map(EuFn), ws).parse_next(input)
+    terminated(repeat(0.., preceded(ws, eu_type)).map(EuFn), ws).parse_next(input)
 }
 
 fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
