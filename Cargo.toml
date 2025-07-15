@@ -17,8 +17,10 @@ hipstr = "0.8.0"
 derive_more = { version = "2.0.1", features = [
   "debug",
   "display",
+  "error",
   "from",
   "into",
+  "into_iterator",
   "is_variant",
   "try_from",
   "try_into",
