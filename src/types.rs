@@ -24,8 +24,7 @@ pub enum EuType<'eu> {
     Word(EuWord<'eu>),
     Opt(EuOpt<'eu>),
     Res(EuRes<'eu>),
-    Arr(EuVec<'eu>),
-    Fn(EuFn<'eu>),
+    Vec(EuVec<'eu>),
 }
 
 #[derive(Debug, Display, PartialEq, Clone, From, Default)]
@@ -87,8 +86,3 @@ pub struct EuRes<'eu>(pub Result<Box<EuType<'eu>>, Box<EuType<'eu>>>);
 #[from(forward)]
 #[into_iterator(owned, ref, ref_mut)]
 pub struct EuVec<'eu>(pub Vec<EuType<'eu>>);
-
-#[derive(Debug, PartialEq, Clone, From, IntoIterator, Default)]
-#[from(forward)]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct EuFn<'eu>(pub Vec<EuType<'eu>>);

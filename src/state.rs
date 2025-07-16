@@ -9,7 +9,6 @@ use winnow::Parser as _;
 use crate::{
     parser::euphrates,
     types::{
-        EuFn,
         EuType,
         EuVec,
     },
@@ -46,7 +45,7 @@ impl<'st> EuState<'st> {
         }
     }
 
-    fn eval_fn(&mut self, f: EuFn<'st>) -> EvalOption<'st> {
+    fn eval_fn(&mut self, f: EuVec<'st>) -> EvalOption<'st> {
         for x in f.into_iter() {
             match x {
                 EuType::Word(w) => {
@@ -64,25 +63,25 @@ impl<'st> EuState<'st> {
         match w {
             "dup" => match &self.stack.0[..] {
                 [.., x] => self.stack.0.push(x.clone()),
-                _ => return self.err_nary(w, 1),
+                _ => return self.err_nargs(w, 1),
             },
             "pop" => {
                 if self.stack.0.pop().is_none() {
-                    return self.err_nary(w, 1);
+                    return self.err_nargs(w, 1);
                 }
             }
             "+" => match &self.stack.0[..] {
                 [.., EuType::I64(x), EuType::I64(y)] => {
                     self.stack.0.push(EuType::I64((x.0 + y.0).into()));
                 }
-                _ => return self.err_nary(w, 2),
+                _ => return self.err_nargs(w, 2),
             },
             _ => return Some(Box::new("unimplemented")),
         }
         None
     }
 
-    fn err_nary(&self, w: &str, n: usize) -> EvalOption<'st> {
+    fn err_nargs(&self, w: &str, n: usize) -> EvalOption<'st> {
         Some(Box::new(format!(
             "(stack len) {} < {n} ({w})",
             self.stack.0.len()

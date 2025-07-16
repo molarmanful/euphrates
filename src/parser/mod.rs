@@ -34,7 +34,6 @@ use crate::types::{
     EuChar,
     EuF32,
     EuF64,
-    EuFn,
     EuI32,
     EuI64,
     EuIsize,
@@ -43,11 +42,12 @@ use crate::types::{
     EuU32,
     EuU64,
     EuUsize,
+    EuVec,
     EuWord,
 };
 
-pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<EuFn<'i>> {
-    terminated(repeat(0.., preceded(ws, eu_type)).map(EuFn), ws).parse_next(input)
+pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<EuVec<'i>> {
+    terminated(repeat(0.., preceded(ws, eu_type)).map(EuVec), ws).parse_next(input)
 }
 
 fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
