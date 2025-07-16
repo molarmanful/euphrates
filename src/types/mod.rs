@@ -1,14 +1,14 @@
+mod vec;
 use derive_more::{
     Debug,
     Display,
     From,
-    IntoIterator,
     IsVariant,
-    TryInto,
 };
 use hipstr::HipStr;
+pub use vec::*;
 
-#[derive(Debug, PartialEq, Clone, From, TryInto, IsVariant)]
+#[derive(Debug, PartialEq, Clone, From, IsVariant)]
 pub enum EuType<'eu> {
     Bool(EuBool),
     Isize(EuIsize),
@@ -81,8 +81,3 @@ pub struct EuOpt<'eu>(pub Option<Box<EuType<'eu>>>);
 
 #[derive(Debug, PartialEq, Clone, From)]
 pub struct EuRes<'eu>(pub Result<Box<EuType<'eu>>, Box<EuType<'eu>>>);
-
-#[derive(Debug, PartialEq, Clone, From, IntoIterator, Default)]
-#[from(forward)]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct EuVec<'eu>(pub Vec<EuType<'eu>>);

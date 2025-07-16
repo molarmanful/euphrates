@@ -23,9 +23,9 @@ derive_more = { version = "2.0.1", features = [
   "into_iterator",
   "is_variant",
   "try_from",
-  "try_into",
   "try_unwrap",
 ] }
+phf = { version = "0.12.1", features = ["macros"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"
