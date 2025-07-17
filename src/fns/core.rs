@@ -29,9 +29,8 @@ pub const CORE: phf::Map<&'static str, EuDef> = phf_map! {
 };
 
 const DUP: EuDef = (EuFnMeta::nargs(1), |st, _| {
-    st.stack.0.push(
+    st.stack.push(
         st.stack
-            .0
             .last()
             .expect("stack length should be checked")
             .clone(),
@@ -40,19 +39,17 @@ const DUP: EuDef = (EuFnMeta::nargs(1), |st, _| {
 });
 
 const DUPS: EuDef = (EuFnMeta::nargs(0), |st, _| {
-    st.stack.0.push(EuType::Vec(st.stack.0.clone().into()));
+    st.stack.push(EuType::Vec(st.stack.clone()));
     None
 });
 
 const DUPD: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    st.stack
-        .0
-        .insert(st.stack.iflip(1), st.stack.0[st.stack.iflip(1)].clone());
+    st.stack.insert(st.iflip(1), st.stack[st.iflip(1)].clone());
     None
 });
 
 const OVER: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    st.stack.0.push(st.stack.0[st.stack.iflip(1)].clone());
+    st.stack.push(st.stack[st.iflip(1)].clone());
     None
 });
 
@@ -63,61 +60,60 @@ const DDUP: EuDef = (EuFnMeta::nargs(2), |st, w| {
 });
 
 const EDUP: EuDef = (EuFnMeta::nargs(3), |st, _| {
-    st.stack.0.push(st.stack.0[st.stack.iflip(2)].clone());
-    st.stack.0.push(st.stack.0[st.stack.iflip(2)].clone());
-    st.stack.0.push(st.stack.0[st.stack.iflip(2)].clone());
+    st.stack.push(st.stack[st.iflip(2)].clone());
+    st.stack.push(st.stack[st.iflip(2)].clone());
+    st.stack.push(st.stack[st.iflip(2)].clone());
     None
 });
 
 const POP: EuDef = (EuFnMeta::nargs(1), |st, _| {
-    st.stack.0.pop();
+    st.stack.pop();
     None
 });
 
 const CLR: EuDef = (EuFnMeta::new(), |st, _| {
-    st.stack.0.clear();
+    st.stack.clear();
     None
 });
 
 const NIP: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    st.stack.0.swap_remove(st.stack.iflip(1));
+    st.stack.swap_remove(st.iflip(1));
     None
 });
 
 const PPOP: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    st.stack.0.truncate(st.stack.iflip(1));
+    st.stack.truncate(st.iflip(1));
     None
 });
 
 const QPOP: EuDef = (EuFnMeta::nargs(3), |st, _| {
-    st.stack.0.truncate(st.stack.iflip(2));
+    st.stack.truncate(st.iflip(2));
     None
 });
 
 const SWAP: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    let a = st.stack.iflip(0);
-    let b = st.stack.iflip(1);
-    st.stack.0.swap(a, b);
+    let a = st.iflip(0);
+    let b = st.iflip(1);
+    st.stack.swap(a, b);
     None
 });
 
 const REV: EuDef = (EuFnMeta::new(), |st, _| {
-    st.stack.0.reverse();
+    st.stack.reverse();
     None
 });
 
 const SWAPD: EuDef = (EuFnMeta::nargs(3), |st, _| {
-    let a = st.stack.iflip(1);
-    let b = st.stack.iflip(2);
-    st.stack.0.swap(a, b);
+    let a = st.iflip(1);
+    let b = st.iflip(2);
+    st.stack.swap(a, b);
     None
 });
 
 const TUCK: EuDef = (EuFnMeta::nargs(2), |st, _| {
-    st.stack.0.insert(
-        st.stack.iflip(1),
+    st.stack.insert(
+        st.iflip(1),
         st.stack
-            .0
             .last()
             .expect("stack length should be checked")
             .clone(),
@@ -126,24 +122,24 @@ const TUCK: EuDef = (EuFnMeta::nargs(2), |st, _| {
 });
 
 const ROT: EuDef = (EuFnMeta::nargs(3), |st, _| {
-    let x = st.stack.0.remove(st.stack.iflip(2));
-    st.stack.0.push(x);
+    let x = st.stack.remove(st.iflip(2));
+    st.stack.push(x);
     None
 });
 
 const ROT_: EuDef = (EuFnMeta::nargs(3), |st, _| {
-    let x = st.stack.0.pop().unwrap();
-    st.stack.0.insert(st.stack.iflip(1), x);
+    let x = st.stack.pop().unwrap();
+    st.stack.insert(st.iflip(1), x);
     None
 });
 
 const SOME: EuDef = (EuFnMeta::nargs(1), |st, _| {
-    let x = Box::new(st.stack.0.pop().unwrap());
-    st.stack.0.push(EuType::Opt(Some(x).into()));
+    let x = Box::new(st.stack.pop().unwrap());
+    st.stack.push(EuType::Opt(Some(x).into()));
     None
 });
 
 const NONE: EuDef = (EuFnMeta::new(), |st, _| {
-    st.stack.0.push(EuType::Opt(None.into()));
+    st.stack.push(EuType::Opt(None.into()));
     None
 });

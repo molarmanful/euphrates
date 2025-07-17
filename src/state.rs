@@ -11,23 +11,20 @@ use crate::{
         EuFnMeta,
     },
     parser::euphrates,
-    types::{
-        EuType,
-        EuVec,
-    },
+    types::EuType,
 };
 
 #[derive(Debug, Display, Clone)]
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuState<'st> {
-    pub stack: EuVec<'st>,
+    pub stack: Vec<EuType<'st>>,
     pub scope: HashMap<&'st str, EuType<'st>>,
 }
 
 impl<'st> EuState<'st> {
     pub fn new() -> Self {
         Self {
-            stack: EuVec::from([]),
+            stack: Vec::new(),
             scope: HashMap::new(),
         }
     }
@@ -44,15 +41,15 @@ impl<'st> EuState<'st> {
         }
     }
 
-    fn eval_vec(&mut self, f: EuVec<'st>) -> EvalOption<'st> {
+    fn eval_vec(&mut self, f: Vec<EuType<'st>>) -> EvalOption<'st> {
         for x in f.into_iter() {
             match x {
                 EuType::Word(w) => {
-                    if let e @ Some(_) = self.eval_word(&w.0) {
+                    if let e @ Some(_) = self.eval_word(&w) {
                         return e;
                     }
                 }
-                _ => self.stack.0.push(x),
+                _ => self.stack.push(x),
             }
         }
         None
@@ -60,7 +57,7 @@ impl<'st> EuState<'st> {
 
     fn eval_word(&mut self, w: &str) -> EvalOption<'st> {
         if let Some((meta, f)) = CORE.get(w) {
-            if self.stack.0.len() < meta.nargs {
+            if self.stack.len() < meta.nargs {
                 return self.err_nargs(meta);
             }
             f(self, meta)
@@ -72,9 +69,13 @@ impl<'st> EuState<'st> {
     fn err_nargs(&self, meta: &EuFnMeta) -> EvalOption<'st> {
         Some(Box::new(format!(
             "(stack len) {} < {} ({})",
-            self.stack.0.len(),
+            self.stack.len(),
             meta.nargs,
             meta.name
         )))
+    }
+
+    pub fn iflip(&self, i: usize) -> usize {
+        self.stack.len() - i - 1
     }
 }
