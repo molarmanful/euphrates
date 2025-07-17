@@ -62,7 +62,7 @@ impl<'st> EuState<'st> {
             }
             f(self, meta)
         } else {
-            Some(Box::new(format!("unknown word {}", w)))
+            Some(Box::new(format!("unknown word {w}")))
         }
     }
 

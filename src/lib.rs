@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn test_x() {
-        match EuState::run("1 2 3 4") {
+        match EuState::run("1 2 3 4 f32") {
             Ok(st) => println!("{}", st),
             Err(e) => panic!("{}", e),
         }

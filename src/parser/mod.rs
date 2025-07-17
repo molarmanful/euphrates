@@ -41,7 +41,7 @@ fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
         '`' => eu_str_raw,
         '"' => eu_str,
         '\'' => eu_char,
-        '(' => eu_expr,
+        '(' => eu_vec,
         ')' => fail,
         '.' => alt((eu_num, eu_word)),
         '0'..='9' => eu_num,
@@ -135,7 +135,7 @@ fn eu_char_uni<'i>(input: &mut &'i str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_expr<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_vec<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     delimited('(', euphrates.map(EuType::Expr), opt(')')).parse_next(input)
 }
 
@@ -157,52 +157,55 @@ fn eu_num<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     }
 }
 
-fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
-    cut_err(alt((
-        "isize"
-            .try_map(|_| ns.parse().map(EuType::Isize))
-            .context(StrContext::Label("ISize")),
-        "usize"
-            .try_map(|_| ns.parse().map(EuType::Usize))
-            .context(StrContext::Label("USize")),
-        "i32"
-            .try_map(|_| ns.parse().map(EuType::I32))
-            .context(StrContext::Label("I32")),
-        "u32"
-            .try_map(|_| ns.parse().map(EuType::U32))
-            .context(StrContext::Label("U32")),
-        "f32"
-            .try_map(|_| ns.parse().map(EuType::F32))
-            .context(StrContext::Label("F32")),
-        "i64"
-            .try_map(|_| ns.parse().map(EuType::I64))
-            .context(StrContext::Label("I64")),
-        "u64"
-            .try_map(|_| ns.parse().map(EuType::U64))
-            .context(StrContext::Label("U64")),
-        "f64"
-            .try_map(|_| ns.parse().map(EuType::F64))
-            .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse()).map(EuType::I64),
-    )))
-    .parse_next(input)
+#[crabtime::function]
+fn gen_fn_int_suffix() {
+    let types = [
+        "Isize", "Usize", "I32", "U32", "F32", "I64", "U64", "F64", "I128", "U128",
+    ];
+    let arms = types
+        .map(|t| {
+            let tl = format!("\"{}\"", t.to_lowercase());
+            crabtime::quote! {
+                {{tl}}
+                    .try_map(|_| ns.parse().map(EuType::{{t}}))
+                    .context(StrContext::Label({{tl}})),
+            }
+        })
+        .join("");
+    crabtime::output! {
+        fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
+            cut_err(alt((
+                {{arms}}
+                empty
+                    .try_map(|_| ns.parse().map(EuType::I32))
+                    .context(StrContext::Label("int")),
+            )))
+            .parse_next(input)
+        }
+    }
 }
 
+gen_fn_int_suffix!();
+
 fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
-    cut_err(not(alt(("isize", "usize", "i32", "u32", "i64", "u64"))))
-        .context(StrContext::Label("float suffix"))
-        .context(StrContext::Expected(StrContextValue::Description(
-            "none of [`isize` `usize` `i32` `u32` `i64` `u64`]",
-        )))
-        .parse_next(input)?;
+    cut_err(not(alt((
+        "isize", "usize", "i32", "u32", "i64", "u64", "i128", "u128",
+    ))))
+    .context(StrContext::Label("float suffix"))
+    .context(StrContext::Expected(StrContextValue::Description(
+        "none of [`isize` `usize` `i32` `u32` `i64` `u64` `i128` `u128`]",
+    )))
+    .parse_next(input)?;
     cut_err(alt((
         "f32"
             .try_map(|_| ns.parse().map(EuType::F32))
-            .context(StrContext::Label("F32")),
+            .context(StrContext::Label("f32")),
         "f64"
             .try_map(|_| ns.parse().map(EuType::F64))
-            .context(StrContext::Label("F64")),
-        empty.try_map(|_| ns.parse().map(EuType::F64)),
+            .context(StrContext::Label("f64")),
+        empty
+            .try_map(|_| ns.parse().map(EuType::F64))
+            .context(StrContext::Label("float")),
     )))
     .parse_next(input)
 }

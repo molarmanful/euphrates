@@ -6,7 +6,7 @@ use super::{
 };
 use crate::types::EuType;
 
-pub const CORE: phf::Map<&'static str, EuDef> = phf_map! {
+pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "dup" => DUP,
     "dups" => DUPS,
     "dupd" => DUPD,
@@ -24,8 +24,20 @@ pub const CORE: phf::Map<&'static str, EuDef> = phf_map! {
     "tuck" => TUCK,
     "rot" => ROT,
     "rot_" => ROT_,
-    "some" => SOME,
-    "none" => NONE,
+    "Some" => SOME,
+    "None" => NONE,
+    "Ok" => OK,
+    "Err" => ERR,
+    "bool" => TO_BOOL,
+    "isize" => TO_ISIZE,
+    "i32" => TO_I32,
+    "u32" => TO_U32,
+    "f32" => TO_F32,
+    "i64" => TO_I64,
+    "u64" => TO_U64,
+    "f64" => TO_F64,
+    "i128" => TO_I128,
+    "u128" => TO_U128,
 };
 
 const DUP: EuDef = (EuFnMeta::nargs(1), |st, _| {
@@ -135,11 +147,50 @@ const ROT_: EuDef = (EuFnMeta::nargs(3), |st, _| {
 
 const SOME: EuDef = (EuFnMeta::nargs(1), |st, _| {
     let x = Box::new(st.stack.pop().unwrap());
-    st.stack.push(EuType::Opt(Some(x).into()));
+    st.stack.push(EuType::Opt(Some(x)));
     None
 });
 
 const NONE: EuDef = (EuFnMeta::new(), |st, _| {
-    st.stack.push(EuType::Opt(None.into()));
+    st.stack.push(EuType::Opt(None));
     None
 });
+
+const OK: EuDef = (EuFnMeta::nargs(1), |st, _| {
+    let x = st.stack.pop().unwrap();
+    st.stack.push(EuType::Res(Ok(Box::new(x))));
+    None
+});
+
+const ERR: EuDef = (EuFnMeta::nargs(1), |st, _| {
+    let x = st.stack.pop().unwrap();
+    st.stack.push(EuType::Res(Err(Box::new(x))));
+    None
+});
+
+const TO_BOOL: EuDef = (EuFnMeta::nargs(1), |st, _| {
+    let x = st.stack.pop().unwrap();
+    st.stack.push(EuType::Bool(x.into()));
+    None
+});
+
+#[crabtime::function]
+fn gen_def_to_num() {
+    let types = [
+        "Isize", "Usize", "I32", "U32", "F32", "I64", "U64", "F64", "I128", "U128",
+    ];
+    for &t in &types {
+        let n = t.to_lowercase();
+        let n_up = t.to_uppercase();
+        crabtime::output! {
+            const TO_{{n_up}}: EuDef = (EuFnMeta::nargs(1), |st, _| {
+                let x = st.stack.pop().unwrap();
+                st.stack
+                    .push(EuType::Opt(x.to_{{n}}().map(EuType::{{t}}).map(Box::new)));
+                None
+            });
+        }
+    }
+}
+
+gen_def_to_num!();

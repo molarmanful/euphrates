@@ -14,8 +14,8 @@ fn test_empty() {
 
 #[test]
 fn test_int() {
-    assert_eq!(parse("1234"), Ok(vec![EuType::I64(1234)]));
-    assert_eq!(parse("1234u32"), Ok(vec![EuType::U32(1234)]));
+    assert_eq!(parse("1234"), Ok(vec![EuType::I32(1234)]));
+    assert_eq!(parse("1234u64"), Ok(vec![EuType::U64(1234)]));
     assert_eq!(parse("1234isize"), Ok(vec![EuType::Isize(1234)]));
 }
 
@@ -42,7 +42,7 @@ fn test_float_invalid() {
 fn test_num_and_num() {
     assert_eq!(
         parse("1234 5678"),
-        Ok(vec![EuType::I64(1234), EuType::I64(5678)])
+        Ok(vec![EuType::I32(1234), EuType::I32(5678)])
     );
     assert_eq!(
         parse("1234.5.678"),
@@ -159,9 +159,9 @@ fn test_fn() {
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf)"#),
         Ok(vec![EuType::Expr(vec![
-            EuType::I64(1),
+            EuType::I32(1),
             EuType::Str("2".into()),
-            EuType::I64(3),
+            EuType::I32(3),
             EuType::Word("+".into()),
             EuType::Word("asdf".into())
         ])])
@@ -169,9 +169,9 @@ fn test_fn() {
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf"#),
         Ok(vec![EuType::Expr(vec![
-            EuType::I64(1),
+            EuType::I32(1),
             EuType::Str("2".into()),
-            EuType::I64(3),
+            EuType::I32(3),
             EuType::Word("+".into()),
             EuType::Word("asdf".into())
         ])])
@@ -179,8 +179,8 @@ fn test_fn() {
     assert_eq!(
         parse(r#"((1 "2") 3+ (asdf))"#),
         Ok(vec![EuType::Expr(vec![
-            EuType::Expr(vec![EuType::I64(1), EuType::Str("2".into())]),
-            EuType::I64(3),
+            EuType::Expr(vec![EuType::I32(1), EuType::Str("2".into())]),
+            EuType::I32(3),
             EuType::Word("+".into()),
             EuType::Expr(vec![EuType::Word("asdf".into())])
         ])])
@@ -198,7 +198,7 @@ fn test_all() {
     assert_eq!(
         parse(r#"1234"testing testing 123"#),
         Ok(vec![
-            EuType::I64(1234),
+            EuType::I32(1234),
             EuType::Str("testing testing 123".into())
         ])
     );
@@ -219,18 +219,18 @@ fn test_all() {
     );
     assert_eq!(
         parse("123ever"),
-        Ok(vec![EuType::I64(123), EuType::Word("ever".into())])
+        Ok(vec![EuType::I32(123), EuType::Word("ever".into())])
     );
     assert_eq!(
         parse("123e.4"),
-        Ok(vec![EuType::I64(123), EuType::Word("e.4".into())])
+        Ok(vec![EuType::I32(123), EuType::Word("e.4".into())])
     );
     assert_eq!(
         parse("(1 2+)map"),
         Ok(vec![
             EuType::Expr(vec![
-                EuType::I64(1),
-                EuType::I64(2),
+                EuType::I32(1),
+                EuType::I32(2),
                 EuType::Word("+".into())
             ]),
             EuType::Word("map".into())
