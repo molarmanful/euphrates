@@ -10,17 +10,26 @@ pub type EuDef<'st> = (EuFnMeta<'st>, EuFn);
 
 pub type EuFn = for<'st> fn(&mut EuState<'st>, &EuFnMeta) -> EvalOption<'st>;
 
+#[derive(Clone, Copy)]
 pub struct EuFnMeta<'st> {
     pub name: &'st str,
     pub nargs: usize,
 }
 
-impl EuFnMeta<'_> {
-    const fn new() -> Self {
+pub const META: EuFnMeta = EuFnMeta::new();
+
+impl<'st> EuFnMeta<'st> {
+    pub const fn new() -> Self {
         Self { name: "", nargs: 0 }
     }
 
-    const fn nargs(n: usize) -> Self {
-        Self { name: "", nargs: n }
+    pub const fn name(mut self, name: &'st str) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub const fn nargs(mut self, nargs: usize) -> Self {
+        self.nargs = nargs;
+        self
     }
 }

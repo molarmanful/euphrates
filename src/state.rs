@@ -57,10 +57,11 @@ impl<'st> EuState<'st> {
 
     fn eval_word(&mut self, w: &str) -> EvalOption<'st> {
         if let Some((meta, f)) = CORE.get(w) {
+            let meta = meta.name(w);
             if self.stack.len() < meta.nargs {
-                return self.err_nargs(meta);
+                return self.err_nargs(&meta);
             }
-            f(self, meta)
+            f(self, &meta)
         } else {
             Some(Box::new(format!("unknown word {w}")))
         }
