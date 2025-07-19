@@ -2,8 +2,18 @@ use derive_more::{
     Debug,
     IsVariant,
 };
+use ecow::{
+    EcoVec,
+    eco_vec,
+};
 use hipstr::HipStr;
 use num_traits::ToPrimitive as _;
+use winnow::Parser as _;
+
+use crate::{
+    EvalError,
+    parser::euphrates,
+};
 
 #[derive(Debug, PartialEq, Clone, IsVariant)]
 pub enum EuType<'eu> {
@@ -23,8 +33,28 @@ pub enum EuType<'eu> {
     Word(HipStr<'eu>),
     Opt(Option<Box<EuType<'eu>>>),
     Res(Result<Box<EuType<'eu>>, Box<EuType<'eu>>>),
-    Vec(Vec<EuType<'eu>>),
-    Expr(Vec<EuType<'eu>>),
+    Vec(EcoVec<EuType<'eu>>),
+    Expr(EcoVec<EuType<'eu>>),
+}
+
+impl EuType<'_> {
+    pub fn to_vec(self) -> EcoVec<Self> {
+        match self {
+            EuType::Vec(ts) => ts,
+            EuType::Expr(ts) => ts,
+            EuType::Str(s) => s.chars().map(EuType::Char).collect(),
+            EuType::Opt(o) => o.into_iter().map(|x| *x).collect(),
+            EuType::Res(r) => r.into_iter().map(|x| *x).collect(),
+            _ => eco_vec![self],
+        }
+    }
+
+    pub fn to_expr<'e>(self) -> Result<EcoVec<Self>, EvalError<'e>> {
+        match self {
+            EuType::Str(s) => euphrates.parse(&s).map_err(|e| e.to_string().into()),
+            _ => Ok(self.to_vec()),
+        }
+    }
 }
 
 #[crabtime::function]
@@ -74,7 +104,7 @@ fn gen_fn_to_bool() {
         .join("");
     crabtime::output! {
         impl From<EuType<'_>> for bool {
-            fn from(value: EuType<'_>) -> Self {
+            fn from(value: EuType) -> Self {
                 match value {
                     EuType::Bool(b) => b,
                     {{arms}}

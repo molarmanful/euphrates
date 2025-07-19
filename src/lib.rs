@@ -1,17 +1,15 @@
+mod env;
 mod fns;
 mod parser;
-mod state;
 mod types;
 mod utils;
-use std::fmt;
 
+use hipstr::HipStr;
 use wasm_bindgen::prelude::*;
 
-use crate::state::EuState;
-
-type EvalResult<'st> = Result<EuState<'st>, EvalError<'st>>;
 type EvalOption<'e> = Option<EvalError<'e>>;
-type EvalError<'e> = Box<dyn fmt::Display + 'e>;
+
+type EvalError<'e> = HipStr<'e>;
 
 #[wasm_bindgen]
 pub fn run() -> String {
@@ -20,14 +18,19 @@ pub fn run() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::env::EuEnv;
 
     #[test]
     fn test_x() {
-        match EuState::run("4 swap f32") {
-            Ok(st) => println!("{}", st),
-            Err(e) => panic!("{}", e),
-        }
+        let mut env = EuEnv::new();
+        if let Some(e) = env.eval_str(
+            r#"
+            1 (1+) "1234.5usize">expr
+            "#,
+        ) {
+            panic!("{e}");
+        };
+        println!("{}", env.x);
         panic!();
     }
 }

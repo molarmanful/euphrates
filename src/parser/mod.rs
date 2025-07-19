@@ -1,4 +1,5 @@
-use hipstr::string::HipStr;
+use ecow::EcoVec;
+use hipstr::HipStr;
 use winnow::{
     ascii::{
         digit0,
@@ -32,11 +33,18 @@ use winnow::{
 
 use crate::types::EuType;
 
-pub fn euphrates<'i>(input: &mut &'i str) -> ModalResult<Vec<EuType<'i>>> {
-    terminated(repeat(0.., preceded(ws, eu_type)), ws).parse_next(input)
+pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuType<'eu>>> {
+    terminated(
+        repeat(0.., preceded(ws, eu_type)).fold(EcoVec::new, |mut ts, t| {
+            ts.push(t);
+            ts
+        }),
+        ws,
+    )
+    .parse_next(input)
 }
 
-fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_type<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     dispatch!(peek(any);
         '`' => eu_str_raw,
         '"' => eu_str,
@@ -50,14 +58,14 @@ fn eu_type<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     .parse_next(input)
 }
 
-fn eu_str_raw<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
         .output_into()
         .map(EuType::Str)
         .parse_next(input)
 }
 
-fn eu_str<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     delimited(
         '"',
         repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
@@ -75,7 +83,7 @@ fn eu_str<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     .parse_next(input)
 }
 
-fn eu_char<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_char<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     preceded(
         '\'',
         cut_err(eu_char_atom.verify_map(|x| x.map(EuType::Char)))
@@ -84,7 +92,7 @@ fn eu_char<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
     .parse_next(input)
 }
 
-fn eu_char_atom<'i>(input: &mut &'i str) -> ModalResult<Option<char>> {
+fn eu_char_atom(input: &mut &str) -> ModalResult<Option<char>> {
     dispatch!(any;
         '\\' => dispatch!(cut_err(any).context(StrContext::Label("escape"));
             '\n' => empty.value(None),
@@ -101,7 +109,7 @@ fn eu_char_atom<'i>(input: &mut &'i str) -> ModalResult<Option<char>> {
     .parse_next(input)
 }
 
-fn eu_char_hex<'i>(input: &mut &'i str) -> ModalResult<char> {
+fn eu_char_hex(input: &mut &str) -> ModalResult<char> {
     cut_err(
         take_while(2, |c: char| c.is_ascii_hexdigit())
             .try_map(|hex| u8::from_str_radix(hex, 16))
@@ -114,7 +122,7 @@ fn eu_char_hex<'i>(input: &mut &'i str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_char_uni<'i>(input: &mut &'i str) -> ModalResult<char> {
+fn eu_char_uni(input: &mut &str) -> ModalResult<char> {
     cut_err(
         delimited(
             '{',
@@ -135,11 +143,11 @@ fn eu_char_uni<'i>(input: &mut &'i str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_vec<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     delimited('(', euphrates.map(EuType::Expr), opt(')')).parse_next(input)
 }
 
-fn eu_num<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     let ((_, dec, exp), ns) = (
         digit0,
         opt(preceded('.', digit0)),
@@ -210,7 +218,7 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
     .parse_next(input)
 }
 
-fn eu_word<'i>(input: &mut &'i str) -> ModalResult<EuType<'i>> {
+fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     take_while(0.., |c: char| {
         !matches!(c, '`' | '"' | '\'' | '(' | ')') && !c.is_whitespace()
     })

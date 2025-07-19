@@ -3,27 +3,27 @@ pub use core::*;
 
 use crate::{
     EvalOption,
-    state::EuState,
+    env::EuEnv,
 };
 
-pub type EuDef<'st> = (EuFnMeta<'st>, EuFn);
+pub type EuDef<'s, 'e> = (EuFnMeta<'s>, EuFn<'e>);
 
-pub type EuFn = for<'st> fn(&mut EuState<'st>, &EuFnMeta) -> EvalOption<'st>;
+pub type EuFn<'e> = fn(&mut EuEnv, EuFnMeta) -> EvalOption<'e>;
 
-#[derive(Clone, Copy)]
-pub struct EuFnMeta<'st> {
-    pub name: &'st str,
+#[derive(Debug, Clone, Copy)]
+pub struct EuFnMeta<'s> {
+    pub name: &'s str,
     pub nargs: usize,
 }
 
 pub const META: EuFnMeta = EuFnMeta::new();
 
-impl<'st> EuFnMeta<'st> {
+impl<'s> EuFnMeta<'s> {
     pub const fn new() -> Self {
         Self { name: "", nargs: 0 }
     }
 
-    pub const fn name(mut self, name: &'st str) -> Self {
+    pub const fn name(mut self, name: &'s str) -> Self {
         self.name = name;
         self
     }
