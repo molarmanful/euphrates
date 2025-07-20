@@ -35,14 +35,14 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn eval_str(&mut self, input: &str) -> EvalOption<'_> {
+    pub fn eval_str(&mut self, input: &str) -> EvalOption {
         match euphrates.parse(input) {
             Ok(ts) => self.eval_iter(ts),
             Err(e) => Some(e.to_string().into()),
         }
     }
 
-    fn eval_iter(&mut self, ts: impl IntoIterator<Item = EuType<'eu>>) -> EvalOption<'_> {
+    pub fn eval_iter(&mut self, ts: impl IntoIterator<Item = EuType<'eu>>) -> EvalOption {
         for t in ts {
             match t {
                 EuType::Word(w) => {

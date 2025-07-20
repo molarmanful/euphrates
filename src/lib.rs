@@ -4,12 +4,12 @@ mod parser;
 mod types;
 mod utils;
 
-use hipstr::HipStr;
+use ecow::EcoString;
 use wasm_bindgen::prelude::*;
 
-type EvalOption<'e> = Option<EvalError<'e>>;
+type EvalOption = Option<EvalError>;
 
-type EvalError<'e> = HipStr<'e>;
+type EvalError = EcoString;
 
 #[wasm_bindgen]
 pub fn run() -> String {
@@ -25,7 +25,7 @@ mod tests {
         let mut env = EuEnv::new();
         if let Some(e) = env.eval_str(
             r#"
-            1 (1+) "1234.5usize">expr
+            1 (2dup)#
             "#,
         ) {
             panic!("{e}");

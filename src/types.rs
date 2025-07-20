@@ -49,7 +49,7 @@ impl EuType<'_> {
         }
     }
 
-    pub fn to_expr<'e>(self) -> Result<EcoVec<Self>, EvalError<'e>> {
+    pub fn to_expr<'e>(self) -> Result<EcoVec<Self>, EvalError> {
         match self {
             EuType::Str(s) => euphrates.parse(&s).map_err(|e| e.to_string().into()),
             _ => Ok(self.to_vec()),

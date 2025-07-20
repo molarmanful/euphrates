@@ -35,7 +35,7 @@ impl EuState<'_> {
         new
     }
 
-    pub fn err_nargs(&self, meta: EuFnMeta) -> EvalError<'_> {
+    pub fn err_nargs(&self, meta: EuFnMeta) -> EvalError {
         format!(
             "(stack len) {} < {} ({})",
             self.stack.len(),

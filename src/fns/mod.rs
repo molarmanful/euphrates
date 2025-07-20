@@ -6,9 +6,9 @@ use crate::{
     env::EuEnv,
 };
 
-pub type EuDef<'s, 'e> = (EuFnMeta<'s>, EuFn<'e>);
+pub type EuDef<'s> = (EuFnMeta<'s>, EuFn);
 
-pub type EuFn<'e> = fn(&mut EuEnv, EuFnMeta) -> EvalOption<'e>;
+pub type EuFn = fn(&mut EuEnv, EuFnMeta) -> EvalOption;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EuFnMeta<'s> {

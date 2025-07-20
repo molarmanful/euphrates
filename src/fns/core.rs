@@ -211,16 +211,18 @@ const WRAP_EXPR: EuDef = (META.nargs(1), |env, _| {
 });
 
 const TO_EXPR: EuDef = (META.nargs(1), |env, _| {
-    let a0 = env.x.stack.pop().unwrap();
+    let a0 = env.x.stack.pop().unwrap().to_expr();
     env.x.stack.push(EuType::Res(
-        a0.to_expr()
-            .map(|ts| Box::new(EuType::Vec(ts)))
+        a0.map(|ts| Box::new(EuType::Vec(ts)))
             .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
     ));
     None
 });
 
 const EVAL: EuDef = (META.nargs(1), |env, _| {
-    let a0 = env.x.stack.pop().unwrap();
-    None
+    let a0 = env.x.stack.pop().unwrap().to_expr();
+    match a0 {
+        Ok(ts) => env.eval_iter(ts),
+        Err(e) => Some(e),
+    }
 });
