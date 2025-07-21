@@ -4,12 +4,13 @@ mod parser;
 mod types;
 mod utils;
 
-use ecow::EcoString;
+use std::fmt;
+
 use wasm_bindgen::prelude::*;
 
 type EvalResult = Result<(), EvalError>;
 
-type EvalError = EcoString;
+type EvalError = Box<dyn fmt::Display>;
 
 #[wasm_bindgen]
 pub fn run() -> String {

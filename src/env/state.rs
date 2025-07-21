@@ -54,12 +54,11 @@ impl EuState<'_> {
     }
 
     fn err_nargs(&self, meta: EuFnMeta) -> EvalError {
-        format!(
+        Box::new(format!(
             "(stack len) {} < {} ({})",
             self.stack.len(),
             meta.nargs,
             meta.name
-        )
-        .into()
+        ))
     }
 }

@@ -33,7 +33,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn eval_str(&mut self, input: &str) -> EvalResult {
         euphrates
             .parse(input)
-            .map_err(|e| e.to_string().into())
+            .map_err(|e| Box::new(e.to_string()) as _)
             .and_then(|ts| self.eval_iter(ts))
     }
 
@@ -55,7 +55,7 @@ impl<'eu> EuEnv<'eu> {
                     self.x.check_nargs(meta)?;
                     f(self, meta)
                 } else {
-                    Err(format!("unknown word `{w}`").into())
+                    Err(Box::new(format!("unknown word `{w}`")))
                 };
             }
             _ => self.x.stack.push(t),
