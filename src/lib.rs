@@ -1,37 +1,12 @@
-mod env;
-mod fns;
-mod parser;
-mod types;
-mod utils;
-
-use std::fmt;
+pub mod env;
+pub mod fns;
+pub mod parser;
+pub mod types;
+pub mod utils;
 
 use wasm_bindgen::prelude::*;
-
-type EvalResult = Result<(), EvalError>;
-
-type EvalError = Box<dyn fmt::Display>;
 
 #[wasm_bindgen]
 pub fn run() -> String {
     todo!()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::env::EuEnv;
-
-    #[test]
-    fn test_x() {
-        let mut env = EuEnv::new();
-        if let Err(e) = env.eval_str(
-            r#"
-            1 (-> 2dup)#
-            "#,
-        ) {
-            panic!("{e}");
-        };
-        println!("{}", env.x);
-        panic!();
-    }
 }

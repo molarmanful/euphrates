@@ -1,32 +1,20 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use derive_more::Display;
 use ecow::EcoVec;
 
-use crate::{
-    EvalError,
-    EvalResult,
-    fns::EuFnMeta,
-    types::EuType,
-};
+use crate::types::EuType;
 
 #[derive(Debug, Clone, Display, Default)]
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuState<'eu> {
-    pub mode: EuStateMode,
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: HashMap<&'eu str, EuType<'eu>>,
     pub done: bool,
 }
 
-#[derive(Debug, Clone, Default)]
-pub enum EuStateMode {
-    #[default]
-    X,
-    FN,
-}
-
-impl EuState<'_> {
+impl<'eu> EuState<'eu> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -35,30 +23,27 @@ impl EuState<'_> {
         self.stack.len() - i - 1
     }
 
-    pub fn split_off(&mut self, n: usize) -> Self {
-        let (a, b) = self.stack.split_at(self.stack.len() - n);
-        let new = Self {
-            stack: b.into(),
-            ..Self::new()
-        };
-        self.stack = a.into();
-        new
+    pub fn pop(&mut self) -> anyhow::Result<EuType<'eu>> {
+        self.check_nargs(1).map(|_| self.stack.pop().unwrap())
     }
 
-    pub fn check_nargs(&self, meta: EuFnMeta) -> EvalResult {
-        if self.stack.len() < meta.nargs {
-            Err(self.err_nargs(meta))
+    pub fn split_off(&mut self, n: usize) -> anyhow::Result<EcoVec<EuType<'eu>>> {
+        self.check_nargs(n)?;
+        let (a, b) = self.stack.split_at(self.stack.len() - n);
+        let b = b.into();
+        self.stack = a.into();
+        Ok(b)
+    }
+
+    pub fn check_nargs(&self, n: usize) -> anyhow::Result<()> {
+        if self.stack.len() < n {
+            Err(anyhow!(
+                "actual stack len {} < {} expected",
+                self.stack.len(),
+                n,
+            ))
         } else {
             Ok(())
         }
-    }
-
-    fn err_nargs(&self, meta: EuFnMeta) -> EvalError {
-        Box::new(format!(
-            "(stack len) {} < {} ({})",
-            self.stack.len(),
-            meta.nargs,
-            meta.name
-        ))
     }
 }

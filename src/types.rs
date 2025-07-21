@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use derive_more::{
     Debug,
     IsVariant,
@@ -7,13 +8,10 @@ use ecow::{
     eco_vec,
 };
 use hipstr::HipStr;
-use num_traits::ToPrimitive as _;
-use winnow::Parser as _;
+use num_traits::ToPrimitive;
+use winnow::Parser;
 
-use crate::{
-    EvalError,
-    parser::euphrates,
-};
+use crate::parser::euphrates;
 
 #[derive(Debug, PartialEq, Clone, IsVariant)]
 pub enum EuType<'eu> {
@@ -49,11 +47,9 @@ impl EuType<'_> {
         }
     }
 
-    pub fn to_expr<'e>(self) -> Result<EcoVec<Self>, EvalError> {
+    pub fn to_expr<'e>(self) -> anyhow::Result<EcoVec<Self>> {
         match self {
-            EuType::Str(s) => euphrates
-                .parse(&s)
-                .map_err(|e| Box::new(e.to_string()) as _),
+            EuType::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
             _ => Ok(self.to_vec()),
         }
     }
@@ -73,8 +69,13 @@ fn gen_fn_to_num() {
                 }
             })
             .join("");
+
         crabtime::output! {
             impl EuType<'_> {
+                pub fn to_res_{{tl}}(self) -> anyhow::Result<{{tl}}> {
+                    self.to_{{tl}}().ok_or(anyhow!("{{tl}} conversion failed"))
+                }
+
                 pub fn to_{{tl}}(self) -> Option<{{tl}}> {
                     match self {
                         {{arms}}
@@ -104,6 +105,7 @@ fn gen_fn_to_bool() {
             }
         })
         .join("");
+
     crabtime::output! {
         impl From<EuType<'_>> for bool {
             fn from(value: EuType) -> Self {
