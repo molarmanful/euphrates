@@ -245,7 +245,7 @@ fn test_all() {
     );
 }
 
-fn parse(input: &str) -> Result<EcoVec<EuType>, ParseError<&str, ContextError>> {
+fn parse(input: &str) -> Result<EcoVec<EuType<'_>>, ParseError<&str, ContextError>> {
     euphrates.parse(input)
 }
 

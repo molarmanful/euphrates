@@ -7,7 +7,7 @@ mod utils;
 use ecow::EcoString;
 use wasm_bindgen::prelude::*;
 
-type EvalOption = Option<EvalError>;
+type EvalResult = Result<(), EvalError>;
 
 type EvalError = EcoString;
 
@@ -23,9 +23,9 @@ mod tests {
     #[test]
     fn test_x() {
         let mut env = EuEnv::new();
-        if let Some(e) = env.eval_str(
+        if let Err(e) = env.eval_str(
             r#"
-            1 (2dup)#
+            1 (-> 2dup)#
             "#,
         ) {
             panic!("{e}");

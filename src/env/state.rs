@@ -5,6 +5,7 @@ use ecow::EcoVec;
 
 use crate::{
     EvalError,
+    EvalResult,
     fns::EuFnMeta,
     types::EuType,
 };
@@ -12,8 +13,17 @@ use crate::{
 #[derive(Debug, Clone, Display, Default)]
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuState<'eu> {
+    pub mode: EuStateMode,
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: HashMap<&'eu str, EuType<'eu>>,
+    pub done: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum EuStateMode {
+    #[default]
+    X,
+    FN,
 }
 
 impl EuState<'_> {
@@ -35,7 +45,15 @@ impl EuState<'_> {
         new
     }
 
-    pub fn err_nargs(&self, meta: EuFnMeta) -> EvalError {
+    pub fn check_nargs(&self, meta: EuFnMeta) -> EvalResult {
+        if self.stack.len() < meta.nargs {
+            Err(self.err_nargs(meta))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn err_nargs(&self, meta: EuFnMeta) -> EvalError {
         format!(
             "(stack len) {} < {} ({})",
             self.stack.len(),

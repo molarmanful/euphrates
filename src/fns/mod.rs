@@ -2,13 +2,13 @@ mod core;
 pub use core::*;
 
 use crate::{
-    EvalOption,
+    EvalResult,
     env::EuEnv,
 };
 
 pub type EuDef<'s> = (EuFnMeta<'s>, EuFn);
 
-pub type EuFn = fn(&mut EuEnv, EuFnMeta) -> EvalOption;
+pub type EuFn = fn(&mut EuEnv, EuFnMeta) -> EvalResult;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EuFnMeta<'s> {

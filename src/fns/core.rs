@@ -48,127 +48,125 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
 const DUP: EuDef = (META.nargs(1), |env, _| {
     env.x.stack.push(env.x.stack.last().unwrap().clone());
-    None
+    Ok(())
 });
 
 const DUPS: EuDef = (META.nargs(0), |env, _| {
     env.x.stack.push(EuType::Vec(env.x.stack.clone()));
-    None
+    Ok(())
 });
 
 const DUPD: EuDef = (META.nargs(2), |env, _| {
     env.x
         .stack
         .insert(env.x.iflip(1), env.x.stack[env.x.iflip(1)].clone());
-    None
+    Ok(())
 });
 
 const OVER: EuDef = (META.nargs(2), |env, _| {
     env.x.stack.push(env.x.stack[env.x.iflip(1)].clone());
-    None
+    Ok(())
 });
 
 const DDUP: EuDef = (META.nargs(2), |env, w| {
-    OVER.1(env, w);
-    OVER.1(env, w);
-    None
+    OVER.1(env, w).and_then(|()| OVER.1(env, w))
 });
 
 const EDUP: EuDef = (META.nargs(3), |env, _| {
     env.x.stack.push(env.x.stack[env.x.iflip(2)].clone());
     env.x.stack.push(env.x.stack[env.x.iflip(2)].clone());
     env.x.stack.push(env.x.stack[env.x.iflip(2)].clone());
-    None
+    Ok(())
 });
 
 const POP: EuDef = (META.nargs(1), |env, _| {
     env.x.stack.pop();
-    None
+    Ok(())
 });
 
 const CLR: EuDef = (META, |env, _| {
     env.x.stack.clear();
-    None
+    Ok(())
 });
 
 const NIP: EuDef = (META.nargs(2), |env, _| {
     env.x.stack.remove(env.x.iflip(1));
-    None
+    Ok(())
 });
 
 const PPOP: EuDef = (META.nargs(2), |env, _| {
     env.x.stack.truncate(env.x.iflip(1));
-    None
+    Ok(())
 });
 
 const QPOP: EuDef = (META.nargs(3), |env, _| {
     env.x.stack.truncate(env.x.iflip(2));
-    None
+    Ok(())
 });
 
 const SWAP: EuDef = (META.nargs(2), |env, _| {
     let a = env.x.iflip(0);
     env.x.stack.make_mut().swap(a, a - 1);
-    None
+    Ok(())
 });
 
 const REV: EuDef = (META, |env, _| {
     env.x.stack.make_mut().reverse();
-    None
+    Ok(())
 });
 
 const SWAPD: EuDef = (META.nargs(3), |env, _| {
     let a = env.x.iflip(1);
     env.x.stack.make_mut().swap(a, a - 1);
-    None
+    Ok(())
 });
 
 const TUCK: EuDef = (META.nargs(2), |env, _| {
     env.x
         .stack
         .insert(env.x.iflip(1), env.x.stack.last().unwrap().clone());
-    None
+    Ok(())
 });
 
 const ROT: EuDef = (META.nargs(3), |env, _| {
     let a0 = env.x.stack.remove(env.x.iflip(2));
     env.x.stack.push(a0);
-    None
+    Ok(())
 });
 
 const ROT_: EuDef = (META.nargs(3), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.insert(env.x.iflip(1), a0);
-    None
+    Ok(())
 });
 
 const SOME: EuDef = (META.nargs(1), |env, _| {
     let a0 = Box::new(env.x.stack.pop().unwrap());
     env.x.stack.push(EuType::Opt(Some(a0)));
-    None
+    Ok(())
 });
 
 const NONE: EuDef = (META, |env, _| {
     env.x.stack.push(EuType::Opt(None));
-    None
+    Ok(())
 });
 
 const OK: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Res(Ok(Box::new(a0))));
-    None
+    Ok(())
 });
 
 const ERR: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Res(Err(Box::new(a0))));
-    None
+    Ok(())
 });
 
 const TO_BOOL: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Bool(a0.into()));
-    None
+    Ok(())
 });
 
 #[crabtime::function]
@@ -184,7 +182,7 @@ fn gen_def_to_num() {
                 let x = env.x.stack.pop().unwrap();
                 env.x.stack
                     .push(EuType::Opt(x.to_{{n}}().map(EuType::{{t}}).map(Box::new)));
-                None
+                Ok(())
             });
         }
     }
@@ -195,19 +193,19 @@ gen_def_to_num!();
 const WRAP_VEC: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Vec(eco_vec![a0]));
-    None
+    Ok(())
 });
 
 const TO_VEC: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Vec(a0.to_vec()));
-    None
+    Ok(())
 });
 
 const WRAP_EXPR: EuDef = (META.nargs(1), |env, _| {
     let a0 = env.x.stack.pop().unwrap();
     env.x.stack.push(EuType::Expr(eco_vec![a0]));
-    None
+    Ok(())
 });
 
 const TO_EXPR: EuDef = (META.nargs(1), |env, _| {
@@ -216,13 +214,10 @@ const TO_EXPR: EuDef = (META.nargs(1), |env, _| {
         a0.map(|ts| Box::new(EuType::Vec(ts)))
             .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
     ));
-    None
+    Ok(())
 });
 
 const EVAL: EuDef = (META.nargs(1), |env, _| {
-    let a0 = env.x.stack.pop().unwrap().to_expr();
-    match a0 {
-        Ok(ts) => env.eval_iter(ts),
-        Err(e) => Some(e),
-    }
+    let a0 = env.x.stack.pop().unwrap().to_expr()?;
+    env.eval_iter(a0)
 });

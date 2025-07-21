@@ -5,7 +5,7 @@ pub use state::*;
 use winnow::Parser as _;
 
 use crate::{
-    EvalOption,
+    EvalResult,
     fns::CORE,
     parser::euphrates,
     types::EuType,
@@ -26,41 +26,44 @@ impl<'eu> EuEnv<'eu> {
         self.xs.push(mem::take(&mut self.x));
     }
 
-    pub fn pop_state(&mut self) -> bool {
-        if let Some(x) = self.xs.pop() {
-            self.x = x;
-            true
-        } else {
-            false
-        }
+    pub fn pop_state(&mut self) -> Option<EuState<'_>> {
+        self.xs.pop().map(|x| mem::replace(&mut self.x, x))
     }
 
-    pub fn eval_str(&mut self, input: &str) -> EvalOption {
-        match euphrates.parse(input) {
-            Ok(ts) => self.eval_iter(ts),
-            Err(e) => Some(e.to_string().into()),
-        }
+    pub fn eval_str(&mut self, input: &str) -> EvalResult {
+        euphrates
+            .parse(input)
+            .map_err(|e| e.to_string().into())
+            .and_then(|ts| self.eval_iter(ts))
     }
 
-    pub fn eval_iter(&mut self, ts: impl IntoIterator<Item = EuType<'eu>>) -> EvalOption {
+    pub fn eval_iter(&mut self, ts: impl IntoIterator<Item = EuType<'eu>>) -> EvalResult {
         for t in ts {
-            match t {
-                EuType::Word(w) => {
-                    if let Some((meta, f)) = CORE.get(&w) {
-                        let meta = meta.name(&w);
-                        if self.x.stack.len() < meta.nargs {
-                            return Some(self.x.err_nargs(meta));
-                        }
-                        if let e @ Some(_) = f(self, meta) {
-                            return e;
-                        }
-                    } else {
-                        return Some(format!("unknown word {w}").into());
-                    }
-                }
-                _ => self.x.stack.push(t),
+            self.eval_type(t)?;
+            if self.x.done {
+                break;
             }
         }
-        None
+        Ok(())
+    }
+
+    fn eval_type(&mut self, t: EuType<'eu>) -> EvalResult {
+        match t {
+            EuType::Word(w) => {
+                return if let Some((meta, f)) = CORE.get(&w) {
+                    let meta = meta.name(&w);
+                    self.x.check_nargs(meta)?;
+                    f(self, meta)
+                } else {
+                    Err(format!("unknown word `{w}`").into())
+                };
+            }
+            _ => self.x.stack.push(t),
+        }
+        Ok(())
+    }
+
+    fn find_var(&mut self, w: &str) -> Option<&EuType<'_>> {
+        self.x.scope.get(w)
     }
 }
