@@ -1,3 +1,5 @@
+use std::mem;
+
 use ecow::eco_vec;
 use phf::phf_map;
 
@@ -41,8 +43,14 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
     "#" => EVAL,
+    "&#" => AND_EVAL,
+    "|#" => OR_EVAL,
+    "?#" => IF_EVAL,
     "pull" => PULL,
+    "*pull" => PULL_ALL,
     "push" => PUSH,
+    "*push" => PUSH_ALL,
+    "!" => NOT,
 };
 
 const DUP: EuDef = |env| {
@@ -227,9 +235,34 @@ const TO_EXPR: EuDef = |env| {
 };
 
 const EVAL: EuDef = |env| {
-    env.x.check_nargs(1)?;
     let a0 = env.x.pop()?.to_expr()?;
     env.eval_iter_scoped(a0)
+};
+
+const AND_EVAL: EuDef = |env| {
+    env.x.check_nargs(2)?;
+    let a1 = env.x.pop().unwrap().to_expr()?;
+    let a0 = env.x.pop().unwrap().into();
+    if a0 { env.eval_iter_scoped(a1) } else { Ok(()) }
+};
+
+const OR_EVAL: EuDef = |env| {
+    env.x.check_nargs(2)?;
+    let a1 = env.x.pop().unwrap().to_expr()?;
+    let a0: bool = env.x.pop().unwrap().into();
+    if !a0 {
+        env.eval_iter_scoped(a1)
+    } else {
+        Ok(())
+    }
+};
+
+const IF_EVAL: EuDef = |env| {
+    env.x.check_nargs(3)?;
+    let a2 = env.x.pop().unwrap().to_expr()?;
+    let a1 = env.x.pop().unwrap().to_expr()?;
+    let a0: bool = env.x.pop().unwrap().into();
+    env.eval_iter_scoped(if a0 { a1 } else { a2 })
 };
 
 const PULL: EuDef = |env| {
@@ -240,9 +273,27 @@ const PULL: EuDef = |env| {
     Ok(())
 };
 
+const PULL_ALL: EuDef = |env| {
+    let tx = mem::take(&mut env.parent()?.stack);
+    env.x.stack.extend(tx);
+    Ok(())
+};
+
 const PUSH: EuDef = |env| {
     let a0 = env.x.pop()?.to_res_usize()?;
     let tx = env.x.split_off(a0)?;
     env.parent()?.stack.extend(tx);
+    Ok(())
+};
+
+const PUSH_ALL: EuDef = |env| {
+    let tx = mem::take(&mut env.x.stack);
+    env.parent()?.stack.extend(tx);
+    Ok(())
+};
+
+const NOT: EuDef = |env| {
+    let a0: bool = env.x.pop()?.into();
+    env.x.stack.push(EuType::Bool(!a0));
     Ok(())
 };
