@@ -1,10 +1,14 @@
 mod state;
-use std::mem;
+use std::{
+    iter,
+    mem,
+};
 
 use anyhow::{
     Context,
     anyhow,
 };
+use ecow::EcoVec;
 pub use state::*;
 use winnow::Parser as _;
 
@@ -54,26 +58,55 @@ impl<'eu> EuEnv<'eu> {
 
     fn eval_type(&mut self, t: EuType<'eu>) -> anyhow::Result<()> {
         match t {
-            EuType::Word(w) => {
-                return if let Some(v) = CONSTS.get(&w) {
-                    self.x.stack.push(v.clone());
-                    Ok(())
-                } else if let Some(f) = CORE.get(&w) {
-                    f(self).with_context(|| format!("`{w}` failed"))
-                } else {
-                    Err(anyhow!("unknown word `{w}`"))
-                };
+            EuType::Word(w) => self.eval_word(&w),
+            _ => {
+                self.x.stack.push(t);
+                Ok(())
             }
-            _ => self.x.stack.push(t),
+        }
+    }
+
+    fn eval_word(&mut self, w: &str) -> anyhow::Result<()> {
+        if let Some(v) = self.get_var(&w) {
+            if let EuType::Expr(ts) = v {
+                self.eval_iter_scoped(ts.clone())
+            } else {
+                self.x.stack.push(v.clone());
+                Ok(())
+            }
+        } else if let Some(v) = CONSTS.get(&w) {
+            self.x.stack.push(v.clone());
+            Ok(())
+        } else if let Some(f) = CORE.get(&w) {
+            f(self).with_context(|| format!("`{w}` failed"))
+        } else {
+            Err(anyhow!("unknown word `{w}`"))
+        }
+    }
+
+    pub fn pull_args(&mut self, ts: EcoVec<EuType<'eu>>) -> anyhow::Result<()> {
+        let prev = ctx_root_scope(self.xs.last_mut())?;
+        for t in ts.into_iter().rev() {
+            let v = prev.stack.pop().context("insufficient args passed")?;
+            match t {
+                EuType::Word(w) => self.x.scope.insert(w, v),
+                _ => todo!(),
+            };
         }
         Ok(())
     }
 
     pub fn parent(&mut self) -> anyhow::Result<&mut EuState<'eu>> {
-        self.xs.last_mut().context("invalid call from root scope")
+        ctx_root_scope(self.xs.last_mut())
     }
 
-    fn get_var(&mut self, w: &str) -> Option<&EuType<'_>> {
-        self.x.scope.get(w)
+    fn get_var(&self, w: &str) -> Option<&EuType<'eu>> {
+        iter::once(&self.x)
+            .chain(self.xs.iter().rev())
+            .find_map(|st| st.scope.get(w))
     }
+}
+
+fn ctx_root_scope<T, E, C: anyhow::Context<T, E>>(c: C) -> anyhow::Result<T> {
+    c.context("invalid call from root scope")
 }

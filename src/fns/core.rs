@@ -52,9 +52,11 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "|#" => OR_EVAL,
     "?#" => IF_EVAL,
     "pull" => PULL,
-    "*pull" => PULL_ALL,
+    "*pull" => ALL_PULL,
     "push" => PUSH,
-    "*push" => PUSH_ALL,
+    "*push" => ALL_PUSH,
+    "->" => PULL_ARGS,
+    "." => PUSH_1,
     "!" => NOT,
 };
 
@@ -273,7 +275,7 @@ const PULL: EuDef = |env| {
     Ok(())
 };
 
-const PULL_ALL: EuDef = |env| {
+const ALL_PULL: EuDef = |env| {
     let tx = mem::take(&mut env.parent()?.stack);
     env.x.stack.extend(tx);
     Ok(())
@@ -286,9 +288,20 @@ const PUSH: EuDef = |env| {
     Ok(())
 };
 
-const PUSH_ALL: EuDef = |env| {
+const ALL_PUSH: EuDef = |env| {
     let tx = mem::take(&mut env.x.stack);
     env.parent()?.stack.extend(tx);
+    Ok(())
+};
+
+const PULL_ARGS: EuDef = |env| {
+    let a0 = env.x.pop()?.to_expr()?;
+    env.pull_args(a0)
+};
+
+const PUSH_1: EuDef = |env| {
+    let a0 = env.x.pop()?;
+    env.parent()?.stack.push(a0);
     Ok(())
 };
 

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::anyhow;
 use derive_more::Display;
 use ecow::EcoVec;
+use hipstr::HipStr;
 
 use crate::types::EuType;
 
@@ -10,7 +11,7 @@ use crate::types::EuType;
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuState<'eu> {
     pub stack: EcoVec<EuType<'eu>>,
-    pub scope: HashMap<&'eu str, EuType<'eu>>,
+    pub scope: HashMap<HipStr<'eu>, EuType<'eu>>,
 }
 
 impl<'eu> EuState<'eu> {
