@@ -9,7 +9,10 @@ pub use state::*;
 use winnow::Parser as _;
 
 use crate::{
-    fns::CORE,
+    fns::{
+        CONSTS,
+        CORE,
+    },
     parser::euphrates,
     types::EuType,
 };
@@ -45,9 +48,6 @@ impl<'eu> EuEnv<'eu> {
     pub fn eval_iter(&mut self, ts: impl IntoIterator<Item = EuType<'eu>>) -> anyhow::Result<()> {
         for t in ts {
             self.eval_type(t)?;
-            if self.x.done {
-                break;
-            }
         }
         Ok(())
     }
@@ -55,7 +55,10 @@ impl<'eu> EuEnv<'eu> {
     fn eval_type(&mut self, t: EuType<'eu>) -> anyhow::Result<()> {
         match t {
             EuType::Word(w) => {
-                return if let Some(f) = CORE.get(&w) {
+                return if let Some(v) = CONSTS.get(&w) {
+                    self.x.stack.push(v.clone());
+                    Ok(())
+                } else if let Some(f) = CORE.get(&w) {
                     f(self).with_context(|| format!("`{w}` failed"))
                 } else {
                     Err(anyhow!("unknown word `{w}`"))

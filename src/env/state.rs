@@ -11,7 +11,6 @@ use crate::types::EuType;
 pub struct EuState<'eu> {
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: HashMap<&'eu str, EuType<'eu>>,
-    pub done: bool,
 }
 
 impl<'eu> EuState<'eu> {

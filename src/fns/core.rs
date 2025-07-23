@@ -6,6 +6,12 @@ use phf::phf_map;
 use super::EuDef;
 use crate::types::EuType;
 
+pub const CONSTS: phf::Map<&str, EuType> = phf_map! {
+    "None" => EuType::Opt(None),
+    "True" => EuType::Bool(true),
+    "False" => EuType::Bool(false),
+};
+
 pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "dup" => DUP,
     "dups" => DUPS,
@@ -25,7 +31,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "rot" => ROT,
     "rot_" => ROT_,
     "Some" => SOME,
-    "None" => NONE,
     "Ok" => OK,
     "Err" => ERR,
     "bool" => TO_BOOL,
@@ -160,11 +165,6 @@ const ROT_: EuDef = |env| {
 const SOME: EuDef = |env| {
     let a0 = Box::new(env.x.pop()?);
     env.x.stack.push(EuType::Opt(Some(a0)));
-    Ok(())
-};
-
-const NONE: EuDef = |env| {
-    env.x.stack.push(EuType::Opt(None));
     Ok(())
 };
 
