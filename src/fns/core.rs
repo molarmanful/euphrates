@@ -85,7 +85,12 @@ const OVER: EuDef = |env| {
     Ok(())
 };
 
-const DDUP: EuDef = |env| OVER(env).and_then(|_| OVER(env));
+const DDUP: EuDef = |env| {
+    env.x.check_nargs(2)?;
+    env.x.stack.push(env.x.stack[env.x.iflip(1)].clone());
+    env.x.stack.push(env.x.stack[env.x.iflip(1)].clone());
+    Ok(())
+};
 
 const EDUP: EuDef = |env| {
     env.x.check_nargs(3)?;
@@ -251,12 +256,8 @@ const AND_EVAL: EuDef = |env| {
 const OR_EVAL: EuDef = |env| {
     env.x.check_nargs(2)?;
     let a1 = env.x.pop().unwrap().to_expr()?;
-    let a0: bool = env.x.pop().unwrap().into();
-    if !a0 {
-        env.eval_iter_scoped(a1)
-    } else {
-        Ok(())
-    }
+    let a0 = env.x.pop().unwrap().into();
+    if a0 { Ok(()) } else { env.eval_iter_scoped(a1) }
 };
 
 const IF_EVAL: EuDef = |env| {
