@@ -23,48 +23,20 @@ fn test_int() {
 #[test]
 fn test_float() {
     assert_eq!(parse("1234.5"), Ok(eco_vec![EuType::F64(1234.5)]));
-    assert_eq!(parse(".1234"), Ok(eco_vec![EuType::F64(0.1234)]));
+    assert_eq!(parse("0.1234"), Ok(eco_vec![EuType::F64(0.1234)]));
     assert_eq!(parse("1234.0"), Ok(eco_vec![EuType::F64(1234.0)]));
     assert_eq!(parse("123e4"), Ok(eco_vec![EuType::F64(123e4)]));
     assert_eq!(parse("123e-4"), Ok(eco_vec![EuType::F64(123e-4)]));
-    assert_eq!(parse("123.e4"), Ok(eco_vec![EuType::F64(123e4)]));
+    assert_eq!(parse("123.0e4"), Ok(eco_vec![EuType::F64(123e4)]));
     assert_eq!(parse("12.34e5"), Ok(eco_vec![EuType::F64(12.34e5)]));
     assert_eq!(parse("123f32"), Ok(eco_vec![EuType::F32(123.0)]));
-    assert_eq!(parse("123.f32"), Ok(eco_vec![EuType::F32(123.0)]));
+    assert_eq!(parse("123.0f32"), Ok(eco_vec![EuType::F32(123.0)]));
     assert_eq!(parse("123e-4f32"), Ok(eco_vec![EuType::F32(123e-4)]));
 }
 
 #[test]
 fn test_float_invalid() {
     assert!(parse("123e4usize").is_err());
-}
-
-#[test]
-fn test_num_and_num() {
-    assert_eq!(
-        parse("1234 5678"),
-        Ok(eco_vec![EuType::I32(1234), EuType::I32(5678)])
-    );
-    assert_eq!(
-        parse("1234.5.678"),
-        Ok(eco_vec![EuType::F64(1234.5), EuType::F64(0.678)])
-    );
-    assert_eq!(
-        parse(".1234.5.678"),
-        Ok(eco_vec![
-            EuType::F64(0.1234),
-            EuType::F64(0.5),
-            EuType::F64(0.678)
-        ])
-    );
-    assert_eq!(
-        parse("1234..5678"),
-        Ok(eco_vec![EuType::F64(1234.0), EuType::F64(0.5678)])
-    );
-    assert_eq!(
-        parse("12e3.4"),
-        Ok(eco_vec![EuType::F64(12e3), EuType::F64(0.4)])
-    );
 }
 
 #[test]
@@ -78,9 +50,23 @@ fn test_word() {
 
 #[test]
 fn test_dec() {
-    assert_eq!(parse(".1234"), Ok(eco_vec![EuType::F64(0.1234)]));
-    assert_eq!(parse(".asdf"), Ok(eco_vec![EuType::Word(".asdf".into())]));
-    assert_eq!(parse("..1234"), Ok(eco_vec![EuType::Word("..1234".into())]));
+    assert_eq!(parse(".1234"), Ok(eco_vec![EuType::Word(".1234".into())]));
+    assert_eq!(
+        parse("1234.5.678"),
+        Ok(eco_vec![EuType::F64(1234.5), EuType::Word(".678".into())])
+    );
+    assert_eq!(
+        parse(".1234.5.678"),
+        Ok(eco_vec![EuType::Word(".1234.5.678".into())])
+    );
+    assert_eq!(
+        parse("1234..5678"),
+        Ok(eco_vec![EuType::I32(1234), EuType::Word("..5678".into())])
+    );
+    assert_eq!(
+        parse("123.f32"),
+        Ok(eco_vec![EuType::I32(123), EuType::Word(".f32".into())])
+    );
 }
 
 #[test]
@@ -242,6 +228,10 @@ fn test_all() {
             ]),
             EuType::Word("map".into())
         ])
+    );
+    assert_eq!(
+        parse("12e3.4"),
+        Ok(eco_vec![EuType::F64(12e3), EuType::Word(".4".into())])
     );
 }
 

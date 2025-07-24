@@ -1,10 +1,7 @@
 use ecow::EcoVec;
 use hipstr::HipStr;
 use winnow::{
-    ascii::{
-        digit0,
-        digit1,
-    },
+    ascii::digit1,
     combinator::{
         alt,
         cut_err,
@@ -51,7 +48,6 @@ fn eu_type<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
         '\'' => eu_char,
         '(' => eu_vec,
         ')' => fail,
-        '.' => alt((eu_num, eu_word)),
         '0'..='9' => eu_num,
         _ => eu_word,
     )
@@ -149,8 +145,8 @@ fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
 
 fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     let ((_, dec, exp), ns) = (
-        digit0,
-        opt(preceded('.', digit0)),
+        digit1,
+        opt(preceded('.', digit1)),
         opt((one_of(('e', 'E')), opt(one_of(('+', '-'))), digit1)),
     )
         .verify_map(|res @ (pre, dec, _): (&str, _, _)| {
