@@ -30,9 +30,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "tuck" => TUCK,
     "rot" => ROT,
     "rot_" => ROT_,
-    "Some" => SOME,
-    "Ok" => OK,
-    "Err" => ERR,
+
     "bool" => TO_BOOL,
     "isize" => TO_ISIZE,
     "i32" => TO_I32,
@@ -43,20 +41,32 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "f64" => TO_F64,
     "i128" => TO_I128,
     "u128" => TO_U128,
+
+    "Some" => SOME,
+
+    "Ok" => OK,
+    "Err" => ERR,
+
     ">vec" => TO_VEC,
     "Vec" => WRAP_VEC,
+    "*vec" => ALL_VEC,
+
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
+    "*expr" => ALL_EXPR,
+
     "#" => EVAL,
     "&#" => AND_EVAL,
     "|#" => OR_EVAL,
     "?#" => IF_EVAL,
+
     "pull" => PULL,
     "*pull" => ALL_PULL,
     "push" => PUSH,
     "*push" => ALL_PUSH,
     "->" => PULL_ARGS,
     "." => PUSH_1,
+
     "!" => NOT,
 };
 
@@ -226,6 +236,12 @@ const TO_VEC: EuDef = |env| {
     Ok(())
 };
 
+const ALL_VEC: EuDef = |env| {
+    let ts = EuType::Vec(mem::take(&mut env.x.stack));
+    env.x.stack.push(ts);
+    Ok(())
+};
+
 const WRAP_EXPR: EuDef = |env| {
     let a0 = env.x.pop()?;
     env.x.stack.push(EuType::Expr(eco_vec![a0]));
@@ -238,6 +254,12 @@ const TO_EXPR: EuDef = |env| {
         a0.map(|ts| Box::new(EuType::Vec(ts)))
             .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
     ));
+    Ok(())
+};
+
+const ALL_EXPR: EuDef = |env| {
+    let ts = EuType::Expr(mem::take(&mut env.x.stack));
+    env.x.stack.push(ts);
     Ok(())
 };
 
