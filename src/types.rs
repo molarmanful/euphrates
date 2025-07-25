@@ -15,23 +15,44 @@ use crate::parser::euphrates;
 
 #[derive(Debug, PartialEq, Clone, IsVariant)]
 pub enum EuType<'eu> {
+    #[debug("{}", if *_0 { "True" } else { "False" })]
     Bool(bool),
+    #[debug("{_0:?}isize")]
     Isize(isize),
+    #[debug("{_0:?}usize")]
     Usize(usize),
+    #[debug("{_0:?}")]
     I32(i32),
+    #[debug("{_0:?}u32")]
     U32(u32),
+    #[debug("{_0:?}f32")]
     F32(f32),
+    #[debug("{_0:?}i64")]
     I64(i64),
+    #[debug("{_0:?}u64")]
     U64(u64),
+    #[debug("{_0:?}")]
     F64(f64),
+    #[debug("{_0:?}i128")]
     I128(i128),
+    #[debug("{_0:?}u128")]
     U128(u128),
+    #[debug("{_0:?}")]
     Char(char),
+
+    #[debug("{_0:?}")]
     Str(HipStr<'eu>),
+    #[debug("{_0}")]
     Word(HipStr<'eu>),
+
+    #[debug("{}", if let Some(t) = _0 { format!("Some:{t:?}") } else { "None".into() })]
     Opt(Option<Box<EuType<'eu>>>),
+    #[debug("{}", match _0 { Ok(t) => format!("Ok:{t:?}"), Err(e) => format!("Err:{e:?}") })]
     Res(Result<Box<EuType<'eu>>, Box<EuType<'eu>>>),
+
+    #[debug("Vec:({})", _0.iter().map(|t| format!("{:?}", t)).collect::<EcoVec<_>>().join(" "))]
     Vec(EcoVec<EuType<'eu>>),
+    #[debug("({})", _0.iter().map(|t| format!("{:?}", t)).collect::<EcoVec<_>>().join(" "))]
     Expr(EcoVec<EuType<'eu>>),
 }
 
@@ -72,6 +93,7 @@ fn gen_fn_to_num() {
 
         crabtime::output! {
             impl EuType<'_> {
+                #[inline]
                 pub fn to_res_{{tl}}(self) -> anyhow::Result<{{tl}}> {
                     self.to_{{tl}}().ok_or(anyhow!("{{tl}} conversion failed"))
                 }

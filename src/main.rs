@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 2 3 4 vec.)#
+(1 2 3 4)#vec
 "#;
 
 fn main() {
@@ -11,5 +11,5 @@ fn main() {
         e.chain().for_each(|c| eprintln!("{c}"));
         std::process::exit(1);
     }
-    println!("{}", env.x);
+    println!("{}", env);
 }
