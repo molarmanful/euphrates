@@ -4,7 +4,10 @@ use ecow::eco_vec;
 use phf::phf_map;
 
 use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    env::EuEnv,
+    types::EuType,
+};
 
 pub const CONSTS: phf::Map<&str, EuType> = phf_map! {
     "None" => EuType::Opt(None),
@@ -254,9 +257,9 @@ fn gen_veclike() {
 
             const EVAL_{{n_up}}: EuDef = |env| {
                 let a0 = env.pop()?.to_expr()?;
-                let mut env1 = env.clone();
-                env1.eval_iter(a0)?;
-                env.stack.push(EuType::{{t}}(mem::take(&mut env1.stack)));
+                let mut env1 = EuEnv::from_iter(a0);
+                env1.eval()?;
+                env.stack.push(EuType::{{t}}(env1.stack));
                 Ok(())
             };
         }
