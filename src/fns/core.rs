@@ -64,6 +64,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "->" => BIND_ARGS,
 
     "!" => NOT,
+
+    "_" => NEG,
 };
 
 const DUP: EuDef = |env| {
@@ -297,5 +299,11 @@ const BIND_ARGS: EuDef = |env| {
 const NOT: EuDef = |env| {
     let a0: bool = env.pop()?.into();
     env.stack.push(EuType::Bool(!a0));
+    Ok(())
+};
+
+const NEG: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.stack.push(-a0);
     Ok(())
 };

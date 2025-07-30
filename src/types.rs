@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use anyhow::anyhow;
 use derive_more::{
     Debug,
@@ -23,7 +25,7 @@ pub enum EuType<'eu> {
     F32(f32),
     #[debug("{_0:?}i64")]
     I64(i64),
-    #[debug("{_0:?}u64")]
+    #[debug("{_0:?}")]
     F64(f64),
     #[debug("{_0:?}i128")]
     I128(i128),
@@ -134,3 +136,37 @@ fn gen_fn_to_bool() {
 }
 
 gen_fn_to_bool!();
+
+#[crabtime::function]
+fn gen_fn_neg() {
+    let types = ["I32", "F32", "I64", "F64", "I128"];
+    let arms = types
+        .map(|t| {
+            let n = t.to_lowercase();
+            crabtime::quote! {
+                EuType::{{t}}(n) => EuType::{{t}}(-n),
+            }
+        })
+        .join("");
+
+    crabtime::output! {
+        impl Neg for EuType<'_> {
+            type Output = Self;
+
+            fn neg(self) -> Self::Output {
+                match self {
+                    EuType::Bool(b) => EuType::I32(b.into()).neg(),
+                    {{arms}}
+                    EuType::Char(c) => EuType::I32(c as i32).neg(),
+                    EuType::Str(s) => EuType::Opt(s.parse().ok().map(|t: f64| Box::new(EuType::F64(-t)))),
+                    EuType::Opt(o) => EuType::Opt(o.map(|t| Box::new(t.neg()))),
+                    EuType::Res(r) => EuType::Res(r.map(|t| Box::new(t.neg()))),
+                    EuType::Vec(ts) => EuType::Vec(ts.into_iter().map(Self::neg).collect()),
+                    _ => EuType::Opt(None),
+                }
+            }
+        }
+    }
+}
+
+gen_fn_neg!();
