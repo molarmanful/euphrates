@@ -17,26 +17,16 @@ use crate::parser::euphrates;
 pub enum EuType<'eu> {
     #[debug("{}", if *_0 { "True" } else { "False" })]
     Bool(bool),
-    #[debug("{_0:?}isize")]
-    Isize(isize),
-    #[debug("{_0:?}usize")]
-    Usize(usize),
     #[debug("{_0:?}")]
     I32(i32),
-    #[debug("{_0:?}u32")]
-    U32(u32),
     #[debug("{_0:?}f32")]
     F32(f32),
     #[debug("{_0:?}i64")]
     I64(i64),
     #[debug("{_0:?}u64")]
-    U64(u64),
-    #[debug("{_0:?}")]
     F64(f64),
     #[debug("{_0:?}i128")]
     I128(i128),
-    #[debug("{_0:?}u128")]
-    U128(u128),
     #[debug("{_0:?}")]
     Char(char),
 
@@ -78,9 +68,7 @@ impl EuType<'_> {
 
 #[crabtime::function]
 fn gen_fn_to_num() {
-    let types = [
-        "Isize", "Usize", "I32", "U32", "F32", "I64", "U64", "F64", "I128", "U128",
-    ];
+    let types = ["I32", "F32", "I64", "F64", "I128"];
     for t in types {
         let tl = t.to_lowercase();
         let arms = types
@@ -116,9 +104,7 @@ gen_fn_to_num!();
 
 #[crabtime::function]
 fn gen_fn_to_bool() {
-    let types = [
-        "Isize", "Usize", "I32", "U32", "F32", "I64", "U64", "F64", "I128", "U128",
-    ];
+    let types = ["I32", "F32", "I64", "F64", "I128"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();

@@ -16,8 +16,7 @@ fn test_empty() {
 #[test]
 fn test_int() {
     assert_eq!(parse("1234"), Ok(eco_vec![EuType::I32(1234)]));
-    assert_eq!(parse("1234u64"), Ok(eco_vec![EuType::U64(1234)]));
-    assert_eq!(parse("1234isize"), Ok(eco_vec![EuType::Isize(1234)]));
+    assert_eq!(parse("1234i64"), Ok(eco_vec![EuType::I64(1234)]));
 }
 
 #[test]
@@ -36,7 +35,7 @@ fn test_float() {
 
 #[test]
 fn test_float_invalid() {
-    assert!(parse("123e4usize").is_err());
+    assert!(parse("123e4i32").is_err());
 }
 
 #[test]
@@ -207,8 +206,8 @@ fn test_all() {
         Ok(eco_vec![EuType::F64(1234e5), EuType::Word("asdf".into())])
     );
     assert_eq!(
-        parse("1234isizetest"),
-        Ok(eco_vec![EuType::Isize(1234), EuType::Word("test".into())])
+        parse("1234i32test"),
+        Ok(eco_vec![EuType::I32(1234), EuType::Word("test".into())])
     );
     assert_eq!(
         parse("123ever"),

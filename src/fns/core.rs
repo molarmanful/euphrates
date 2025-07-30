@@ -35,15 +35,11 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "rot_" => ROT_,
 
     "bool" => TO_BOOL,
-    "isize" => TO_ISIZE,
     "i32" => TO_I32,
-    "u32" => TO_U32,
     "f32" => TO_F32,
     "i64" => TO_I64,
-    "u64" => TO_U64,
     "f64" => TO_F64,
     "i128" => TO_I128,
-    "u128" => TO_U128,
 
     "Some" => SOME,
 
@@ -203,9 +199,7 @@ const TO_BOOL: EuDef = |env| {
 
 #[crabtime::function]
 fn gen_def_to_num() {
-    let types = [
-        "Isize", "Usize", "I32", "U32", "F32", "I64", "U64", "F64", "I128", "U128",
-    ];
+    let types = ["I32", "F32", "I64", "F64", "I128"];
     for &t in &types {
         let n = t.to_lowercase();
         let n_up = t.to_uppercase();
