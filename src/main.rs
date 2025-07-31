@@ -1,7 +1,6 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-"1"_
 "#;
 
 fn main() {

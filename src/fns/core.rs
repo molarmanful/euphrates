@@ -13,6 +13,8 @@ pub const CONSTS: phf::Map<&str, EuType> = phf_map! {
     "None" => EuType::Opt(None),
     "True" => EuType::Bool(true),
     "False" => EuType::Bool(false),
+    "inf" => EuType::F64(f64::INFINITY),
+    "inf32" => EuType::F32(f32::INFINITY),
 };
 
 pub const CORE: phf::Map<&str, EuDef> = phf_map! {
@@ -62,10 +64,15 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "?#" => IF_EVAL,
 
     "->" => BIND_ARGS,
+    "?" => TRY,
 
     "!" => NOT,
 
     "_" => NEG,
+    "+" => ADD,
+    "-" => SUB,
+    "*" => MUL,
+    "/" => DIV,
 };
 
 const DUP: EuDef = |env| {
@@ -296,6 +303,19 @@ const BIND_ARGS: EuDef = |env| {
     env.bind_args(a0)
 };
 
+const TRY: EuDef = |env| {
+    let a0 = match env.pop()? {
+        t @ (EuType::Opt(None) | EuType::Res(Err(_))) => {
+            env.clear_queue();
+            t
+        }
+        EuType::Opt(Some(t)) | EuType::Res(Ok(t)) => *t,
+        t => t,
+    };
+    env.stack.push(a0);
+    Ok(())
+};
+
 const NOT: EuDef = |env| {
     let a0: bool = env.pop()?.into();
     env.stack.push(EuType::Bool(!a0));
@@ -307,3 +327,20 @@ const NEG: EuDef = |env| {
     env.stack.push(-a0);
     Ok(())
 };
+
+#[crabtime::function]
+fn gen_fn_math_binops() {
+    for (name, op) in [("ADD", "+"), ("SUB", "-"), ("MUL", "*"), ("DIV", "/")] {
+        crabtime::output! {
+            const {{name}}: EuDef = |env| {
+                env.check_nargs(2)?;
+                let a1 = env.pop().unwrap();
+                let a0 = env.pop().unwrap();
+                env.stack.push(a0 {{op}} a1);
+                Ok(())
+            };
+        }
+    }
+}
+
+gen_fn_math_binops!();

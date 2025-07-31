@@ -34,7 +34,7 @@ pub struct EuEnv<'eu> {
     pub scope: Cow<'eu, HashMap<HipStr<'eu>, EuType<'eu>>>,
 }
 
-type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + 'eu>;
+pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + 'eu>;
 
 impl<'eu> EuEnv<'eu> {
     #[inline]
@@ -77,6 +77,7 @@ impl<'eu> EuEnv<'eu> {
     fn eval_type(&mut self, t: EuType<'eu>) -> anyhow::Result<()> {
         match t {
             EuType::Word(w) => self.eval_word(&w),
+            EuType::Res(Err(e)) => Err(anyhow!(e.to_string())),
             _ => {
                 self.stack.push(t);
                 Ok(())
@@ -163,6 +164,11 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
+    pub fn last(&self) -> anyhow::Result<&EuType<'eu>> {
+        self.check_nargs(1).map(|_| self.stack.last().unwrap())
+    }
+
+    #[inline]
     pub fn iflip(&self, i: usize) -> usize {
         self.stack.len() - i - 1
     }
@@ -185,5 +191,10 @@ impl<'eu> EuEnv<'eu> {
         } else {
             Ok(())
         }
+    }
+
+    pub fn clear_queue(&mut self) {
+        let queue: EuIter<'_> = Box::new(iter::empty());
+        self.queue = queue.peekable();
     }
 }
