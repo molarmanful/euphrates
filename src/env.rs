@@ -15,15 +15,15 @@ use anyhow::{
 use derive_more::Display;
 use ecow::EcoVec;
 use hipstr::HipStr;
-use winnow::Parser as _;
+use winnow::Parser;
 
 use crate::{
-    fns::{
-        CONSTS,
-        CORE,
-    },
+    fns::CORE,
     parser::euphrates,
-    types::EuType,
+    types::{
+        EuIter,
+        EuType,
+    },
 };
 
 #[derive(Display)]
@@ -33,8 +33,6 @@ pub struct EuEnv<'eu> {
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: Cow<'eu, HashMap<HipStr<'eu>, EuType<'eu>>>,
 }
-
-pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + 'eu>;
 
 impl<'eu> EuEnv<'eu> {
     #[inline]
@@ -93,9 +91,6 @@ impl<'eu> EuEnv<'eu> {
                 self.stack.push(v.clone());
                 Ok(())
             }
-        } else if let Some(v) = CONSTS.get(&w) {
-            self.stack.push(v.clone());
-            Ok(())
         } else if let Some(f) = CORE.get(&w) {
             f(self).with_context(|| format!("`{w}` failed"))
         } else {

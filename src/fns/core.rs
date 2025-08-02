@@ -1,4 +1,7 @@
-use std::mem;
+use std::{
+    iter,
+    mem,
+};
 
 use ecow::eco_vec;
 use phf::phf_map;
@@ -9,15 +12,14 @@ use crate::{
     types::EuType,
 };
 
-pub const CONSTS: phf::Map<&str, EuType> = phf_map! {
-    "None" => EuType::Opt(None),
-    "True" => EuType::Bool(true),
-    "False" => EuType::Bool(false),
-    "inf" => EuType::F64(f64::INFINITY),
-    "inf32" => EuType::F32(f32::INFINITY),
-};
-
 pub const CORE: phf::Map<&str, EuDef> = phf_map! {
+    "None" => NONE,
+    "True" => TRUE,
+    "False" => FALSE,
+    "inf" => INF,
+    "inf32" => INF32,
+    "SeqN0" => SEQ_N0,
+
     "dup" => DUP,
     "dups" => DUPS,
     "dupd" => DUPD,
@@ -43,6 +45,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "f64" => TO_F64,
     "i128" => TO_I128,
 
+    ">str" => TO_STR,
+
     "Some" => SOME,
 
     "Ok" => OK,
@@ -57,6 +61,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "Expr" => WRAP_EXPR,
     "*expr" => ALL_EXPR,
     "#expr" => EVAL_EXPR,
+
+    ">seq" => TO_SEQ,
+    "Seq" => WRAP_SEQ,
 
     "#" => EVAL,
     "&#" => AND_EVAL,
@@ -73,6 +80,37 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "-" => SUB,
     "*" => MUL,
     "/" => DIV,
+};
+
+const NONE: EuDef = |env| {
+    env.stack.push(EuType::Opt(None));
+    Ok(())
+};
+
+const TRUE: EuDef = |env| {
+    env.stack.push(EuType::Bool(true));
+    Ok(())
+};
+
+const FALSE: EuDef = |env| {
+    env.stack.push(EuType::Bool(false));
+    Ok(())
+};
+
+const INF: EuDef = |env| {
+    env.stack.push(EuType::F64(f64::INFINITY));
+    Ok(())
+};
+
+const INF32: EuDef = |env| {
+    env.stack.push(EuType::F32(f32::INFINITY));
+    Ok(())
+};
+
+const SEQ_N0: EuDef = |env| {
+    env.stack
+        .push(EuType::Seq(EuType::iter_to_seq((0..).map(EuType::I128))));
+    Ok(())
 };
 
 const DUP: EuDef = |env| {
@@ -225,6 +263,15 @@ fn gen_def_to_num() {
 
 gen_def_to_num!();
 
+const TO_STR: EuDef = |env| {
+    let a0 = match env.pop()? {
+        t @ EuType::Str(_) => t,
+        t => EuType::Str(t.to_string().into()),
+    };
+    env.stack.push(a0);
+    Ok(())
+};
+
 const TO_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_vec();
     env.stack.push(EuType::Vec(a0));
@@ -270,6 +317,18 @@ fn gen_veclike() {
 }
 
 gen_veclike!();
+
+const TO_SEQ: EuDef = |env| {
+    let a0 = env.pop()?.to_seq();
+    env.stack.push(EuType::Seq(a0));
+    Ok(())
+};
+
+const WRAP_SEQ: EuDef = |env| {
+    let a0 = EuType::iter_to_seq(iter::once(env.pop()?));
+    env.stack.push(EuType::Seq(a0));
+    Ok(())
+};
 
 const EVAL: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;

@@ -1,9 +1,17 @@
-use std::ops::{
-    Add,
-    Div,
-    Mul,
-    Neg,
-    Sub,
+use std::{
+    iter,
+    mem,
+    ops::{
+        Add,
+        Div,
+        Mul,
+        Neg,
+        Sub,
+    },
+    sync::{
+        Arc,
+        Mutex,
+    },
 };
 
 use anyhow::anyhow;
@@ -23,7 +31,7 @@ use winnow::Parser;
 
 use crate::parser::euphrates;
 
-#[derive(Debug, Display, PartialEq, Clone, IsVariant)]
+#[derive(Debug, Display, Clone, IsVariant)]
 #[display("{_0}")]
 pub enum EuType<'eu> {
     #[debug("{}", if *_0 { "True" } else { "False" })]
@@ -59,15 +67,23 @@ pub enum EuType<'eu> {
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuType<'eu>>),
+    #[debug("Seq:(...)")]
+    #[display("{}", _0.lock().unwrap().join(""))]
+    Seq(EuSeq<'eu>),
 }
 
-impl EuType<'_> {
+type EuSeq<'eu> = Arc<Mutex<EuIter<'eu>>>;
+
+pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + 'eu>;
+
+impl<'eu> EuType<'eu> {
     pub fn to_vec(self) -> EcoVec<Self> {
         match self {
             EuType::Vec(ts) | EuType::Expr(ts) => ts,
             EuType::Str(s) => s.chars().map(EuType::Char).collect(),
             EuType::Opt(o) => o.into_iter().map(|t| *t).collect(),
             EuType::Res(r) => r.into_iter().map(|t| *t).collect(),
+            EuType::Seq(it) => (&mut *it.lock().unwrap()).collect(),
             _ => eco_vec![self],
         }
     }
@@ -80,15 +96,43 @@ impl EuType<'_> {
         }
     }
 
-    pub fn is_vecz(&self) -> bool {
-        self.is_opt() || self.is_res() || self.is_vec()
+    pub fn to_seq(self) -> EuSeq<'eu> {
+        match self {
+            EuType::Str(s) => {
+                Self::iter_to_seq(s.chars().collect_vec().into_iter().map(EuType::Char))
+            }
+            EuType::Opt(o) => Self::iter_to_seq(o.into_iter().map(|t| *t)),
+            EuType::Res(r) => Self::iter_to_seq(r.into_iter().map(|t| *t)),
+            EuType::Vec(ts) | EuType::Expr(ts) => Self::iter_to_seq(ts.clone().into_iter()),
+            EuType::Seq(it) => it,
+            _ => Self::iter_to_seq(iter::once(self)),
+        }
     }
 
-    pub fn vecz_map(self, mut f: impl FnMut(Self) -> Self) -> Self {
+    pub fn iter_to_seq(it: impl Iterator<Item = EuType<'eu>> + 'eu) -> EuSeq<'eu> {
+        Arc::new(Mutex::new(Box::new(it)))
+    }
+
+    pub fn take_iter(it: &mut EuIter<'eu>) -> EuIter<'eu> {
+        mem::replace(it, Box::new(iter::empty()))
+    }
+
+    pub fn is_vecz(&self) -> bool {
+        self.is_opt() || self.is_res() || self.is_vec() || self.is_seq()
+    }
+
+    pub fn vecz_map(self, mut f: impl FnMut(Self) -> Self + 'eu) -> Self {
         match self {
             Self::Opt(o) => Self::Opt(o.map(|t| Box::new(f(*t)))),
             Self::Res(r) => Self::Res(r.map(|t| Box::new(f(*t)))),
-            Self::Vec(v) => Self::Vec(v.into_iter().map(f).collect()),
+            Self::Vec(ts) => Self::Vec(ts.into_iter().map(f).collect()),
+            Self::Seq(it) => {
+                {
+                    let mut guard = it.lock().unwrap();
+                    *guard = Box::new(Self::take_iter(&mut *guard).map(f));
+                }
+                Self::Seq(it)
+            }
             _ => f(self),
         }
     }
@@ -101,13 +145,56 @@ impl EuType<'_> {
             (Self::Vec(a), Self::Vec(b)) => {
                 Self::Vec(a.into_iter().zip(b).map(|(a, b)| f(a, b)).collect())
             }
+            (Self::Seq(a), Self::Seq(b)) => {
+                if Arc::ptr_eq(&a, &b) {
+                    Self::Seq(a).vecz_map(move |a| {
+                        let b = a.clone();
+                        f(a, b)
+                    })
+                } else {
+                    {
+                        let mut guard = a.lock().unwrap();
+                        let old = Self::take_iter(&mut *b.lock().unwrap());
+                        *guard = Box::new(
+                            Self::take_iter(&mut *guard)
+                                .zip(old)
+                                .map(move |(a, b)| f(a, b)),
+                        )
+                    }
+                    Self::Seq(a)
+                }
+            }
             (Self::Opt(a), b) => Self::Opt(a.map(|t| Box::new(f(*t, b)))),
             (Self::Res(a), b) => Self::Res(a.map(|t| Box::new(f(*t, b)))),
-            (a @ Self::Vec(_), b) => a.vecz_map(|t| f(t, b.clone())),
+            (a, b) if a.is_vecz() => a.vecz_map(move |t| f(t, b.clone())),
             (a, Self::Opt(b)) => Self::Opt(b.map(|t| Box::new(f(a, *t)))),
             (a, Self::Res(b)) => Self::Res(b.map(|t| Box::new(f(a, *t)))),
-            (a, b @ Self::Vec(_)) => b.vecz_map(|t| f(a.clone(), t)),
+            (a, b) if b.is_vecz() => b.vecz_map(move |t| f(a.clone(), t)),
             (a, b) => f(a, b),
+        }
+    }
+}
+
+impl PartialEq for EuType<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
+            (Self::I32(l0), Self::I32(r0)) => l0 == r0,
+            (Self::I64(l0), Self::I64(r0)) => l0 == r0,
+            (Self::I128(l0), Self::I128(r0)) => l0 == r0,
+            (Self::F32(l0), Self::F32(r0)) => l0 == r0,
+            (Self::F64(l0), Self::F64(r0)) => l0 == r0,
+            (Self::Char(l0), Self::Char(r0)) => l0 == r0,
+            (Self::Str(l0), Self::Str(r0)) => l0 == r0,
+            (Self::Word(l0), Self::Word(r0)) => l0 == r0,
+            (Self::Opt(l0), Self::Opt(r0)) => l0 == r0,
+            (Self::Res(l0), Self::Res(r0)) => l0 == r0,
+            (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
+            (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
+            (Self::Seq(l0), Self::Seq(r0)) => {
+                Arc::ptr_eq(l0, r0) || (&mut *l0.lock().unwrap()).eq(&mut *r0.lock().unwrap())
+            }
+            _ => false,
         }
     }
 }
@@ -172,6 +259,7 @@ fn gen_fn_to_bool() {
                     EuType::Opt(o) => o.is_some(),
                     EuType::Res(r) => r.is_ok(),
                     EuType::Vec(ts) | EuType::Expr(ts) => !ts.is_empty(),
+                    EuType::Seq(it) => Iterator::peekable(&mut *it.lock().unwrap()).peek().is_some(),
                 }
             }
         }
