@@ -236,6 +236,39 @@ fn gen_fn_to_num() {
 gen_fn_to_num!();
 
 #[crabtime::function]
+fn gen_fn_to_isize() {
+    let types = ["I32", "I64", "I128", "F32", "F64"];
+    let arms = types
+        .map(|t| {
+            crabtime::quote! {
+                EuType::{{t}}(n) => n.to_isize(),
+            }
+        })
+        .join("");
+
+    crabtime::output! {
+        impl EuType<'_> {
+            #[inline]
+            pub fn to_res_isize(self) -> anyhow::Result<isize> {
+                self.to_isize().ok_or(anyhow!("isize conversion failed"))
+            }
+
+            pub fn to_isize(self) -> Option<isize> {
+                match self {
+                    {{arms}}
+                    EuType::Bool(b) => Some(b.into()),
+                    EuType::Char(c) => (c as u32).to_isize(),
+                    EuType::Str(s) => s.parse().ok(),
+                    _ => None
+                }
+            }
+        }
+    }
+}
+
+gen_fn_to_isize!();
+
+#[crabtime::function]
 fn gen_fn_to_bool() {
     let types = ["I32", "I64", "I128", "F32", "F64"];
     let arms = types
@@ -253,7 +286,7 @@ fn gen_fn_to_bool() {
                 match value {
                     EuType::Bool(b) => b,
                     {{arms}}
-                    EuType::Char(_) => true,
+                    EuType::Char(c) => c != '\0',
                     EuType::Str(s) => s != "",
                     EuType::Word(_) => true,
                     EuType::Opt(o) => o.is_some(),

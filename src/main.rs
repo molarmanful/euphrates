@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 2 3 4)>seq dup + >vec
+1 2 3 4 1_ roll
 "#;
 
 fn main() {

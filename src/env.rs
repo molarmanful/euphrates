@@ -163,9 +163,12 @@ impl<'eu> EuEnv<'eu> {
         self.check_nargs(1).map(|_| self.stack.last().unwrap())
     }
 
-    #[inline]
-    pub fn iflip(&self, i: usize) -> usize {
-        self.stack.len() - i - 1
+    pub fn iflip(&self, i: isize) -> anyhow::Result<usize> {
+        let len = self.stack.len() as isize;
+        let j = if i < 0 { !i } else { len - i - 1 };
+        (0 <= j && j < len)
+            .then(|| j as usize)
+            .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1))
     }
 
     pub fn split_off(&mut self, n: usize) -> anyhow::Result<EcoVec<EuType<'eu>>> {

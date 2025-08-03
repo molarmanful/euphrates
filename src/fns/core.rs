@@ -26,17 +26,22 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "over" => OVER,
     "ddup" => DDUP,
     "edup" => EDUP,
+    "pick" => PICK,
     "pop" => POP,
     "clr" => CLR,
     "nip" => NIP,
     "ppop" => PPOP,
     "qpop" => QPOP,
+    "nix" => NIX,
     "swap" => SWAP,
     "rev" => REV,
     "swapd" => SWAPD,
     "tuck" => TUCK,
+    "trade" => TRADE,
     "rot" => ROT,
     "rot_" => ROT_,
+    "roll" => ROLL,
+    "roll_" => ROLL_,
 
     "bool" => TO_BOOL,
     "i32" => TO_I32,
@@ -124,29 +129,37 @@ const DUPS: EuDef = |env| {
 
 const DUPD: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack
-        .insert(env.iflip(1), env.stack[env.iflip(1)].clone());
+    env.stack.insert(
+        env.iflip(1).unwrap(),
+        env.stack[env.iflip(1).unwrap()].clone(),
+    );
     Ok(())
 };
 
 const OVER: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.push(env.stack[env.iflip(1)].clone());
+    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
     Ok(())
 };
 
 const DDUP: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.push(env.stack[env.iflip(1)].clone());
-    env.stack.push(env.stack[env.iflip(1)].clone());
+    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
+    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
     Ok(())
 };
 
 const EDUP: EuDef = |env| {
     env.check_nargs(3)?;
     for _ in 0..3 {
-        env.stack.push(env.stack[env.iflip(2)].clone());
+        env.stack.push(env.stack[env.iflip(2).unwrap()].clone());
     }
+    Ok(())
+};
+
+const PICK: EuDef = |env| {
+    let a0 = env.pop()?.to_res_isize()?;
+    env.stack.push(env.stack[env.iflip(a0)?].clone());
     Ok(())
 };
 
@@ -162,25 +175,31 @@ const CLR: EuDef = |env| {
 
 const NIP: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.remove(env.iflip(1));
+    env.stack.remove(env.iflip(1).unwrap());
     Ok(())
 };
 
 const PPOP: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.truncate(env.iflip(1));
+    env.stack.truncate(env.iflip(1).unwrap());
     Ok(())
 };
 
 const QPOP: EuDef = |env| {
     env.check_nargs(3)?;
-    env.stack.truncate(env.iflip(2));
+    env.stack.truncate(env.iflip(2).unwrap());
+    Ok(())
+};
+
+const NIX: EuDef = |env| {
+    let a0 = env.pop()?.to_res_isize()?;
+    env.stack.remove(env.iflip(a0)?);
     Ok(())
 };
 
 const SWAP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a = env.iflip(0);
+    let a = env.iflip(0).unwrap();
     env.stack.make_mut().swap(a, a - 1);
     Ok(())
 };
@@ -192,7 +211,7 @@ const REV: EuDef = |env| {
 
 const SWAPD: EuDef = |env| {
     env.check_nargs(3)?;
-    let a = env.iflip(1);
+    let a = env.iflip(1).unwrap();
     env.stack.make_mut().swap(a, a - 1);
     Ok(())
 };
@@ -200,13 +219,21 @@ const SWAPD: EuDef = |env| {
 const TUCK: EuDef = |env| {
     env.check_nargs(2)?;
     env.stack
-        .insert(env.iflip(1), env.stack.last().unwrap().clone());
+        .insert(env.iflip(1).unwrap(), env.stack.last().unwrap().clone());
+    Ok(())
+};
+
+const TRADE: EuDef = |env| {
+    let a0 = env.pop()?.to_res_isize()?;
+    let i = env.iflip(a0)?;
+    let j = env.iflip(0).unwrap();
+    env.stack.make_mut().swap(i, j);
     Ok(())
 };
 
 const ROT: EuDef = |env| {
     env.check_nargs(3)?;
-    let a0 = env.stack.remove(env.iflip(2));
+    let a0 = env.stack.remove(env.iflip(2).unwrap());
     env.stack.push(a0);
     Ok(())
 };
@@ -214,7 +241,23 @@ const ROT: EuDef = |env| {
 const ROT_: EuDef = |env| {
     env.check_nargs(3)?;
     let a0 = env.stack.pop().unwrap();
-    env.stack.insert(env.iflip(1), a0);
+    env.stack.insert(env.iflip(1).unwrap(), a0);
+    Ok(())
+};
+
+const ROLL: EuDef = |env| {
+    let a0 = env.pop()?.to_res_isize()?;
+    let t = env.stack.remove(env.iflip(a0)?);
+    env.stack.push(t);
+    Ok(())
+};
+
+const ROLL_: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a0 = env.stack.pop().unwrap().to_res_isize()?;
+    let i = env.iflip(a0)?;
+    let t = env.stack.pop().unwrap();
+    env.stack.insert(i, t);
     Ok(())
 };
 
