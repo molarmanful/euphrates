@@ -1,12 +1,12 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-1 2 3 4 1_ roll
+1 (a) -> (1 a 3 4)#vec >seq 1+ >vec
 "#;
 
 fn main() {
     match EuEnv::run_str(TEST) {
-        Ok(env) => println!("{}", env),
+        Ok(env) => println!("{env}"),
         Err(e) => {
             eprintln!("ERR:");
             e.chain().for_each(|c| eprintln!("{c}"));

@@ -83,6 +83,11 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "-" => SUB,
     "*" => MUL,
     "/" => DIV,
+
+    "tk" => TAKE,
+    "dp" => DROP,
+
+    "map" => MAP,
 };
 
 const NONE: EuDef = |env| {
@@ -333,9 +338,8 @@ const ALL_VEC: EuDef = |env| {
 
 const EVAL_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;
-    let mut env1 = EuEnv::from_iter(a0);
-    env1.eval()?;
-    env.stack.push(EuType::Vec(env1.stack));
+    env.stack
+        .push(EuType::Vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
     Ok(())
 };
 
@@ -439,3 +443,43 @@ fn gen_fn_math_binops() {
 }
 
 gen_fn_math_binops!();
+
+const TAKE: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a0 = env.pop()?.to_seq();
+    {
+        let mut guard = a0.lock().unwrap();
+        *guard = Box::new(EuType::take_iter(&mut guard).take(a1));
+    }
+    env.stack.push(EuType::Seq(a0));
+    Ok(())
+};
+
+const DROP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a0 = env.pop()?.to_seq();
+    {
+        let mut guard = a0.lock().unwrap();
+        *guard = Box::new(EuType::take_iter(&mut guard).skip(a1));
+    }
+    env.stack.push(EuType::Seq(a0));
+    Ok(())
+};
+
+const MAP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.pop()?;
+    let scope = env.scope.clone();
+    let res = a0.map(move |t| {
+        EuType::Res(
+            EuEnv::apply(a1.clone(), &[t], scope.clone())
+                .and_then(|mut env| env.pop().map(Box::new))
+                .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
+        )
+    });
+    env.stack.push(res);
+    Ok(())
+};

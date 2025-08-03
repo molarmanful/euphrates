@@ -150,7 +150,7 @@ fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
         opt((one_of(('e', 'E')), opt(one_of(('+', '-'))), digit1)),
     )
         .verify_map(|res @ (pre, dec, _): (&str, _, _)| {
-            (pre != "" || dec.is_some_and(|s| s != "")).then_some(res)
+            (!pre.is_empty() || dec.is_some_and(|s: &str| !s.is_empty())).then_some(res)
         })
         .with_taken()
         .parse_next(input)?;

@@ -1,11 +1,11 @@
 use std::{
-    borrow::Cow,
     collections::HashMap,
     iter::{
         self,
         Peekable,
     },
     mem,
+    sync::Arc,
 };
 
 use anyhow::{
@@ -31,36 +31,51 @@ use crate::{
 pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
     pub stack: EcoVec<EuType<'eu>>,
-    pub scope: Cow<'eu, HashMap<HipStr<'eu>, EuType<'eu>>>,
+    pub scope: EuScope<'eu>,
 }
+
+type EuScope<'eu> = Arc<HashMap<HipStr<'eu>, EuType<'eu>>>;
 
 impl<'eu> EuEnv<'eu> {
     #[inline]
-    pub fn run_str(input: &str) -> anyhow::Result<Self> {
-        let mut env = Self::from_str(input)?;
+    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
+    where
+        T: IntoIterator<Item = EuType<'eu>>,
+        T::IntoIter: Send + Sync + 'eu,
+    {
+        let it: EuIter<'eu> = Box::new(ts.into_iter());
+        Self {
+            queue: it.peekable(),
+            stack: args.into(),
+            scope,
+        }
+    }
+
+    #[inline]
+    pub fn apply<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> anyhow::Result<EuEnv<'eu>>
+    where
+        T: IntoIterator<Item = EuType<'eu>>,
+        T::IntoIter: Send + Sync + 'eu,
+    {
+        let mut env = Self::new(ts, args, scope);
         env.eval()?;
         Ok(env)
     }
 
     #[inline]
-    pub fn from_str(input: &str) -> anyhow::Result<Self> {
-        Ok(Self::from_iter(
-            euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
-        ))
+    pub fn run_str(input: &str) -> anyhow::Result<Self> {
+        let mut env = Self::str(input)?;
+        env.eval()?;
+        Ok(env)
     }
 
     #[inline]
-    pub fn from_iter<T>(ts: T) -> Self
-    where
-        T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: 'eu,
-    {
-        let it: EuIter<'eu> = Box::new(ts.into_iter());
-        EuEnv {
-            queue: it.peekable(),
-            stack: EcoVec::new(),
-            scope: Cow::Owned(HashMap::new()),
-        }
+    pub fn str(input: &str) -> anyhow::Result<Self> {
+        Ok(Self::new(
+            euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
+            &[],
+            Arc::new(HashMap::new()),
+        ))
     }
 
     pub fn eval(&mut self) -> anyhow::Result<()> {
@@ -91,7 +106,7 @@ impl<'eu> EuEnv<'eu> {
                 self.stack.push(v.clone());
                 Ok(())
             }
-        } else if let Some(f) = CORE.get(&w) {
+        } else if let Some(f) = CORE.get(w) {
             f(self).with_context(|| format!("`{w}` failed"))
         } else {
             Err(anyhow!("unknown word `{w}`"))
@@ -102,7 +117,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn eval_iter<T>(&mut self, ts: T) -> anyhow::Result<()>
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: 'eu,
+        T::IntoIter: Send + Sync + 'eu,
     {
         if self.queue.peek().is_none() {
             self.load_iter(ts);
@@ -118,7 +133,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn load_iter<T>(&mut self, ts: T)
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: 'eu,
+        T::IntoIter: Send + Sync + 'eu,
     {
         let empty: EuIter<'eu> = Box::new(iter::empty());
         let it: EuIter<'eu> = Box::new(
@@ -132,7 +147,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn frame<T>(&self, ts: T) -> Self
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: 'eu,
+        T::IntoIter: Send + Sync + 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
         Self {
@@ -142,11 +157,15 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn bind_args(&mut self, ts: EcoVec<EuType<'eu>>) -> anyhow::Result<()> {
+    pub fn bind_args<T>(&mut self, ts: T) -> anyhow::Result<()>
+    where
+        T: IntoIterator<Item = EuType<'eu>>,
+        T::IntoIter: DoubleEndedIterator,
+    {
         for t in ts.into_iter().rev() {
             let v = self.stack.pop().context("insufficient args passed")?;
             match t {
-                EuType::Word(w) => self.scope.to_mut().insert(w, v),
+                EuType::Word(w) => Arc::make_mut(&mut self.scope).insert(w, v),
                 _ => todo!(),
             };
         }
@@ -167,7 +186,7 @@ impl<'eu> EuEnv<'eu> {
         let len = self.stack.len() as isize;
         let j = if i < 0 { !i } else { len - i - 1 };
         (0 <= j && j < len)
-            .then(|| j as usize)
+            .then_some(j as usize)
             .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1))
     }
 
