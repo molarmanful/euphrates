@@ -59,8 +59,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
-    "*expr" => ALL_EXPR,
-    "#expr" => EVAL_EXPR,
 
     ">seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
@@ -278,6 +276,26 @@ const TO_VEC: EuDef = |env| {
     Ok(())
 };
 
+const WRAP_VEC: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.stack.push(EuType::Vec(eco_vec![a0]));
+    Ok(())
+};
+
+const ALL_VEC: EuDef = |env| {
+    let ts = EuType::Vec(mem::take(&mut env.stack));
+    env.stack.push(ts);
+    Ok(())
+};
+
+const EVAL_VEC: EuDef = |env| {
+    let a0 = env.pop()?.to_expr()?;
+    let mut env1 = EuEnv::from_iter(a0);
+    env1.eval()?;
+    env.stack.push(EuType::Vec(env1.stack));
+    Ok(())
+};
+
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
     env.stack.push(EuType::Res(
@@ -287,36 +305,11 @@ const TO_EXPR: EuDef = |env| {
     Ok(())
 };
 
-#[crabtime::function]
-fn gen_veclike() {
-    let types = ["Vec", "Expr"];
-    for &t in &types {
-        let n_up = t.to_uppercase();
-        crabtime::output! {
-            const WRAP_{{n_up}}: EuDef = |env| {
-                let a0 = env.pop()?;
-                env.stack.push(EuType::{{t}}(eco_vec![a0]));
-                Ok(())
-            };
-
-            const ALL_{{n_up}}: EuDef = |env| {
-                let ts = EuType::{{t}}(mem::take(&mut env.stack));
-                env.stack.push(ts);
-                Ok(())
-            };
-
-            const EVAL_{{n_up}}: EuDef = |env| {
-                let a0 = env.pop()?.to_expr()?;
-                let mut env1 = EuEnv::from_iter(a0);
-                env1.eval()?;
-                env.stack.push(EuType::{{t}}(env1.stack));
-                Ok(())
-            };
-        }
-    }
-}
-
-gen_veclike!();
+const WRAP_EXPR: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.stack.push(EuType::Expr(eco_vec![a0]));
+    Ok(())
+};
 
 const TO_SEQ: EuDef = |env| {
     let a0 = env.pop()?.to_seq();
