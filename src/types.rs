@@ -75,26 +75,42 @@ type EuSeq<'eu> = Arc<Mutex<EuIter<'eu>>>;
 pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + Send + Sync + 'eu>;
 
 impl<'eu> EuType<'eu> {
+    #[inline]
     pub fn str(s: impl Into<HipStr<'eu>>) -> Self {
         Self::Str(s.into())
     }
 
+    #[inline]
     pub fn word(s: impl Into<HipStr<'eu>>) -> Self {
         Self::Word(s.into())
     }
 
-    pub fn opt(s: Option<EuType<'eu>>) -> Self {
-        Self::Opt(s.map(Box::new))
+    #[inline]
+    pub fn opt(o: Option<EuType<'eu>>) -> Self {
+        Self::Opt(o.map(Box::new))
     }
 
+    #[inline]
+    pub fn res(r: Result<Self, Self>) -> Self {
+        Self::Res(r.map(Box::new).map_err(Box::new))
+    }
+
+    #[inline]
+    pub fn res_str(r: anyhow::Result<Self>) -> Self {
+        Self::res(r.map_err(|s| Self::str(s.to_string())))
+    }
+
+    #[inline]
     pub fn vec(ts: impl Into<EcoVec<EuType<'eu>>>) -> Self {
         Self::Vec(ts.into())
     }
 
+    #[inline]
     pub fn expr(ts: impl Into<EcoVec<EuType<'eu>>>) -> Self {
         Self::Expr(ts.into())
     }
 
+    #[inline]
     pub fn seq(it: impl Iterator<Item = EuType<'eu>> + Send + Sync + 'eu) -> EuSeq<'eu> {
         Arc::new(Mutex::new(Box::new(it)))
     }
@@ -129,17 +145,19 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    #[inline]
     pub fn take_iter(it: &mut EuIter<'eu>) -> EuIter<'eu> {
         mem::replace(it, Box::new(iter::empty()))
     }
 
+    #[inline]
     pub fn is_vecz(&self) -> bool {
         self.is_opt() || self.is_res() || self.is_vec() || self.is_seq()
     }
 
     pub fn map(self, mut f: impl FnMut(Self) -> Self + Send + Sync + 'eu) -> Self {
         match self {
-            Self::Opt(o) => Self::Opt(o.map(|t| Box::new(f(*t)))),
+            Self::Opt(o) => Self::opt(o.map(|t| f(*t))),
             Self::Res(r) => Self::Res(r.map(|t| Box::new(f(*t)))),
             Self::Vec(ts) => Self::Vec(ts.into_iter().map(f).collect()),
             Self::Seq(it) => {
@@ -155,8 +173,8 @@ impl<'eu> EuType<'eu> {
 
     pub fn zip(self, t: Self, mut f: impl FnMut(Self, Self) -> Self + Send + Sync + 'eu) -> Self {
         match (self, t) {
-            (Self::Opt(a), Self::Opt(b)) => Self::Opt(a.zip(b).map(|(a, b)| Box::new(f(*a, *b)))),
-            (Self::Res(Ok(a)), Self::Res(Ok(b))) => Self::Res(Ok(Box::new(f(*a, *b)))),
+            (Self::Opt(a), Self::Opt(b)) => Self::opt(a.zip(b).map(|(a, b)| f(*a, *b))),
+            (Self::Res(Ok(a)), Self::Res(Ok(b))) => Self::res(Ok(f(*a, *b))),
             (Self::Res(a), Self::Res(b)) => Self::Res(a.and(b)),
             (Self::Vec(a), Self::Vec(b)) => {
                 Self::Vec(a.into_iter().zip(b).map(|(a, b)| f(a, b)).collect())
@@ -180,10 +198,10 @@ impl<'eu> EuType<'eu> {
                     Self::Seq(a)
                 }
             }
-            (Self::Opt(a), b) => Self::Opt(a.map(|t| Box::new(f(*t, b)))),
+            (Self::Opt(a), b) => Self::opt(a.map(|t| f(*t, b))),
             (Self::Res(a), b) => Self::Res(a.map(|t| Box::new(f(*t, b)))),
             (a, b) if a.is_vecz() => a.map(move |t| f(t, b.clone())),
-            (a, Self::Opt(b)) => Self::Opt(b.map(|t| Box::new(f(a, *t)))),
+            (a, Self::Opt(b)) => Self::opt(b.map(|t| f(a, *t))),
             (a, Self::Res(b)) => Self::Res(b.map(|t| Box::new(f(a, *t)))),
             (a, b) if b.is_vecz() => b.map(move |t| f(a.clone(), t)),
             (a, b) => f(a, b),
@@ -339,7 +357,7 @@ fn gen_fn_neg() {
                     {{arms}}
                     EuType::Bool(b) => EuType::I32(b.into()).neg(),
                     EuType::Char(c) => EuType::I32(c as i32).neg(),
-                    EuType::Str(s) => EuType::Opt(s.parse().ok().map(|t: f64| Box::new(EuType::F64(t).neg()))),
+                    EuType::Str(s) => EuType::opt(s.parse().ok().map(|t: f64| EuType::F64(t).neg())),
                     _ if self.is_vecz() => self.map(Self::neg),
                     _ => EuType::Opt(None),
                 }
@@ -375,7 +393,7 @@ fn gen_fn_math_binops() {
                 if t0.chars().next() == Some('I') && t1.chars().next() == Some('I') {
                     crabtime::quote! {
                         (EuType::{{t0}}(a), EuType::{{t1}}(b)) => {
-                            EuType::Opt((a as {{n}}).{{f_chk}}(b as {{n}}).map(|t| Box::new(EuType::{{c}}(t))))
+                            EuType::opt((a as {{n}}).{{f_chk}}(b as {{n}}).map(|t| EuType::{{c}}(t)))
                         }
                     }
                 } else {
@@ -404,11 +422,11 @@ fn gen_fn_math_binops() {
             .map(|(t0, t1)| {
                 let n0 = t0.to_lowercase();
                 crabtime::quote! {
-                    (EuType::{{t0}}(a), EuType::{{t1}}(b)) => EuType::Opt(
-                        b.parse().ok().map(|t: {{n0}}| Box::new(EuType::{{t0}}(a.{{f}}(t))))
+                    (EuType::{{t0}}(a), EuType::{{t1}}(b)) => EuType::opt(
+                        b.parse().ok().map(|t: {{n0}}| EuType::{{t0}}(a.{{f}}(t)))
                     ),
-                    (EuType::{{t1}}(a), EuType::{{t0}}(b)) => EuType::Opt(
-                        a.parse().ok().map(|t: {{n0}}| Box::new(EuType::{{t0}}(t.{{f}}(b))))
+                    (EuType::{{t1}}(a), EuType::{{t0}}(b)) => EuType::opt(
+                        a.parse().ok().map(|t: {{n0}}| EuType::{{t0}}(t.{{f}}(b)))
                     ),
                 }
             })
@@ -424,10 +442,10 @@ fn gen_fn_math_binops() {
                         (EuType::Bool(a), EuType::Bool(b)) => EuType::I32((a as i32).{{f}}(b as i32)),
                         (EuType::Char(a), EuType::Char(b)) => EuType::I32((a as i32).{{f}}(b as i32)),
                         {{arms_as}}
-                        (EuType::Str(a), EuType::Str(b)) => EuType::Opt((|| {
+                        (EuType::Str(a), EuType::Str(b)) => EuType::opt((|| {
                             let a: f64 = a.parse().ok()?;
                             let b: f64 = b.parse().ok()?;
-                            Some(Box::new(EuType::F64(a.{{f}}(b))))
+                            Some(EuType::F64(a.{{f}}(b)))
                         })()),
                         {{arms_parse}}
                         (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, Self::{{f}}),

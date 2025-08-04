@@ -264,20 +264,20 @@ const ROLL_: EuDef = |env| {
 };
 
 const SOME: EuDef = |env| {
-    let a0 = Box::new(env.pop()?);
-    env.push(EuType::Opt(Some(a0)));
+    let a0 = env.pop()?;
+    env.push(EuType::opt(Some(a0)));
     Ok(())
 };
 
 const OK: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Res(Ok(Box::new(a0))));
+    env.push(EuType::res(Ok(a0)));
     Ok(())
 };
 
 const ERR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Res(Err(Box::new(a0))));
+    env.push(EuType::res(Err(a0)));
     Ok(())
 };
 
@@ -296,7 +296,7 @@ fn gen_def_to_num() {
         crabtime::output! {
             const TO_{{n_up}}: EuDef = |env| {
                 let a0 = env.pop()?;
-                env.push(EuType::Opt(a0.to_{{n}}().map(EuType::{{t}}).map(Box::new)));
+                env.push(EuType::opt(a0.to_{{n}}().map(EuType::{{t}})));
                 Ok(())
             };
         }
@@ -340,10 +340,7 @@ const EVAL_VEC: EuDef = |env| {
 
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
-    env.push(EuType::Res(
-        a0.map(|ts| Box::new(EuType::vec(ts)))
-            .map_err(|e| Box::new(EuType::str(e.to_string()))),
-    ));
+    env.push(EuType::res_str(a0.map(EuType::vec)));
     Ok(())
 };
 
@@ -469,11 +466,7 @@ const MAP: EuDef = |env| {
     let a0 = env.pop()?;
     let scope = env.scope.clone();
     let res = a0.map(move |t| {
-        EuType::Res(
-            EuEnv::apply(a1.clone(), &[t], scope.clone())
-                .and_then(|mut env| env.pop().map(Box::new))
-                .map_err(|e| Box::new(EuType::str(e.to_string()))),
-        )
+        EuType::res_str(EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop()))
     });
     env.push(res);
     Ok(())
