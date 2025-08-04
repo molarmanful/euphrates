@@ -41,11 +41,11 @@ fn test_float_invalid() {
 fn test_word() {
     assert_eq!(
         parse("asdf"),
-        Ok(imbl::vector![EuType::Word("asdf".into())])
+        Ok(imbl::vector![EuType::Word(Box::new("asdf".into()))])
     );
     assert_eq!(
         parse("asdf1234"),
-        Ok(imbl::vector![EuType::Word("asdf1234".into())])
+        Ok(imbl::vector![EuType::Word(Box::new("asdf1234".into()))])
     );
 }
 
@@ -53,29 +53,32 @@ fn test_word() {
 fn test_dec() {
     assert_eq!(
         parse(".1234"),
-        Ok(imbl::vector![EuType::Word(".1234".into())])
+        Ok(imbl::vector![EuType::Word(Box::new(".1234".into()))])
     );
     assert_eq!(
         parse("1234.5.678"),
         Ok(imbl::vector![
             EuType::F64(1234.5),
-            EuType::Word(".678".into())
+            EuType::Word(Box::new(".678".into()))
         ])
     );
     assert_eq!(
         parse(".1234.5.678"),
-        Ok(imbl::vector![EuType::Word(".1234.5.678".into())])
+        Ok(imbl::vector![EuType::Word(Box::new(".1234.5.678".into()))])
     );
     assert_eq!(
         parse("1234..5678"),
         Ok(imbl::vector![
             EuType::I32(1234),
-            EuType::Word("..5678".into())
+            EuType::Word(Box::new("..5678".into()))
         ])
     );
     assert_eq!(
         parse("123.f32"),
-        Ok(imbl::vector![EuType::I32(123), EuType::Word(".f32".into())])
+        Ok(imbl::vector![
+            EuType::I32(123),
+            EuType::Word(Box::new(".f32".into()))
+        ])
     );
 }
 
@@ -83,39 +86,45 @@ fn test_dec() {
 fn test_str() {
     assert_eq!(
         parse(r#""testing testing 123""#),
-        Ok(imbl::vector![EuType::Str("testing testing 123".into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            "testing testing 123".into()
+        ))])
     );
     assert_eq!(
         parse(r#""testing testing 123"#),
-        Ok(imbl::vector![EuType::Str("testing testing 123".into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            "testing testing 123".into()
+        ))])
     );
     assert_eq!(
         parse(r#""asdf \" 123""#),
-        Ok(imbl::vector![EuType::Str("asdf \" 123".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("asdf \" 123".into()))])
     );
     assert_eq!(
         parse(r#""asdf 123 \""#),
-        Ok(imbl::vector![EuType::Str("asdf 123 \"".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("asdf 123 \"".into()))])
     );
     assert_eq!(
         parse(r#""asdf 123 \\""#),
-        Ok(imbl::vector![EuType::Str("asdf 123 \\".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("asdf 123 \\".into()))])
     );
     assert_eq!(
         parse(r#""\n""#),
-        Ok(imbl::vector![EuType::Str("\n".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("\n".into()))])
     );
     assert_eq!(
         parse(r#""\x5a\xff""#),
-        Ok(imbl::vector![EuType::Str("\x5a\u{ff}".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("\x5a\u{ff}".into()))])
     );
     assert_eq!(
         parse(r#""\u{5}\u{ff}\u{321ab}""#),
-        Ok(imbl::vector![EuType::Str("\u{5}\u{ff}\u{321ab}".into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            "\u{5}\u{ff}\u{321ab}".into()
+        ))])
     );
     assert_eq!(
         parse(r#""\u{ff""#),
-        Ok(imbl::vector![EuType::Str("\u{ff}".into())])
+        Ok(imbl::vector![EuType::Str(Box::new("\u{ff}".into()))])
     );
 }
 
@@ -123,15 +132,21 @@ fn test_str() {
 fn test_str_raw() {
     assert_eq!(
         parse("`testing testing 123`"),
-        Ok(imbl::vector![EuType::Str("testing testing 123".into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            "testing testing 123".into()
+        ))])
     );
     assert_eq!(
         parse("`testing testing 123"),
-        Ok(imbl::vector![EuType::Str("testing testing 123".into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            "testing testing 123".into()
+        ))])
     );
     assert_eq!(
         parse(r#"`asdf \n 123`"#),
-        Ok(imbl::vector![EuType::Str(r#"asdf \n 123"#.into())])
+        Ok(imbl::vector![EuType::Str(Box::new(
+            r#"asdf \n 123"#.into()
+        ))])
     );
 }
 
@@ -164,31 +179,31 @@ fn test_char_invalid() {
 fn test_fn() {
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf)"#),
-        Ok(imbl::vector![EuType::Expr(imbl::vector![
+        Ok(imbl::vector![EuType::expr([
             EuType::I32(1),
-            EuType::Str("2".into()),
+            EuType::str("2"),
             EuType::I32(3),
-            EuType::Word("+".into()),
-            EuType::Word("asdf".into())
+            EuType::word("+"),
+            EuType::word("asdf")
         ])])
     );
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf"#),
-        Ok(imbl::vector![EuType::Expr(imbl::vector![
+        Ok(imbl::vector![EuType::expr([
             EuType::I32(1),
-            EuType::Str("2".into()),
+            EuType::str("2"),
             EuType::I32(3),
-            EuType::Word("+".into()),
-            EuType::Word("asdf".into())
+            EuType::word("+"),
+            EuType::word("asdf")
         ])])
     );
     assert_eq!(
         parse(r#"((1 "2") 3+ (asdf))"#),
-        Ok(imbl::vector![EuType::Expr(imbl::vector![
-            EuType::Expr(imbl::vector![EuType::I32(1), EuType::Str("2".into())]),
+        Ok(imbl::vector![EuType::expr([
+            EuType::expr([EuType::I32(1), EuType::str("2")]),
             EuType::I32(3),
-            EuType::Word("+".into()),
-            EuType::Expr(imbl::vector![EuType::Word("asdf".into())])
+            EuType::word("+"),
+            EuType::expr([EuType::word("asdf")])
         ])])
     );
 }
@@ -205,52 +220,42 @@ fn test_all() {
         parse(r#"1234"testing testing 123"#),
         Ok(imbl::vector![
             EuType::I32(1234),
-            EuType::Str("testing testing 123".into())
+            EuType::str("testing testing 123")
         ])
     );
     assert_eq!(
         parse(r#"asdf"testing testing 123"#),
         Ok(imbl::vector![
-            EuType::Word("asdf".into()),
-            EuType::Str("testing testing 123".into())
+            EuType::word("asdf"),
+            EuType::str("testing testing 123")
         ])
     );
     assert_eq!(
         parse("1234e5asdf"),
-        Ok(imbl::vector![
-            EuType::F64(1234e5),
-            EuType::Word("asdf".into())
-        ])
+        Ok(imbl::vector![EuType::F64(1234e5), EuType::word("asdf")])
     );
     assert_eq!(
         parse("1234i32test"),
-        Ok(imbl::vector![
-            EuType::I32(1234),
-            EuType::Word("test".into())
-        ])
+        Ok(imbl::vector![EuType::I32(1234), EuType::word("test")])
     );
     assert_eq!(
         parse("123ever"),
-        Ok(imbl::vector![EuType::I32(123), EuType::Word("ever".into())])
+        Ok(imbl::vector![EuType::I32(123), EuType::word("ever")])
     );
     assert_eq!(
         parse("123e.4"),
-        Ok(imbl::vector![EuType::I32(123), EuType::Word("e.4".into())])
+        Ok(imbl::vector![EuType::I32(123), EuType::word("e.4")])
     );
     assert_eq!(
         parse("(1 2+)map"),
         Ok(imbl::vector![
-            EuType::Expr(imbl::vector![
-                EuType::I32(1),
-                EuType::I32(2),
-                EuType::Word("+".into())
-            ]),
-            EuType::Word("map".into())
+            EuType::expr([EuType::I32(1), EuType::I32(2), EuType::word("+")]),
+            EuType::word("map")
         ])
     );
     assert_eq!(
         parse("12e3.4"),
-        Ok(imbl::vector![EuType::F64(12e3), EuType::Word(".4".into())])
+        Ok(imbl::vector![EuType::F64(12e3), EuType::word(".4")])
     );
 }
 

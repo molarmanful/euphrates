@@ -46,9 +46,9 @@ pub enum EuType<'eu> {
     Char(char),
 
     #[debug("{_0:?}")]
-    Str(HipStr<'eu>),
+    Str(Box<HipStr<'eu>>),
     #[debug("{_0}")]
-    Word(HipStr<'eu>),
+    Word(Box<HipStr<'eu>>),
 
     #[debug("{}", if let Some(t) = _0 { format!("Some:{t:?}") } else { "None".into() })]
     #[display("{}", if let Some(t) = _0 { t.to_string() } else { "".to_string() })]
@@ -59,10 +59,10 @@ pub enum EuType<'eu> {
 
     #[debug("Vec:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
-    Vec(imbl::Vector<EuType<'eu>>),
+    Vec(Box<imbl::Vector<EuType<'eu>>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
-    Expr(imbl::Vector<EuType<'eu>>),
+    Expr(Box<imbl::Vector<EuType<'eu>>>),
     #[debug("Seq:(...)")]
     #[display("{}", _0.lock().unwrap().join(""))]
     Seq(EuSeq<'eu>),
@@ -73,9 +73,33 @@ type EuSeq<'eu> = Arc<Mutex<EuIter<'eu>>>;
 pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + Send + Sync + 'eu>;
 
 impl<'eu> EuType<'eu> {
+    pub fn str(s: impl Into<HipStr<'eu>>) -> Self {
+        Self::Str(Box::new(s.into()))
+    }
+
+    pub fn word(s: impl Into<HipStr<'eu>>) -> Self {
+        Self::Word(Box::new(s.into()))
+    }
+
+    pub fn opt(s: Option<EuType<'eu>>) -> Self {
+        Self::Opt(s.map(Box::new))
+    }
+
+    pub fn vec(ts: impl Into<imbl::Vector<EuType<'eu>>>) -> Self {
+        Self::Vec(Box::new(ts.into()))
+    }
+
+    pub fn expr(ts: impl Into<imbl::Vector<EuType<'eu>>>) -> Self {
+        Self::Expr(Box::new(ts.into()))
+    }
+
+    pub fn seq(it: impl Iterator<Item = EuType<'eu>> + Send + Sync + 'eu) -> EuSeq<'eu> {
+        Arc::new(Mutex::new(Box::new(it)))
+    }
+
     pub fn to_vec(self) -> imbl::Vector<Self> {
         match self {
-            EuType::Vec(ts) | EuType::Expr(ts) => ts,
+            EuType::Vec(ts) | EuType::Expr(ts) => *ts,
             EuType::Str(s) => s.chars().map(EuType::Char).collect(),
             EuType::Opt(o) => o.into_iter().map(|t| *t).collect(),
             EuType::Res(r) => r.into_iter().map(|t| *t).collect(),
@@ -94,19 +118,13 @@ impl<'eu> EuType<'eu> {
 
     pub fn to_seq(self) -> EuSeq<'eu> {
         match self {
-            EuType::Str(s) => {
-                Self::iter_to_seq(s.chars().collect_vec().into_iter().map(EuType::Char))
-            }
-            EuType::Opt(o) => Self::iter_to_seq(o.into_iter().map(|t| *t)),
-            EuType::Res(r) => Self::iter_to_seq(r.into_iter().map(|t| *t)),
-            EuType::Vec(ts) | EuType::Expr(ts) => Self::iter_to_seq(ts.clone().into_iter()),
+            EuType::Str(s) => Self::seq(s.chars().collect_vec().into_iter().map(EuType::Char)),
+            EuType::Opt(o) => Self::seq(o.into_iter().map(|t| *t)),
+            EuType::Res(r) => Self::seq(r.into_iter().map(|t| *t)),
+            EuType::Vec(ts) | EuType::Expr(ts) => Self::seq(ts.clone().into_iter()),
             EuType::Seq(it) => it,
-            _ => Self::iter_to_seq(iter::once(self)),
+            _ => Self::seq(iter::once(self)),
         }
-    }
-
-    pub fn iter_to_seq(it: impl Iterator<Item = EuType<'eu>> + Send + Sync + 'eu) -> EuSeq<'eu> {
-        Arc::new(Mutex::new(Box::new(it)))
     }
 
     pub fn take_iter(it: &mut EuIter<'eu>) -> EuIter<'eu> {
@@ -121,7 +139,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(o) => Self::Opt(o.map(|t| Box::new(f(*t)))),
             Self::Res(r) => Self::Res(r.map(|t| Box::new(f(*t)))),
-            Self::Vec(ts) => Self::Vec(ts.into_iter().map(f).collect()),
+            Self::Vec(ts) => Self::Vec(Box::new(ts.into_iter().map(f).collect())),
             Self::Seq(it) => {
                 {
                     let mut guard = it.lock().unwrap();
@@ -138,9 +156,9 @@ impl<'eu> EuType<'eu> {
             (Self::Opt(a), Self::Opt(b)) => Self::Opt(a.zip(b).map(|(a, b)| Box::new(f(*a, *b)))),
             (Self::Res(Ok(a)), Self::Res(Ok(b))) => Self::Res(Ok(Box::new(f(*a, *b)))),
             (Self::Res(a), Self::Res(b)) => Self::Res(a.and(b)),
-            (Self::Vec(a), Self::Vec(b)) => {
-                Self::Vec(a.into_iter().zip(b).map(|(a, b)| f(a, b)).collect())
-            }
+            (Self::Vec(a), Self::Vec(b)) => Self::Vec(Box::new(
+                a.into_iter().zip(*b).map(|(a, b)| f(a, b)).collect(),
+            )),
             (Self::Seq(a), Self::Seq(b)) => {
                 if Arc::ptr_eq(&a, &b) {
                     Self::Seq(a).map(move |a| {
@@ -285,7 +303,7 @@ fn gen_fn_to_bool() {
                     EuType::Bool(b) => b,
                     {{arms}}
                     EuType::Char(c) => c != '\0',
-                    EuType::Str(s) => s != "",
+                    EuType::Str(s) => !s.is_empty(),
                     EuType::Word(_) => true,
                     EuType::Opt(o) => o.is_some(),
                     EuType::Res(r) => r.is_ok(),

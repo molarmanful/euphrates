@@ -98,7 +98,7 @@ impl<'eu> EuEnv<'eu> {
     fn eval_word(&mut self, w: &str) -> anyhow::Result<()> {
         if let Some(v) = self.scope.get(w) {
             if let EuType::Expr(ts) = v {
-                self.eval_iter(ts.clone())
+                self.eval_iter((**ts).clone())
             } else {
                 self.stack.push_back(v.clone());
                 Ok(())
@@ -162,7 +162,7 @@ impl<'eu> EuEnv<'eu> {
         for t in ts.into_iter().rev() {
             let v = self.stack.pop_back().context("insufficient args passed")?;
             match t {
-                EuType::Word(w) => self.scope.insert(w, v),
+                EuType::Word(w) => self.scope.insert(*w, v),
                 _ => todo!(),
             };
         }

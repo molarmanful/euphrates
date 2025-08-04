@@ -115,7 +115,7 @@ const INF32: EuDef = |env| {
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.push(EuType::Seq(EuType::iter_to_seq((0..).map(EuType::I128))));
+    env.push(EuType::Seq(EuType::seq((0..).map(EuType::I128))));
     Ok(())
 };
 
@@ -126,7 +126,7 @@ const DUP: EuDef = |env| {
 };
 
 const DUPS: EuDef = |env| {
-    env.push(EuType::Vec(env.stack.clone()));
+    env.push(EuType::Vec(Box::new(env.stack.clone())));
     Ok(())
 };
 
@@ -309,7 +309,7 @@ gen_def_to_num!();
 const TO_STR: EuDef = |env| {
     let a0 = match env.pop()? {
         t @ EuType::Str(_) => t,
-        t => EuType::Str(t.to_string().into()),
+        t => EuType::Str(Box::new(t.to_string().into())),
     };
     env.push(a0);
     Ok(())
@@ -317,40 +317,40 @@ const TO_STR: EuDef = |env| {
 
 const TO_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_vec();
-    env.push(EuType::Vec(a0));
+    env.push(EuType::Vec(Box::new(a0)));
     Ok(())
 };
 
 const WRAP_VEC: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Vec(imbl::vector![a0]));
+    env.push(EuType::vec(imbl::vector![a0]));
     Ok(())
 };
 
 const ALL_VEC: EuDef = |env| {
-    let ts = EuType::Vec(mem::take(&mut env.stack));
+    let ts = EuType::vec(mem::take(&mut env.stack));
     env.push(ts);
     Ok(())
 };
 
 const EVAL_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;
-    env.push(EuType::Vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
+    env.push(EuType::vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
     Ok(())
 };
 
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
     env.push(EuType::Res(
-        a0.map(|ts| Box::new(EuType::Vec(ts)))
-            .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
+        a0.map(|ts| Box::new(EuType::vec(ts)))
+            .map_err(|e| Box::new(EuType::str(e.to_string()))),
     ));
     Ok(())
 };
 
 const WRAP_EXPR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Expr(imbl::vector![a0]));
+    env.push(EuType::expr(imbl::vector![a0]));
     Ok(())
 };
 
@@ -361,7 +361,7 @@ const TO_SEQ: EuDef = |env| {
 };
 
 const WRAP_SEQ: EuDef = |env| {
-    let a0 = EuType::iter_to_seq(iter::once(env.pop()?));
+    let a0 = EuType::seq(iter::once(env.pop()?));
     env.push(EuType::Seq(a0));
     Ok(())
 };
@@ -473,7 +473,7 @@ const MAP: EuDef = |env| {
         EuType::Res(
             EuEnv::apply(a1.clone(), &[t], scope.clone())
                 .and_then(|mut env| env.pop().map(Box::new))
-                .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
+                .map_err(|e| Box::new(EuType::Str(Box::new(e.to_string().into())))),
         )
     });
     env.push(res);

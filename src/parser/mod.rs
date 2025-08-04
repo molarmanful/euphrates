@@ -55,8 +55,8 @@ fn eu_type<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
 
 fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
-        .output_into()
-        .map(EuType::Str)
+        .output_into::<HipStr>()
+        .map(EuType::str)
         .parse_next(input)
 }
 
@@ -74,7 +74,7 @@ fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
         ),
         opt('"'),
     )
-    .map(EuType::Str)
+    .map(EuType::str)
     .parse_next(input)
 }
 
@@ -139,7 +139,7 @@ fn eu_char_uni(input: &mut &str) -> ModalResult<char> {
 }
 
 fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
-    delimited('(', euphrates.map(EuType::Expr), opt(')')).parse_next(input)
+    delimited('(', euphrates.map(EuType::expr), opt(')')).parse_next(input)
 }
 
 fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
@@ -213,8 +213,8 @@ fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
     take_while(0.., |c: char| {
         !matches!(c, '`' | '"' | '\'' | '(' | ')') && !c.is_whitespace()
     })
-    .output_into()
-    .map(EuType::Word)
+    .output_into::<HipStr>()
+    .map(EuType::word)
     .parse_next(input)
 }
 
