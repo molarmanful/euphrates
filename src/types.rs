@@ -36,8 +36,6 @@ pub enum EuType<'eu> {
     I32(i32),
     #[debug("{_0:?}i64")]
     I64(i64),
-    #[debug("{_0:?}i128")]
-    I128(i128),
     #[debug("{_0:?}f32")]
     F32(f32),
     #[debug("{_0:?}")]
@@ -195,7 +193,6 @@ impl PartialEq for EuType<'_> {
             (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
             (Self::I32(l0), Self::I32(r0)) => l0 == r0,
             (Self::I64(l0), Self::I64(r0)) => l0 == r0,
-            (Self::I128(l0), Self::I128(r0)) => l0 == r0,
             (Self::F32(l0), Self::F32(r0)) => l0 == r0,
             (Self::F64(l0), Self::F64(r0)) => l0 == r0,
             (Self::Char(l0), Self::Char(r0)) => l0 == r0,
@@ -213,7 +210,7 @@ impl PartialEq for EuType<'_> {
 
 #[crabtime::function]
 fn gen_fn_to_num() {
-    let types = ["I32", "I64", "I128", "F32", "F64"];
+    let types = ["I32", "I64", "F32", "F64"];
     for t in types {
         let tl = t.to_lowercase();
         let tlq = format!(r#""{tl}""#);
@@ -250,7 +247,7 @@ gen_fn_to_num!();
 
 #[crabtime::function]
 fn gen_fn_to_size() {
-    let types = ["I32", "I64", "I128", "F32", "F64"];
+    let types = ["I32", "I64", "F32", "F64"];
     for n in ["isize", "usize"] {
         let nq = format!(r#""{n}""#);
         let arms = types
@@ -286,7 +283,7 @@ gen_fn_to_size!();
 
 #[crabtime::function]
 fn gen_fn_to_bool() {
-    let types = ["I32", "I64", "I128", "F32", "F64"];
+    let types = ["I32", "I64", "F32", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();
@@ -319,7 +316,7 @@ gen_fn_to_bool!();
 
 #[crabtime::function]
 fn gen_fn_neg() {
-    let types = ["I32", "I64", "I128", "F32", "F64"];
+    let types = ["I32", "I64", "F32", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();
@@ -353,7 +350,7 @@ gen_fn_neg!();
 fn gen_fn_math_binops() {
     use itertools::Itertools;
 
-    let types0 = ["I32", "I64", "I128", "F32", "F64"];
+    let types0 = ["I32", "I64", "F32", "F64"];
     let types1 = [("Bool", "u8"), ("Char", "i32")];
     let types2 = ["Str"];
 

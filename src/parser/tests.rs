@@ -39,46 +39,31 @@ fn test_float_invalid() {
 
 #[test]
 fn test_word() {
-    assert_eq!(
-        parse("asdf"),
-        Ok(imbl::vector![EuType::Word(Box::new("asdf".into()))])
-    );
+    assert_eq!(parse("asdf"), Ok(imbl::vector![EuType::word("asdf")]));
     assert_eq!(
         parse("asdf1234"),
-        Ok(imbl::vector![EuType::Word(Box::new("asdf1234".into()))])
+        Ok(imbl::vector![EuType::word("asdf1234")])
     );
 }
 
 #[test]
 fn test_dec() {
-    assert_eq!(
-        parse(".1234"),
-        Ok(imbl::vector![EuType::Word(Box::new(".1234".into()))])
-    );
+    assert_eq!(parse(".1234"), Ok(imbl::vector![EuType::word(".1234")]));
     assert_eq!(
         parse("1234.5.678"),
-        Ok(imbl::vector![
-            EuType::F64(1234.5),
-            EuType::Word(Box::new(".678".into()))
-        ])
+        Ok(imbl::vector![EuType::F64(1234.5), EuType::word(".678")])
     );
     assert_eq!(
         parse(".1234.5.678"),
-        Ok(imbl::vector![EuType::Word(Box::new(".1234.5.678".into()))])
+        Ok(imbl::vector![EuType::word(".1234.5.678")])
     );
     assert_eq!(
         parse("1234..5678"),
-        Ok(imbl::vector![
-            EuType::I32(1234),
-            EuType::Word(Box::new("..5678".into()))
-        ])
+        Ok(imbl::vector![EuType::I32(1234), EuType::word("..5678")])
     );
     assert_eq!(
         parse("123.f32"),
-        Ok(imbl::vector![
-            EuType::I32(123),
-            EuType::Word(Box::new(".f32".into()))
-        ])
+        Ok(imbl::vector![EuType::I32(123), EuType::word(".f32")])
     );
 }
 
@@ -86,45 +71,36 @@ fn test_dec() {
 fn test_str() {
     assert_eq!(
         parse(r#""testing testing 123""#),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            "testing testing 123".into()
-        ))])
+        Ok(imbl::vector![EuType::str("testing testing 123")])
     );
     assert_eq!(
         parse(r#""testing testing 123"#),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            "testing testing 123".into()
-        ))])
+        Ok(imbl::vector![EuType::str("testing testing 123")])
     );
     assert_eq!(
         parse(r#""asdf \" 123""#),
-        Ok(imbl::vector![EuType::Str(Box::new("asdf \" 123".into()))])
+        Ok(imbl::vector![EuType::str("asdf \" 123")])
     );
     assert_eq!(
         parse(r#""asdf 123 \""#),
-        Ok(imbl::vector![EuType::Str(Box::new("asdf 123 \"".into()))])
+        Ok(imbl::vector![EuType::str("asdf 123 \"")])
     );
     assert_eq!(
         parse(r#""asdf 123 \\""#),
-        Ok(imbl::vector![EuType::Str(Box::new("asdf 123 \\".into()))])
+        Ok(imbl::vector![EuType::str("asdf 123 \\")])
     );
-    assert_eq!(
-        parse(r#""\n""#),
-        Ok(imbl::vector![EuType::Str(Box::new("\n".into()))])
-    );
+    assert_eq!(parse(r#""\n""#), Ok(imbl::vector![EuType::str("\n")]));
     assert_eq!(
         parse(r#""\x5a\xff""#),
-        Ok(imbl::vector![EuType::Str(Box::new("\x5a\u{ff}".into()))])
+        Ok(imbl::vector![EuType::str("\x5a\u{ff}")])
     );
     assert_eq!(
         parse(r#""\u{5}\u{ff}\u{321ab}""#),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            "\u{5}\u{ff}\u{321ab}".into()
-        ))])
+        Ok(imbl::vector![EuType::str("\u{5}\u{ff}\u{321ab}")])
     );
     assert_eq!(
         parse(r#""\u{ff""#),
-        Ok(imbl::vector![EuType::Str(Box::new("\u{ff}".into()))])
+        Ok(imbl::vector![EuType::str("\u{ff}")])
     );
 }
 
@@ -132,21 +108,15 @@ fn test_str() {
 fn test_str_raw() {
     assert_eq!(
         parse("`testing testing 123`"),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            "testing testing 123".into()
-        ))])
+        Ok(imbl::vector![EuType::str("testing testing 123")])
     );
     assert_eq!(
         parse("`testing testing 123"),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            "testing testing 123".into()
-        ))])
+        Ok(imbl::vector![EuType::str("testing testing 123")])
     );
     assert_eq!(
         parse(r#"`asdf \n 123`"#),
-        Ok(imbl::vector![EuType::Str(Box::new(
-            r#"asdf \n 123"#.into()
-        ))])
+        Ok(imbl::vector![EuType::str(r#"asdf \n 123"#)])
     );
 }
 

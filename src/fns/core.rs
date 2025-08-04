@@ -47,7 +47,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "f32" => TO_F32,
     "i64" => TO_I64,
     "f64" => TO_F64,
-    "i128" => TO_I128,
 
     ">str" => TO_STR,
 
@@ -115,7 +114,7 @@ const INF32: EuDef = |env| {
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.push(EuType::Seq(EuType::seq((0..).map(EuType::I128))));
+    env.push(EuType::Seq(EuType::seq((0..).map(EuType::I64))));
     Ok(())
 };
 
@@ -126,7 +125,7 @@ const DUP: EuDef = |env| {
 };
 
 const DUPS: EuDef = |env| {
-    env.push(EuType::Vec(Box::new(env.stack.clone())));
+    env.push(EuType::vec(env.stack.clone()));
     Ok(())
 };
 
@@ -290,7 +289,7 @@ const TO_BOOL: EuDef = |env| {
 
 #[crabtime::function]
 fn gen_def_to_num() {
-    let types = ["I32", "F32", "I64", "F64", "I128"];
+    let types = ["I32", "F32", "I64", "F64"];
     for &t in &types {
         let n = t.to_lowercase();
         let n_up = t.to_uppercase();
@@ -309,7 +308,7 @@ gen_def_to_num!();
 const TO_STR: EuDef = |env| {
     let a0 = match env.pop()? {
         t @ EuType::Str(_) => t,
-        t => EuType::Str(Box::new(t.to_string().into())),
+        t => EuType::str(t.to_string()),
     };
     env.push(a0);
     Ok(())
@@ -317,7 +316,7 @@ const TO_STR: EuDef = |env| {
 
 const TO_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_vec();
-    env.push(EuType::Vec(Box::new(a0)));
+    env.push(EuType::vec(a0));
     Ok(())
 };
 
