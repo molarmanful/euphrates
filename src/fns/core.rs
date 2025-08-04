@@ -17,6 +17,10 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "False" => FALSE,
     "inf" => INF,
     "inf32" => INF32,
+    "min_i32" => MIN_I32,
+    "max_i32" => MAX_I32,
+    "min_i64" => MIN_I64,
+    "max_i64" => MAX_I64,
     "SeqN0" => SEQ_N0,
 
     "dup" => DUP,
@@ -113,6 +117,26 @@ const INF: EuDef = |env| {
 
 const INF32: EuDef = |env| {
     env.push(EuType::F32(f32::INFINITY));
+    Ok(())
+};
+
+const MIN_I32: EuDef = |env| {
+    env.push(EuType::I32(i32::MIN));
+    Ok(())
+};
+
+const MAX_I32: EuDef = |env| {
+    env.push(EuType::I32(i32::MAX));
+    Ok(())
+};
+
+const MIN_I64: EuDef = |env| {
+    env.push(EuType::I64(i64::MIN));
+    Ok(())
+};
+
+const MAX_I64: EuDef = |env| {
+    env.push(EuType::I64(i64::MAX));
     Ok(())
 };
 
