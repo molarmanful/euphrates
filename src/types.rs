@@ -20,10 +20,6 @@ use derive_more::{
     Display,
     IsVariant,
 };
-use ecow::{
-    EcoVec,
-    eco_vec,
-};
 use hipstr::HipStr;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
@@ -63,10 +59,10 @@ pub enum EuType<'eu> {
 
     #[debug("Vec:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
-    Vec(EcoVec<EuType<'eu>>),
+    Vec(imbl::Vector<EuType<'eu>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
-    Expr(EcoVec<EuType<'eu>>),
+    Expr(imbl::Vector<EuType<'eu>>),
     #[debug("Seq:(...)")]
     #[display("{}", _0.lock().unwrap().join(""))]
     Seq(EuSeq<'eu>),
@@ -77,21 +73,21 @@ type EuSeq<'eu> = Arc<Mutex<EuIter<'eu>>>;
 pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + Send + Sync + 'eu>;
 
 impl<'eu> EuType<'eu> {
-    pub fn to_vec(self) -> EcoVec<Self> {
+    pub fn to_vec(self) -> imbl::Vector<Self> {
         match self {
             EuType::Vec(ts) | EuType::Expr(ts) => ts,
             EuType::Str(s) => s.chars().map(EuType::Char).collect(),
             EuType::Opt(o) => o.into_iter().map(|t| *t).collect(),
             EuType::Res(r) => r.into_iter().map(|t| *t).collect(),
             EuType::Seq(it) => (&mut *it.lock().unwrap()).collect(),
-            _ => eco_vec![self],
+            _ => imbl::vector![self],
         }
     }
 
-    pub fn to_expr(self) -> anyhow::Result<EcoVec<Self>> {
+    pub fn to_expr(self) -> anyhow::Result<imbl::Vector<Self>> {
         match self {
             EuType::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
-            _ if self.is_vecz() => Ok(eco_vec![self]),
+            _ if self.is_vecz() => Ok(imbl::vector![self]),
             _ => Ok(self.to_vec()),
         }
     }
@@ -185,12 +181,10 @@ impl PartialEq for EuType<'_> {
             (Self::F32(l0), Self::F32(r0)) => l0 == r0,
             (Self::F64(l0), Self::F64(r0)) => l0 == r0,
             (Self::Char(l0), Self::Char(r0)) => l0 == r0,
-            (Self::Str(l0), Self::Str(r0)) => l0 == r0,
-            (Self::Word(l0), Self::Word(r0)) => l0 == r0,
+            (Self::Str(l0), Self::Str(r0)) | (Self::Word(l0), Self::Word(r0)) => l0 == r0,
             (Self::Opt(l0), Self::Opt(r0)) => l0 == r0,
             (Self::Res(l0), Self::Res(r0)) => l0 == r0,
-            (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
-            (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
+            (Self::Vec(l0), Self::Vec(r0)) | (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
             (Self::Seq(l0), Self::Seq(r0)) => {
                 Arc::ptr_eq(l0, r0) || (&mut *l0.lock().unwrap()).eq(&mut *r0.lock().unwrap())
             }

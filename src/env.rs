@@ -1,11 +1,9 @@
 use std::{
-    collections::HashMap,
     iter::{
         self,
         Peekable,
     },
     mem,
-    sync::Arc,
 };
 
 use anyhow::{
@@ -13,7 +11,6 @@ use anyhow::{
     anyhow,
 };
 use derive_more::Display;
-use ecow::EcoVec;
 use hipstr::HipStr;
 use winnow::Parser;
 
@@ -30,11 +27,11 @@ use crate::{
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
-    pub stack: EcoVec<EuType<'eu>>,
+    pub stack: imbl::Vector<EuType<'eu>>,
     pub scope: EuScope<'eu>,
 }
 
-type EuScope<'eu> = Arc<HashMap<HipStr<'eu>, EuType<'eu>>>;
+type EuScope<'eu> = imbl::HashMap<HipStr<'eu>, EuType<'eu>>;
 
 impl<'eu> EuEnv<'eu> {
     #[inline]
@@ -74,7 +71,7 @@ impl<'eu> EuEnv<'eu> {
         Ok(Self::new(
             euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
             &[],
-            Arc::new(HashMap::new()),
+            imbl::HashMap::new(),
         ))
     }
 
@@ -92,7 +89,7 @@ impl<'eu> EuEnv<'eu> {
             EuType::Word(w) => self.eval_word(&w),
             EuType::Res(Err(e)) => Err(anyhow!(e.to_string())),
             _ => {
-                self.stack.push(t);
+                self.stack.push_back(t);
                 Ok(())
             }
         }
@@ -103,7 +100,7 @@ impl<'eu> EuEnv<'eu> {
             if let EuType::Expr(ts) = v {
                 self.eval_iter(ts.clone())
             } else {
-                self.stack.push(v.clone());
+                self.stack.push_back(v.clone());
                 Ok(())
             }
         } else if let Some(f) = CORE.get(w) {
@@ -163,9 +160,9 @@ impl<'eu> EuEnv<'eu> {
         T::IntoIter: DoubleEndedIterator,
     {
         for t in ts.into_iter().rev() {
-            let v = self.stack.pop().context("insufficient args passed")?;
+            let v = self.stack.pop_back().context("insufficient args passed")?;
             match t {
-                EuType::Word(w) => Arc::make_mut(&mut self.scope).insert(w, v),
+                EuType::Word(w) => self.scope.insert(w, v),
                 _ => todo!(),
             };
         }
@@ -173,8 +170,13 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
+    pub fn push(&mut self, t: EuType<'eu>) {
+        self.stack.push_back(t);
+    }
+
+    #[inline]
     pub fn pop(&mut self) -> anyhow::Result<EuType<'eu>> {
-        self.check_nargs(1).map(|_| self.stack.pop().unwrap())
+        self.check_nargs(1).map(|_| self.stack.pop_back().unwrap())
     }
 
     #[inline]
@@ -188,14 +190,6 @@ impl<'eu> EuEnv<'eu> {
         (0 <= j && j < len)
             .then_some(j as usize)
             .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1))
-    }
-
-    pub fn split_off(&mut self, n: usize) -> anyhow::Result<EcoVec<EuType<'eu>>> {
-        self.check_nargs(n)?;
-        let (a, b) = self.stack.split_at(self.stack.len() - n);
-        let b = b.into();
-        self.stack = a.into();
-        Ok(b)
     }
 
     pub fn check_nargs(&self, n: usize) -> anyhow::Result<()> {

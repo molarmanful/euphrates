@@ -3,7 +3,6 @@ use std::{
     mem,
 };
 
-use ecow::eco_vec;
 use phf::phf_map;
 
 use super::EuDef;
@@ -91,44 +90,43 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 };
 
 const NONE: EuDef = |env| {
-    env.stack.push(EuType::Opt(None));
+    env.push(EuType::Opt(None));
     Ok(())
 };
 
 const TRUE: EuDef = |env| {
-    env.stack.push(EuType::Bool(true));
+    env.push(EuType::Bool(true));
     Ok(())
 };
 
 const FALSE: EuDef = |env| {
-    env.stack.push(EuType::Bool(false));
+    env.push(EuType::Bool(false));
     Ok(())
 };
 
 const INF: EuDef = |env| {
-    env.stack.push(EuType::F64(f64::INFINITY));
+    env.push(EuType::F64(f64::INFINITY));
     Ok(())
 };
 
 const INF32: EuDef = |env| {
-    env.stack.push(EuType::F32(f32::INFINITY));
+    env.push(EuType::F32(f32::INFINITY));
     Ok(())
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.stack
-        .push(EuType::Seq(EuType::iter_to_seq((0..).map(EuType::I128))));
+    env.push(EuType::Seq(EuType::iter_to_seq((0..).map(EuType::I128))));
     Ok(())
 };
 
 const DUP: EuDef = |env| {
     env.check_nargs(1)?;
-    env.stack.push(env.stack.last().unwrap().clone());
+    env.push(env.last().unwrap().clone());
     Ok(())
 };
 
 const DUPS: EuDef = |env| {
-    env.stack.push(EuType::Vec(env.stack.clone()));
+    env.push(EuType::Vec(env.stack.clone()));
     Ok(())
 };
 
@@ -143,28 +141,28 @@ const DUPD: EuDef = |env| {
 
 const OVER: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
+    env.push(env.stack[env.iflip(1).unwrap()].clone());
     Ok(())
 };
 
 const DDUP: EuDef = |env| {
     env.check_nargs(2)?;
-    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
-    env.stack.push(env.stack[env.iflip(1).unwrap()].clone());
+    env.push(env.stack[env.iflip(1).unwrap()].clone());
+    env.push(env.stack[env.iflip(1).unwrap()].clone());
     Ok(())
 };
 
 const EDUP: EuDef = |env| {
     env.check_nargs(3)?;
     for _ in 0..3 {
-        env.stack.push(env.stack[env.iflip(2).unwrap()].clone());
+        env.push(env.stack[env.iflip(2).unwrap()].clone());
     }
     Ok(())
 };
 
 const PICK: EuDef = |env| {
     let a0 = env.pop()?.to_res_isize()?;
-    env.stack.push(env.stack[env.iflip(a0)?].clone());
+    env.push(env.stack[env.iflip(a0)?].clone());
     Ok(())
 };
 
@@ -205,19 +203,19 @@ const NIX: EuDef = |env| {
 const SWAP: EuDef = |env| {
     env.check_nargs(2)?;
     let a = env.iflip(0).unwrap();
-    env.stack.make_mut().swap(a, a - 1);
+    env.stack.swap(a, a - 1);
     Ok(())
 };
 
 const REV: EuDef = |env| {
-    env.stack.make_mut().reverse();
+    env.stack = env.stack.clone().into_iter().rev().collect();
     Ok(())
 };
 
 const SWAPD: EuDef = |env| {
     env.check_nargs(3)?;
     let a = env.iflip(1).unwrap();
-    env.stack.make_mut().swap(a, a - 1);
+    env.stack.swap(a, a - 1);
     Ok(())
 };
 
@@ -232,20 +230,20 @@ const TRADE: EuDef = |env| {
     let a0 = env.pop()?.to_res_isize()?;
     let i = env.iflip(a0)?;
     let j = env.iflip(0).unwrap();
-    env.stack.make_mut().swap(i, j);
+    env.stack.swap(i, j);
     Ok(())
 };
 
 const ROT: EuDef = |env| {
     env.check_nargs(3)?;
     let a0 = env.stack.remove(env.iflip(2).unwrap());
-    env.stack.push(a0);
+    env.push(a0);
     Ok(())
 };
 
 const ROT_: EuDef = |env| {
     env.check_nargs(3)?;
-    let a0 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop_back().unwrap();
     env.stack.insert(env.iflip(1).unwrap(), a0);
     Ok(())
 };
@@ -253,40 +251,40 @@ const ROT_: EuDef = |env| {
 const ROLL: EuDef = |env| {
     let a0 = env.pop()?.to_res_isize()?;
     let t = env.stack.remove(env.iflip(a0)?);
-    env.stack.push(t);
+    env.push(t);
     Ok(())
 };
 
 const ROLL_: EuDef = |env| {
     env.check_nargs(2)?;
-    let a0 = env.stack.pop().unwrap().to_res_isize()?;
+    let a0 = env.stack.pop_back().unwrap().to_res_isize()?;
     let i = env.iflip(a0)?;
-    let t = env.stack.pop().unwrap();
+    let t = env.stack.pop_back().unwrap();
     env.stack.insert(i, t);
     Ok(())
 };
 
 const SOME: EuDef = |env| {
     let a0 = Box::new(env.pop()?);
-    env.stack.push(EuType::Opt(Some(a0)));
+    env.push(EuType::Opt(Some(a0)));
     Ok(())
 };
 
 const OK: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(EuType::Res(Ok(Box::new(a0))));
+    env.push(EuType::Res(Ok(Box::new(a0))));
     Ok(())
 };
 
 const ERR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(EuType::Res(Err(Box::new(a0))));
+    env.push(EuType::Res(Err(Box::new(a0))));
     Ok(())
 };
 
 const TO_BOOL: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(EuType::Bool(a0.into()));
+    env.push(EuType::Bool(a0.into()));
     Ok(())
 };
 
@@ -299,8 +297,7 @@ fn gen_def_to_num() {
         crabtime::output! {
             const TO_{{n_up}}: EuDef = |env| {
                 let a0 = env.pop()?;
-                env.stack
-                    .push(EuType::Opt(a0.to_{{n}}().map(EuType::{{t}}).map(Box::new)));
+                env.push(EuType::Opt(a0.to_{{n}}().map(EuType::{{t}}).map(Box::new)));
                 Ok(())
             };
         }
@@ -314,38 +311,37 @@ const TO_STR: EuDef = |env| {
         t @ EuType::Str(_) => t,
         t => EuType::Str(t.to_string().into()),
     };
-    env.stack.push(a0);
+    env.push(a0);
     Ok(())
 };
 
 const TO_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_vec();
-    env.stack.push(EuType::Vec(a0));
+    env.push(EuType::Vec(a0));
     Ok(())
 };
 
 const WRAP_VEC: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(EuType::Vec(eco_vec![a0]));
+    env.push(EuType::Vec(imbl::vector![a0]));
     Ok(())
 };
 
 const ALL_VEC: EuDef = |env| {
     let ts = EuType::Vec(mem::take(&mut env.stack));
-    env.stack.push(ts);
+    env.push(ts);
     Ok(())
 };
 
 const EVAL_VEC: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;
-    env.stack
-        .push(EuType::Vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
+    env.push(EuType::Vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
     Ok(())
 };
 
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
-    env.stack.push(EuType::Res(
+    env.push(EuType::Res(
         a0.map(|ts| Box::new(EuType::Vec(ts)))
             .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
     ));
@@ -354,19 +350,19 @@ const TO_EXPR: EuDef = |env| {
 
 const WRAP_EXPR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(EuType::Expr(eco_vec![a0]));
+    env.push(EuType::Expr(imbl::vector![a0]));
     Ok(())
 };
 
 const TO_SEQ: EuDef = |env| {
     let a0 = env.pop()?.to_seq();
-    env.stack.push(EuType::Seq(a0));
+    env.push(EuType::Seq(a0));
     Ok(())
 };
 
 const WRAP_SEQ: EuDef = |env| {
     let a0 = EuType::iter_to_seq(iter::once(env.pop()?));
-    env.stack.push(EuType::Seq(a0));
+    env.push(EuType::Seq(a0));
     Ok(())
 };
 
@@ -411,19 +407,19 @@ const TRY: EuDef = |env| {
         EuType::Opt(Some(t)) | EuType::Res(Ok(t)) => *t,
         t => t,
     };
-    env.stack.push(a0);
+    env.push(a0);
     Ok(())
 };
 
 const NOT: EuDef = |env| {
     let a0: bool = env.pop()?.into();
-    env.stack.push(EuType::Bool(!a0));
+    env.push(EuType::Bool(!a0));
     Ok(())
 };
 
 const NEG: EuDef = |env| {
     let a0 = env.pop()?;
-    env.stack.push(-a0);
+    env.push(-a0);
     Ok(())
 };
 
@@ -435,7 +431,7 @@ fn gen_fn_math_binops() {
                 env.check_nargs(2)?;
                 let a1 = env.pop().unwrap();
                 let a0 = env.pop().unwrap();
-                env.stack.push(a0 {{op}} a1);
+                env.push(a0 {{op}} a1);
                 Ok(())
             };
         }
@@ -446,31 +442,31 @@ gen_fn_math_binops!();
 
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop_back().unwrap().to_res_usize()?;
     let a0 = env.pop()?.to_seq();
     {
         let mut guard = a0.lock().unwrap();
         *guard = Box::new(EuType::take_iter(&mut guard).take(a1));
     }
-    env.stack.push(EuType::Seq(a0));
+    env.push(EuType::Seq(a0));
     Ok(())
 };
 
 const DROP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop_back().unwrap().to_res_usize()?;
     let a0 = env.pop()?.to_seq();
     {
         let mut guard = a0.lock().unwrap();
         *guard = Box::new(EuType::take_iter(&mut guard).skip(a1));
     }
-    env.stack.push(EuType::Seq(a0));
+    env.push(EuType::Seq(a0));
     Ok(())
 };
 
 const MAP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop_back().unwrap().to_expr()?;
     let a0 = env.pop()?;
     let scope = env.scope.clone();
     let res = a0.map(move |t| {
@@ -480,6 +476,6 @@ const MAP: EuDef = |env| {
                 .map_err(|e| Box::new(EuType::Str(e.to_string().into()))),
         )
     });
-    env.stack.push(res);
+    env.push(res);
     Ok(())
 };

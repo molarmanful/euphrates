@@ -1,4 +1,3 @@
-use ecow::EcoVec;
 use hipstr::HipStr;
 use winnow::{
     ascii::digit1,
@@ -30,10 +29,10 @@ use winnow::{
 
 use crate::types::EuType;
 
-pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuType<'eu>>> {
+pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<imbl::Vector<EuType<'eu>>> {
     terminated(
-        repeat(0.., preceded(ws, eu_type)).fold(EcoVec::new, |mut ts, t| {
-            ts.push(t);
+        repeat(0.., preceded(ws, eu_type)).fold(imbl::Vector::new, |mut ts, t| {
+            ts.push_back(t);
             ts
         }),
         ws,
