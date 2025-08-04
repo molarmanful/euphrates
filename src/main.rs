@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-1 2 3 4 5 6 7 1_ trade
+1 1 (dup println over + ? swap f) (f) -> f
 "#;
 
 fn main() {

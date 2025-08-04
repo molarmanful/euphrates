@@ -42,6 +42,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "roll" => ROLL,
     "roll_" => ROLL_,
 
+    "print" => PRINT,
+    "println" => PRINTLN,
+
     "bool" => TO_BOOL,
     "i32" => TO_I32,
     "f32" => TO_F32,
@@ -260,6 +263,16 @@ const ROLL_: EuDef = |env| {
     let i = env.iflip(a0)?;
     let t = env.stack.pop().unwrap();
     env.stack.insert(i, t);
+    Ok(())
+};
+
+const PRINT: EuDef = |env| {
+    print!("{}", env.pop()?);
+    Ok(())
+};
+
+const PRINTLN: EuDef = |env| {
+    println!("{}", env.pop()?);
     Ok(())
 };
 
