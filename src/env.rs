@@ -11,6 +11,7 @@ use anyhow::{
     anyhow,
 };
 use derive_more::Display;
+use ecow::EcoVec;
 use hipstr::HipStr;
 use winnow::Parser;
 
@@ -27,7 +28,7 @@ use crate::{
 #[display("stack: {stack:?}\nscope: {scope:?}")]
 pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
-    pub stack: imbl::Vector<EuType<'eu>>,
+    pub stack: EcoVec<EuType<'eu>>,
     pub scope: EuScope<'eu>,
 }
 
@@ -89,7 +90,7 @@ impl<'eu> EuEnv<'eu> {
             EuType::Word(w) => self.eval_word(&w),
             EuType::Res(Err(e)) => Err(anyhow!(e.to_string())),
             _ => {
-                self.stack.push_back(t);
+                self.push(t);
                 Ok(())
             }
         }
@@ -98,9 +99,9 @@ impl<'eu> EuEnv<'eu> {
     fn eval_word(&mut self, w: &str) -> anyhow::Result<()> {
         if let Some(v) = self.scope.get(w) {
             if let EuType::Expr(ts) = v {
-                self.eval_iter((**ts).clone())
+                self.eval_iter(ts.clone())
             } else {
-                self.stack.push_back(v.clone());
+                self.push(v.clone());
                 Ok(())
             }
         } else if let Some(f) = CORE.get(w) {
@@ -160,9 +161,9 @@ impl<'eu> EuEnv<'eu> {
         T::IntoIter: DoubleEndedIterator,
     {
         for t in ts.into_iter().rev() {
-            let v = self.stack.pop_back().context("insufficient args passed")?;
+            let v = self.stack.pop().context("insufficient args passed")?;
             match t {
-                EuType::Word(w) => self.scope.insert(*w, v),
+                EuType::Word(w) => self.scope.insert(w, v),
                 _ => todo!(),
             };
         }
@@ -171,12 +172,12 @@ impl<'eu> EuEnv<'eu> {
 
     #[inline]
     pub fn push(&mut self, t: EuType<'eu>) {
-        self.stack.push_back(t);
+        self.stack.push(t);
     }
 
     #[inline]
     pub fn pop(&mut self) -> anyhow::Result<EuType<'eu>> {
-        self.check_nargs(1).map(|_| self.stack.pop_back().unwrap())
+        self.check_nargs(1).map(|_| self.stack.pop().unwrap())
     }
 
     #[inline]

@@ -20,6 +20,10 @@ use derive_more::{
     Display,
     IsVariant,
 };
+use ecow::{
+    EcoVec,
+    eco_vec,
+};
 use hipstr::HipStr;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
@@ -44,9 +48,9 @@ pub enum EuType<'eu> {
     Char(char),
 
     #[debug("{_0:?}")]
-    Str(Box<HipStr<'eu>>),
+    Str(HipStr<'eu>),
     #[debug("{_0}")]
-    Word(Box<HipStr<'eu>>),
+    Word(HipStr<'eu>),
 
     #[debug("{}", if let Some(t) = _0 { format!("Some:{t:?}") } else { "None".into() })]
     #[display("{}", if let Some(t) = _0 { t.to_string() } else { "".to_string() })]
@@ -57,10 +61,10 @@ pub enum EuType<'eu> {
 
     #[debug("Vec:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
-    Vec(Box<imbl::Vector<EuType<'eu>>>),
+    Vec(EcoVec<EuType<'eu>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
-    Expr(Box<imbl::Vector<EuType<'eu>>>),
+    Expr(EcoVec<EuType<'eu>>),
     #[debug("Seq:(...)")]
     #[display("{}", _0.lock().unwrap().join(""))]
     Seq(EuSeq<'eu>),
@@ -72,44 +76,44 @@ pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + Send + Sync + 'eu>
 
 impl<'eu> EuType<'eu> {
     pub fn str(s: impl Into<HipStr<'eu>>) -> Self {
-        Self::Str(Box::new(s.into()))
+        Self::Str(s.into())
     }
 
     pub fn word(s: impl Into<HipStr<'eu>>) -> Self {
-        Self::Word(Box::new(s.into()))
+        Self::Word(s.into())
     }
 
     pub fn opt(s: Option<EuType<'eu>>) -> Self {
         Self::Opt(s.map(Box::new))
     }
 
-    pub fn vec(ts: impl Into<imbl::Vector<EuType<'eu>>>) -> Self {
-        Self::Vec(Box::new(ts.into()))
+    pub fn vec(ts: impl Into<EcoVec<EuType<'eu>>>) -> Self {
+        Self::Vec(ts.into())
     }
 
-    pub fn expr(ts: impl Into<imbl::Vector<EuType<'eu>>>) -> Self {
-        Self::Expr(Box::new(ts.into()))
+    pub fn expr(ts: impl Into<EcoVec<EuType<'eu>>>) -> Self {
+        Self::Expr(ts.into())
     }
 
     pub fn seq(it: impl Iterator<Item = EuType<'eu>> + Send + Sync + 'eu) -> EuSeq<'eu> {
         Arc::new(Mutex::new(Box::new(it)))
     }
 
-    pub fn to_vec(self) -> imbl::Vector<Self> {
+    pub fn to_vec(self) -> EcoVec<Self> {
         match self {
-            EuType::Vec(ts) | EuType::Expr(ts) => *ts,
+            EuType::Vec(ts) | EuType::Expr(ts) => ts,
             EuType::Str(s) => s.chars().map(EuType::Char).collect(),
             EuType::Opt(o) => o.into_iter().map(|t| *t).collect(),
             EuType::Res(r) => r.into_iter().map(|t| *t).collect(),
             EuType::Seq(it) => (&mut *it.lock().unwrap()).collect(),
-            _ => imbl::vector![self],
+            _ => eco_vec![self],
         }
     }
 
-    pub fn to_expr(self) -> anyhow::Result<imbl::Vector<Self>> {
+    pub fn to_expr(self) -> anyhow::Result<EcoVec<Self>> {
         match self {
             EuType::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
-            _ if self.is_vecz() => Ok(imbl::vector![self]),
+            _ if self.is_vecz() => Ok(eco_vec![self]),
             _ => Ok(self.to_vec()),
         }
     }
@@ -137,7 +141,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(o) => Self::Opt(o.map(|t| Box::new(f(*t)))),
             Self::Res(r) => Self::Res(r.map(|t| Box::new(f(*t)))),
-            Self::Vec(ts) => Self::Vec(Box::new(ts.into_iter().map(f).collect())),
+            Self::Vec(ts) => Self::Vec(ts.into_iter().map(f).collect()),
             Self::Seq(it) => {
                 {
                     let mut guard = it.lock().unwrap();
@@ -154,9 +158,9 @@ impl<'eu> EuType<'eu> {
             (Self::Opt(a), Self::Opt(b)) => Self::Opt(a.zip(b).map(|(a, b)| Box::new(f(*a, *b)))),
             (Self::Res(Ok(a)), Self::Res(Ok(b))) => Self::Res(Ok(Box::new(f(*a, *b)))),
             (Self::Res(a), Self::Res(b)) => Self::Res(a.and(b)),
-            (Self::Vec(a), Self::Vec(b)) => Self::Vec(Box::new(
-                a.into_iter().zip(*b).map(|(a, b)| f(a, b)).collect(),
-            )),
+            (Self::Vec(a), Self::Vec(b)) => {
+                Self::Vec(a.into_iter().zip(b).map(|(a, b)| f(a, b)).collect())
+            }
             (Self::Seq(a), Self::Seq(b)) => {
                 if Arc::ptr_eq(&a, &b) {
                     Self::Seq(a).map(move |a| {

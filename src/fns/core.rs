@@ -202,19 +202,19 @@ const NIX: EuDef = |env| {
 const SWAP: EuDef = |env| {
     env.check_nargs(2)?;
     let a = env.iflip(0).unwrap();
-    env.stack.swap(a, a - 1);
+    env.stack.make_mut().swap(a, a - 1);
     Ok(())
 };
 
 const REV: EuDef = |env| {
-    env.stack = env.stack.clone().into_iter().rev().collect();
+    env.stack.make_mut().reverse();
     Ok(())
 };
 
 const SWAPD: EuDef = |env| {
     env.check_nargs(3)?;
     let a = env.iflip(1).unwrap();
-    env.stack.swap(a, a - 1);
+    env.stack.make_mut().swap(a, a - 1);
     Ok(())
 };
 
@@ -229,7 +229,7 @@ const TRADE: EuDef = |env| {
     let a0 = env.pop()?.to_res_isize()?;
     let i = env.iflip(a0)?;
     let j = env.iflip(0).unwrap();
-    env.stack.swap(i, j);
+    env.stack.make_mut().swap(i, j);
     Ok(())
 };
 
@@ -242,7 +242,7 @@ const ROT: EuDef = |env| {
 
 const ROT_: EuDef = |env| {
     env.check_nargs(3)?;
-    let a0 = env.stack.pop_back().unwrap();
+    let a0 = env.stack.pop().unwrap();
     env.stack.insert(env.iflip(1).unwrap(), a0);
     Ok(())
 };
@@ -256,9 +256,9 @@ const ROLL: EuDef = |env| {
 
 const ROLL_: EuDef = |env| {
     env.check_nargs(2)?;
-    let a0 = env.stack.pop_back().unwrap().to_res_isize()?;
+    let a0 = env.stack.pop().unwrap().to_res_isize()?;
     let i = env.iflip(a0)?;
-    let t = env.stack.pop_back().unwrap();
+    let t = env.stack.pop().unwrap();
     env.stack.insert(i, t);
     Ok(())
 };
@@ -322,7 +322,7 @@ const TO_VEC: EuDef = |env| {
 
 const WRAP_VEC: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::vec(imbl::vector![a0]));
+    env.push(EuType::vec([a0]));
     Ok(())
 };
 
@@ -349,7 +349,7 @@ const TO_EXPR: EuDef = |env| {
 
 const WRAP_EXPR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::expr(imbl::vector![a0]));
+    env.push(EuType::expr([a0]));
     Ok(())
 };
 
@@ -441,7 +441,7 @@ gen_fn_math_binops!();
 
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop_back().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop().unwrap().to_res_usize()?;
     let a0 = env.pop()?.to_seq();
     {
         let mut guard = a0.lock().unwrap();
@@ -453,7 +453,7 @@ const TAKE: EuDef = |env| {
 
 const DROP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop_back().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop().unwrap().to_res_usize()?;
     let a0 = env.pop()?.to_seq();
     {
         let mut guard = a0.lock().unwrap();
@@ -465,14 +465,14 @@ const DROP: EuDef = |env| {
 
 const MAP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop_back().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
     let a0 = env.pop()?;
     let scope = env.scope.clone();
     let res = a0.map(move |t| {
         EuType::Res(
             EuEnv::apply(a1.clone(), &[t], scope.clone())
                 .and_then(|mut env| env.pop().map(Box::new))
-                .map_err(|e| Box::new(EuType::Str(Box::new(e.to_string().into())))),
+                .map_err(|e| Box::new(EuType::str(e.to_string()))),
         )
     });
     env.push(res);
