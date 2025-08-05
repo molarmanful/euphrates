@@ -117,18 +117,18 @@ impl<'eu> EuType<'eu> {
 
     pub fn to_vec(self) -> EcoVec<Self> {
         match self {
-            EuType::Vec(ts) | EuType::Expr(ts) => ts,
-            EuType::Str(s) => s.chars().map(EuType::Char).collect(),
-            EuType::Opt(o) => o.into_iter().map(|t| *t).collect(),
-            EuType::Res(r) => r.into_iter().map(|t| *t).collect(),
-            EuType::Seq(it) => (&mut *it.lock().unwrap()).collect(),
+            Self::Vec(ts) | EuType::Expr(ts) => ts,
+            Self::Str(s) => s.chars().map(EuType::Char).collect(),
+            Self::Opt(o) => o.into_iter().map(|t| *t).collect(),
+            Self::Res(r) => r.into_iter().map(|t| *t).collect(),
+            Self::Seq(it) => (&mut *it.lock().unwrap()).collect(),
             _ => eco_vec![self],
         }
     }
 
     pub fn to_expr(self) -> anyhow::Result<EcoVec<Self>> {
         match self {
-            EuType::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
+            Self::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
             _ if self.is_vecz() => Ok(eco_vec![self]),
             _ => Ok(self.to_vec()),
         }
@@ -136,12 +136,19 @@ impl<'eu> EuType<'eu> {
 
     pub fn to_seq(self) -> EuSeq<'eu> {
         match self {
-            EuType::Str(s) => Self::seq(s.chars().collect_vec().into_iter().map(EuType::Char)),
-            EuType::Opt(o) => Self::seq(o.into_iter().map(|t| *t)),
-            EuType::Res(r) => Self::seq(r.into_iter().map(|t| *t)),
-            EuType::Vec(ts) | EuType::Expr(ts) => Self::seq(ts.clone().into_iter()),
-            EuType::Seq(it) => it,
-            _ => Self::seq(iter::once(self)),
+            Self::Seq(it) => it,
+            t => Arc::new(Mutex::new(t.to_iter())),
+        }
+    }
+
+    pub fn to_iter(self) -> EuIter<'eu> {
+        match self {
+            Self::Str(s) => Box::new(s.chars().collect_vec().into_iter().map(EuType::Char)),
+            Self::Opt(o) => Box::new(o.into_iter().map(|t| *t)),
+            Self::Res(r) => Box::new(r.into_iter().map(|t| *t)),
+            Self::Vec(ts) => Box::new(ts.into_iter()),
+            Self::Seq(it) => Self::take_iter(&mut it.lock().unwrap()),
+            t => Box::new(iter::once(t)),
         }
     }
 
