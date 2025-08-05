@@ -29,7 +29,10 @@ use itertools::Itertools;
 use num_traits::ToPrimitive;
 use winnow::Parser;
 
-use crate::parser::euphrates;
+use crate::{
+    parser::euphrates,
+    utils::swap_errors,
+};
 
 #[derive(Debug, Display, Clone, IsVariant)]
 #[display("{_0}")]
@@ -66,13 +69,15 @@ pub enum EuType<'eu> {
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuType<'eu>>),
     #[debug("Seq:(...)")]
-    #[display("{}", _0.lock().unwrap().join(""))]
+    #[display("{}", Self::take_iter(&mut _0.lock().unwrap()).map(Self::res_str).join(""))]
     Seq(EuSeq<'eu>),
 }
 
-type EuSeq<'eu> = Arc<Mutex<EuIter<'eu>>>;
+type EuSeq<'eu> = Arc<Mutex<EuResIter<'eu>>>;
 
-pub type EuIter<'eu> = Box<dyn Iterator<Item = EuType<'eu>> + Send + Sync + 'eu>;
+type EuResIter<'eu> = EuIter<'eu, anyhow::Result<EuType<'eu>>>;
+
+pub type EuIter<'eu, T = EuType<'eu>> = Box<dyn Iterator<Item = T> + Send + Sync + 'eu>;
 
 impl<'eu> EuType<'eu> {
     #[inline]
@@ -112,25 +117,25 @@ impl<'eu> EuType<'eu> {
 
     #[inline]
     pub fn seq(it: impl Iterator<Item = EuType<'eu>> + Send + Sync + 'eu) -> EuSeq<'eu> {
-        Arc::new(Mutex::new(Box::new(it)))
+        Arc::new(Mutex::new(Box::new(it.map(Ok))))
     }
 
-    pub fn to_vec(self) -> EcoVec<Self> {
+    pub fn to_vec(self) -> anyhow::Result<EcoVec<Self>> {
         match self {
-            Self::Vec(ts) | EuType::Expr(ts) => ts,
-            Self::Str(s) => s.chars().map(EuType::Char).collect(),
-            Self::Opt(o) => o.into_iter().map(|t| *t).collect(),
-            Self::Res(r) => r.into_iter().map(|t| *t).collect(),
+            Self::Vec(ts) | EuType::Expr(ts) => Ok(ts),
+            Self::Str(s) => s.chars().map(|t| Ok(EuType::Char(t))).collect(),
+            Self::Opt(o) => o.into_iter().map(|t| Ok(*t)).collect(),
+            Self::Res(r) => r.into_iter().map(|t| Ok(*t)).collect(),
             Self::Seq(it) => (&mut *it.lock().unwrap()).collect(),
-            _ => eco_vec![self],
+            _ => Ok(eco_vec![self]),
         }
     }
 
     pub fn to_expr(self) -> anyhow::Result<EcoVec<Self>> {
         match self {
+            Self::Expr(ts) => Ok(ts),
             Self::Str(s) => euphrates.parse(&s).map_err(|e| anyhow!(e.into_inner())),
-            _ if self.is_vecz() => Ok(eco_vec![self]),
-            _ => Ok(self.to_vec()),
+            _ => Ok(eco_vec![self]),
         }
     }
 
@@ -141,19 +146,24 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn to_iter(self) -> EuIter<'eu> {
+    pub fn to_iter(self) -> EuResIter<'eu> {
         match self {
-            Self::Str(s) => Box::new(s.chars().collect_vec().into_iter().map(EuType::Char)),
-            Self::Opt(o) => Box::new(o.into_iter().map(|t| *t)),
-            Self::Res(r) => Box::new(r.into_iter().map(|t| *t)),
-            Self::Vec(ts) => Box::new(ts.into_iter()),
+            Self::Str(s) => Box::new(
+                s.chars()
+                    .collect_vec()
+                    .into_iter()
+                    .map(|t| Ok(Self::Char(t))),
+            ),
+            Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
+            Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
+            Self::Vec(ts) => Box::new(ts.into_iter().map(Ok)),
             Self::Seq(it) => Self::take_iter(&mut it.lock().unwrap()),
-            t => Box::new(iter::once(t)),
+            t => Box::new(iter::once(Ok(t))),
         }
     }
 
     #[inline]
-    pub fn take_iter(it: &mut EuIter<'eu>) -> EuIter<'eu> {
+    pub fn take_iter(it: &mut EuResIter<'eu>) -> EuResIter<'eu> {
         mem::replace(it, Box::new(iter::empty()))
     }
 
@@ -162,30 +172,87 @@ impl<'eu> EuType<'eu> {
         self.is_opt() || self.is_res() || self.is_vec() || self.is_seq()
     }
 
-    pub fn map(self, mut f: impl FnMut(Self) -> Self + Send + Sync + 'eu) -> Self {
+    pub fn map(
+        self,
+        mut f: impl FnMut(Self) -> anyhow::Result<Self> + Send + Sync + 'eu,
+    ) -> anyhow::Result<Self> {
         match self {
-            Self::Opt(o) => Self::opt(o.map(|t| f(*t))),
-            Self::Res(r) => Self::Res(r.map(|t| Box::new(f(*t)))),
-            Self::Vec(ts) => Self::Vec(ts.into_iter().map(f).collect()),
+            Self::Opt(o) => o.map(|t| f(*t)).transpose().map(Self::opt),
+            Self::Res(r) => swap_errors(r.map(|t| f(*t).map(Box::new))).map(Self::Res),
+            Self::Vec(ts) => ts
+                .into_iter()
+                .map(f)
+                .collect::<Result<_, _>>()
+                .map(Self::Vec),
             Self::Seq(it) => {
                 {
                     let mut guard = it.lock().unwrap();
-                    *guard = Box::new(Self::take_iter(&mut guard).map(f));
+                    *guard = Box::new(Self::take_iter(&mut guard).map(move |t| f(t?)));
                 }
-                Self::Seq(it)
+                Ok(Self::Seq(it))
             }
             _ => f(self),
         }
     }
 
-    pub fn zip(self, t: Self, mut f: impl FnMut(Self, Self) -> Self + Send + Sync + 'eu) -> Self {
-        match (self, t) {
-            (Self::Opt(a), Self::Opt(b)) => Self::opt(a.zip(b).map(|(a, b)| f(*a, *b))),
-            (Self::Res(Ok(a)), Self::Res(Ok(b))) => Self::res(Ok(f(*a, *b))),
-            (Self::Res(a), Self::Res(b)) => Self::Res(a.and(b)),
-            (Self::Vec(a), Self::Vec(b)) => {
-                Self::Vec(a.into_iter().zip(b).map(|(a, b)| f(a, b)).collect())
+    pub fn flat_map(
+        self,
+        mut f: impl FnMut(Self) -> anyhow::Result<Self> + Send + Sync + 'eu,
+    ) -> anyhow::Result<Self> {
+        match self {
+            Self::Opt(o) => o
+                .and_then(|t| match f(*t) {
+                    Ok(Self::Opt(o)) => o.map(Ok),
+                    t => Some(t.map(Box::new)),
+                })
+                .transpose()
+                .map(Self::Opt),
+            Self::Res(r) => swap_errors(r.and_then(|t| match f(*t) {
+                Ok(Self::Res(r)) => r.map(Ok),
+                t => Ok(t.map(Box::new)),
+            }))
+            .map(Self::Res),
+            Self::Vec(ts) => ts
+                .into_iter()
+                .flat_map(|t| match f(t) {
+                    Ok(t) => t.to_iter(),
+                    e @ Err(_) => Box::new(iter::once(e)),
+                })
+                .collect::<Result<_, _>>()
+                .map(Self::Vec),
+            Self::Seq(it) => {
+                {
+                    let mut guard = it.lock().unwrap();
+                    *guard = Box::new(Self::take_iter(&mut guard).flat_map(move |r| {
+                        match if let Ok(t) = r { f(t) } else { r } {
+                            Ok(t) => t.to_iter(),
+                            e @ Err(_) => Box::new(iter::once(e)),
+                        }
+                    }));
+                }
+                Ok(Self::Seq(it))
             }
+            _ => f(self),
+        }
+    }
+
+    pub fn zip(
+        self,
+        t: Self,
+        mut f: impl FnMut(Self, Self) -> anyhow::Result<Self> + Send + Sync + 'eu,
+    ) -> anyhow::Result<Self> {
+        match (self, t) {
+            (Self::Opt(a), Self::Opt(b)) => {
+                a.zip(b).map(|(a, b)| f(*a, *b)).transpose().map(Self::opt)
+            }
+            (Self::Res(Ok(a)), Self::Res(Ok(b))) => f(*a, *b).map(|t| Self::res(Ok(t))),
+            (Self::Res(a), Self::Res(b)) => Ok(Self::Res(a.and(b))),
+            (Self::Vec(a), Self::Vec(b)) => a
+                .into_iter()
+                .zip(b)
+                .map(|(a, b)| f(a, b))
+                .collect::<Result<_, _>>()
+                .map(Self::Vec),
             (Self::Seq(a), Self::Seq(b)) => {
                 if Arc::ptr_eq(&a, &b) {
                     Self::Seq(a).map(move |a| {
@@ -199,17 +266,17 @@ impl<'eu> EuType<'eu> {
                         *guard = Box::new(
                             Self::take_iter(&mut guard)
                                 .zip(old)
-                                .map(move |(a, b)| f(a, b)),
+                                .map(move |(a, b)| a.and_then(|a| b.and_then(|b| f(a, b)))),
                         )
                     }
-                    Self::Seq(a)
+                    Ok(Self::Seq(a))
                 }
             }
-            (Self::Opt(a), b) => Self::opt(a.map(|t| f(*t, b))),
-            (Self::Res(a), b) => Self::Res(a.map(|t| Box::new(f(*t, b)))),
+            (Self::Opt(a), b) => a.map(|t| f(*t, b)).transpose().map(Self::opt),
+            (Self::Res(a), b) => swap_errors(a.map(|t| f(*t, b).map(Box::new))).map(Self::Res),
             (a, b) if a.is_vecz() => a.map(move |t| f(t, b.clone())),
-            (a, Self::Opt(b)) => Self::opt(b.map(|t| f(a, *t))),
-            (a, Self::Res(b)) => Self::Res(b.map(|t| Box::new(f(a, *t)))),
+            (a, Self::Opt(b)) => b.map(|t| f(a, *t)).transpose().map(Self::opt),
+            (a, Self::Res(b)) => swap_errors(b.map(|t| f(a, *t).map(Box::new))).map(Self::Res),
             (a, b) if b.is_vecz() => b.map(move |t| f(a.clone(), t)),
             (a, b) => f(a, b),
         }
@@ -229,9 +296,7 @@ impl PartialEq for EuType<'_> {
             (Self::Opt(l0), Self::Opt(r0)) => l0 == r0,
             (Self::Res(l0), Self::Res(r0)) => l0 == r0,
             (Self::Vec(l0), Self::Vec(r0)) | (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
-            (Self::Seq(l0), Self::Seq(r0)) => {
-                Arc::ptr_eq(l0, r0) || (&mut *l0.lock().unwrap()).eq(&mut *r0.lock().unwrap())
-            }
+            (Self::Seq(l0), Self::Seq(r0)) => Arc::ptr_eq(l0, r0),
             _ => false,
         }
     }
@@ -365,7 +430,7 @@ fn gen_fn_neg() {
                     EuType::Bool(b) => EuType::I32(b.into()).neg(),
                     EuType::Char(c) => EuType::I32(c as i32).neg(),
                     EuType::Str(s) => EuType::opt(s.parse().ok().map(|t: f64| EuType::F64(t).neg())),
-                    _ if self.is_vecz() => self.map(Self::neg),
+                    _ if self.is_vecz() => self.map(|t| Ok(Self::neg(t))).unwrap(),
                     _ => EuType::Opt(None),
                 }
             }
@@ -400,7 +465,7 @@ fn gen_fn_math_binops() {
                 if t0.chars().next() == Some('I') && t1.chars().next() == Some('I') {
                     crabtime::quote! {
                         (EuType::{{t0}}(a), EuType::{{t1}}(b)) => {
-                            EuType::opt((a as {{n}}).{{f_chk}}(b as {{n}}).map(|t| EuType::{{c}}(t)))
+                            EuType::opt((a as {{n}}).{{f_chk}}(b as {{n}}).map(EuType::{{c}}))
                         }
                     }
                 } else {
@@ -455,7 +520,7 @@ fn gen_fn_math_binops() {
                             Some(EuType::F64(a.{{f}}(b)))
                         })()),
                         {{arms_parse}}
-                        (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, Self::{{f}}),
+                        (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, |a, b| Ok(Self::{{f}}(a, b))).unwrap(),
                         _ => EuType::Opt(None),
                     }
                 }

@@ -93,6 +93,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "dp" => DROP,
 
     "map" => MAP,
+    "mapf" => FLAT_MAP,
 };
 
 const NONE: EuDef = |env| {
@@ -352,7 +353,7 @@ const TO_STR: EuDef = |env| {
 };
 
 const TO_VEC: EuDef = |env| {
-    let a0 = env.pop()?.to_vec();
+    let a0 = env.pop()?.to_vec()?;
     env.push(EuType::vec(a0));
     Ok(())
 };
@@ -502,9 +503,19 @@ const MAP: EuDef = |env| {
     let a1 = env.stack.pop().unwrap().to_expr()?;
     let a0 = env.pop()?;
     let scope = env.scope.clone();
-    let res = a0.map(move |t| {
-        EuType::res_str(EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop()))
-    });
-    env.push(res);
+    env.push(a0.map(move |t| {
+        EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
+    })?);
+    Ok(())
+};
+
+const FLAT_MAP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.pop()?;
+    let scope = env.scope.clone();
+    env.push(a0.flat_map(move |t| {
+        EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
+    })?);
     Ok(())
 };
