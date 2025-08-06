@@ -232,6 +232,20 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    #[inline]
+    pub fn flatten(self) -> anyhow::Result<Self> {
+        self.flat_map(Ok)
+    }
+
+    #[inline]
+    pub fn flatten_rec(self) -> anyhow::Result<Self> {
+        if self.is_vecz() {
+            self.flat_map(|t| t.flatten_rec())
+        } else {
+            Ok(self)
+        }
+    }
+
     pub fn zip(
         self,
         t: Self,

@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 2 3 4)#vec >seq dup (a) -> (a +)map
+1Ok Err Ok Ok flat*
 "#;
 
 fn main() {

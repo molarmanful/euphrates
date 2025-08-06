@@ -93,7 +93,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "dp" => DROP,
 
     "map" => MAP,
-    "mapf" => FLAT_MAP,
+    "mapf" => MAPF,
+    "flat" => FLAT,
+    "flat*" => FLAT_REC,
     "zip" => ZIP,
     "fold" => FOLD,
 };
@@ -503,7 +505,7 @@ const DROP: EuDef = |env| {
 const MAP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap().to_expr()?;
-    let a0 = env.pop()?;
+    let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
     env.push(a0.map(move |t| {
         EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
@@ -511,10 +513,10 @@ const MAP: EuDef = |env| {
     Ok(())
 };
 
-const FLAT_MAP: EuDef = |env| {
+const MAPF: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap().to_expr()?;
-    let a0 = env.pop()?;
+    let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
     env.push(a0.flat_map(move |t| {
         EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
@@ -522,11 +524,23 @@ const FLAT_MAP: EuDef = |env| {
     Ok(())
 };
 
-const ZIP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a2 = env.stack.pop().unwrap().to_expr()?;
-    let a1 = env.pop()?;
+const FLAT: EuDef = |env| {
     let a0 = env.pop()?;
+    env.push(a0.flatten()?);
+    Ok(())
+};
+
+const FLAT_REC: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.flatten_rec()?);
+    Ok(())
+};
+
+const ZIP: EuDef = |env| {
+    env.check_nargs(3)?;
+    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
     env.push(a0.zip(a1, move |a, b| {
         EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
@@ -535,10 +549,10 @@ const ZIP: EuDef = |env| {
 };
 
 const FOLD: EuDef = |env| {
-    env.check_nargs(2)?;
+    env.check_nargs(3)?;
     let a2 = env.stack.pop().unwrap().to_expr()?;
-    let a1 = env.pop()?;
-    let a0 = env.pop()?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
     env.push(a0.fold(a1, move |a, b| {
         EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
