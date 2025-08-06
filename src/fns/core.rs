@@ -94,6 +94,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "map" => MAP,
     "mapf" => FLAT_MAP,
+    "zip" => ZIP,
+    "fold" => FOLD,
 };
 
 const NONE: EuDef = |env| {
@@ -516,6 +518,30 @@ const FLAT_MAP: EuDef = |env| {
     let scope = env.scope.clone();
     env.push(a0.flat_map(move |t| {
         EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
+    })?);
+    Ok(())
+};
+
+const ZIP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.pop()?;
+    let a0 = env.pop()?;
+    let scope = env.scope.clone();
+    env.push(a0.zip(a1, move |a, b| {
+        EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
+    })?);
+    Ok(())
+};
+
+const FOLD: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.pop()?;
+    let a0 = env.pop()?;
+    let scope = env.scope.clone();
+    env.push(a0.fold(a1, move |a, b| {
+        EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
     })?);
     Ok(())
 };

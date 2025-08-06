@@ -179,11 +179,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(o) => o.map(|t| f(*t)).transpose().map(Self::opt),
             Self::Res(r) => swap_errors(r.map(|t| f(*t).map(Box::new))).map(Self::Res),
-            Self::Vec(ts) => ts
-                .into_iter()
-                .map(f)
-                .collect::<Result<_, _>>()
-                .map(Self::Vec),
+            Self::Vec(ts) => ts.into_iter().map(f).try_collect().map(Self::Vec),
             Self::Seq(it) => {
                 {
                     let mut guard = it.lock().unwrap();
@@ -218,7 +214,7 @@ impl<'eu> EuType<'eu> {
                     Ok(t) => t.to_iter(),
                     e @ Err(_) => Box::new(iter::once(e)),
                 })
-                .collect::<Result<_, _>>()
+                .try_collect()
                 .map(Self::Vec),
             Self::Seq(it) => {
                 {
@@ -251,7 +247,7 @@ impl<'eu> EuType<'eu> {
                 .into_iter()
                 .zip(b)
                 .map(|(a, b)| f(a, b))
-                .collect::<Result<_, _>>()
+                .try_collect()
                 .map(Self::Vec),
             (Self::Seq(a), Self::Seq(b)) => {
                 if Arc::ptr_eq(&a, &b) {
@@ -279,6 +275,22 @@ impl<'eu> EuType<'eu> {
             (a, Self::Res(b)) => swap_errors(b.map(|t| f(a, *t).map(Box::new))).map(Self::Res),
             (a, b) if b.is_vecz() => b.map(move |t| f(a.clone(), t)),
             (a, b) => f(a, b),
+        }
+    }
+
+    pub fn fold(
+        self,
+        init: Self,
+        mut f: impl FnMut(Self, Self) -> anyhow::Result<Self> + Send + Sync + 'eu,
+    ) -> anyhow::Result<Self> {
+        match self {
+            Self::Opt(Some(t)) | Self::Res(Ok(t)) => f(init, *t),
+            Self::Opt(None) | Self::Res(Err(_)) => Ok(init),
+            Self::Vec(ts) => ts.into_iter().try_fold(init, f),
+            Self::Seq(it) => {
+                Self::take_iter(&mut it.lock().unwrap()).try_fold(init, |acc, x| f(acc, x?))
+            }
+            _ => f(self, init),
         }
     }
 }
