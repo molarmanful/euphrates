@@ -30,6 +30,7 @@ anyhow = "1.0.98"
 itertools = "0.14.0"
 imbl = "6.0.0"
 ecow = "0.2.6"
+dyn-clone = "1.0.20"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"

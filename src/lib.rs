@@ -1,5 +1,3 @@
-#![feature(coroutines)]
-
 pub mod env;
 pub mod fns;
 pub mod parser;

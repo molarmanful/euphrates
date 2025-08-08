@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-1Ok Err Ok Ok flat*
+(1 2 3 4)#vec >seq dup 1+ >vec
 "#;
 
 fn main() {
@@ -9,7 +9,7 @@ fn main() {
         Ok(env) => println!("{env}"),
         Err(e) => {
             eprintln!("ERR:");
-            e.chain().for_each(|c| eprintln!("{c}"));
+            e.0.chain().for_each(|c| eprintln!("{c}"));
             std::process::exit(1);
         }
     }

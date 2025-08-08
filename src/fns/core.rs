@@ -15,12 +15,18 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "None" => NONE,
     "True" => TRUE,
     "False" => FALSE,
+    "MinI32" => MIN_I32,
+    "MaxI32" => MAX_I32,
+    "MinI64" => MIN_I64,
+    "MaxI64" => MAX_I64,
+    "MinF32" => MIN_F32,
+    "MaxF32" => MAX_F32,
+    "MinF64" => MIN_F64,
+    "MaxF64" => MAX_F64,
     "inf" => INF,
     "inf32" => INF32,
-    "min_i32" => MIN_I32,
-    "max_i32" => MAX_I32,
-    "min_i64" => MIN_I64,
-    "max_i64" => MAX_I64,
+    "NaN" => NAN,
+    "NaN32" => NAN32,
     "SeqN0" => SEQ_N0,
 
     "dup" => DUP,
@@ -115,6 +121,25 @@ const FALSE: EuDef = |env| {
     Ok(())
 };
 
+#[crabtime::function]
+fn gen_fn_num_consts() {
+    let types = ["I32", "I64", "F32", "F64"];
+    let consts = ["MIN", "MAX"];
+    for t in types {
+        let n = t.to_lowercase();
+        for c in consts {
+            crabtime::output! {
+                const {{c}}_{{t}}: EuDef = |env| {
+                    env.push(EuType::{{t}}({{n}}::{{c}}));
+                    Ok(())
+                };
+            };
+        }
+    }
+}
+
+gen_fn_num_consts!();
+
 const INF: EuDef = |env| {
     env.push(EuType::F64(f64::INFINITY));
     Ok(())
@@ -125,28 +150,18 @@ const INF32: EuDef = |env| {
     Ok(())
 };
 
-const MIN_I32: EuDef = |env| {
-    env.push(EuType::I32(i32::MIN));
+const NAN: EuDef = |env| {
+    env.push(EuType::F64(f64::NAN));
     Ok(())
 };
 
-const MAX_I32: EuDef = |env| {
-    env.push(EuType::I32(i32::MAX));
-    Ok(())
-};
-
-const MIN_I64: EuDef = |env| {
-    env.push(EuType::I64(i64::MIN));
-    Ok(())
-};
-
-const MAX_I64: EuDef = |env| {
-    env.push(EuType::I64(i64::MAX));
+const NAN32: EuDef = |env| {
+    env.push(EuType::F32(f32::NAN));
     Ok(())
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.push(EuType::Seq(EuType::seq((0..).map(EuType::I64))));
+    env.push(EuType::seq((0..).map(EuType::I64).map(Ok)));
     Ok(())
 };
 
@@ -399,8 +414,8 @@ const TO_SEQ: EuDef = |env| {
 };
 
 const WRAP_SEQ: EuDef = |env| {
-    let a0 = EuType::seq(iter::once(env.pop()?));
-    env.push(EuType::Seq(a0));
+    let a0 = env.pop()?;
+    env.push(EuType::seq(iter::once(Ok(a0))));
     Ok(())
 };
 
@@ -480,25 +495,23 @@ gen_fn_math_binops!();
 
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.pop()?.to_seq();
-    {
-        let mut guard = a0.lock().unwrap();
-        *guard = Box::new(EuType::take_iter(&mut guard).take(a1));
-    }
-    env.push(EuType::Seq(a0));
+    env.push(a1.map(move |n| {
+        let n = n.to_res_usize()?;
+        Ok(EuType::seq(a0.clone().take(n)))
+    })?);
     Ok(())
 };
 
 const DROP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_res_usize()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.pop()?.to_seq();
-    {
-        let mut guard = a0.lock().unwrap();
-        *guard = Box::new(EuType::take_iter(&mut guard).skip(a1));
-    }
-    env.push(EuType::Seq(a0));
+    env.push(a1.map(move |n| {
+        let n = n.to_res_usize()?;
+        Ok(EuType::seq(a0.clone().skip(n)))
+    })?);
     Ok(())
 };
 

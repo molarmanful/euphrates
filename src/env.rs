@@ -20,6 +20,7 @@ use crate::{
     parser::euphrates,
     types::{
         EuIter,
+        EuRes,
         EuType,
     },
 };
@@ -39,7 +40,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: Send + Sync + 'eu,
+        T::IntoIter: 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
         Self {
@@ -50,10 +51,10 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
-    pub fn apply<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> anyhow::Result<EuEnv<'eu>>
+    pub fn apply<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuEnv<'eu>>
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: Send + Sync + 'eu,
+        T::IntoIter: 'eu,
     {
         let mut env = Self::new(ts, args, scope);
         env.eval()?;
@@ -61,14 +62,14 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
-    pub fn run_str(input: &str) -> anyhow::Result<Self> {
+    pub fn run_str(input: &str) -> EuRes<Self> {
         let mut env = Self::str(input)?;
         env.eval()?;
         Ok(env)
     }
 
     #[inline]
-    pub fn str(input: &str) -> anyhow::Result<Self> {
+    pub fn str(input: &str) -> EuRes<Self> {
         Ok(Self::new(
             euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
             &[],
@@ -76,7 +77,7 @@ impl<'eu> EuEnv<'eu> {
         ))
     }
 
-    pub fn eval(&mut self) -> anyhow::Result<()> {
+    pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
             println!("{t:?}\n>>>");
             self.eval_type(t)?;
@@ -85,10 +86,10 @@ impl<'eu> EuEnv<'eu> {
         Ok(())
     }
 
-    fn eval_type(&mut self, t: EuType<'eu>) -> anyhow::Result<()> {
+    fn eval_type(&mut self, t: EuType<'eu>) -> EuRes<()> {
         match t {
             EuType::Word(w) => self.eval_word(&w),
-            EuType::Res(Err(e)) => Err(anyhow!(e.to_string())),
+            EuType::Res(Err(e)) => Err(anyhow!(e.to_string()).into()),
             _ => {
                 self.push(t);
                 Ok(())
@@ -96,7 +97,7 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    fn eval_word(&mut self, w: &str) -> anyhow::Result<()> {
+    fn eval_word(&mut self, w: &str) -> EuRes<()> {
         if let Some(v) = self.scope.get(w) {
             if let EuType::Expr(ts) = v {
                 self.eval_iter(ts.clone())
@@ -105,17 +106,19 @@ impl<'eu> EuEnv<'eu> {
                 Ok(())
             }
         } else if let Some(f) = CORE.get(w) {
-            f(self).with_context(|| format!("`{w}` failed"))
+            f(self)
+                .with_context(|| format!("`{w}` failed"))
+                .map_err(|e| e.into())
         } else {
-            Err(anyhow!("unknown word `{w}`"))
+            Err(anyhow!("unknown word `{w}`").into())
         }
     }
 
     #[inline]
-    pub fn eval_iter<T>(&mut self, ts: T) -> anyhow::Result<()>
+    pub fn eval_iter<T>(&mut self, ts: T) -> EuRes<()>
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: Send + Sync + 'eu,
+        T::IntoIter: 'eu,
     {
         if self.queue.peek().is_none() {
             self.load_iter(ts);
@@ -131,7 +134,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn load_iter<T>(&mut self, ts: T)
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: Send + Sync + 'eu,
+        T::IntoIter: 'eu,
     {
         let empty: EuIter<'eu> = Box::new(iter::empty());
         let it: EuIter<'eu> = Box::new(
@@ -145,7 +148,7 @@ impl<'eu> EuEnv<'eu> {
     pub fn frame<T>(&self, ts: T) -> Self
     where
         T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: Send + Sync + 'eu,
+        T::IntoIter: 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
         Self {
@@ -155,7 +158,7 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn bind_args<T>(&mut self, ts: T) -> anyhow::Result<()>
+    pub fn bind_args<T>(&mut self, ts: T) -> EuRes<()>
     where
         T: IntoIterator<Item = EuType<'eu>>,
         T::IntoIter: DoubleEndedIterator,
@@ -176,30 +179,26 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
-    pub fn pop(&mut self) -> anyhow::Result<EuType<'eu>> {
+    pub fn pop(&mut self) -> EuRes<EuType<'eu>> {
         self.check_nargs(1).map(|_| self.stack.pop().unwrap())
     }
 
     #[inline]
-    pub fn last(&self) -> anyhow::Result<&EuType<'eu>> {
+    pub fn last(&self) -> EuRes<&EuType<'eu>> {
         self.check_nargs(1).map(|_| self.stack.last().unwrap())
     }
 
-    pub fn iflip(&self, i: isize) -> anyhow::Result<usize> {
+    pub fn iflip(&self, i: isize) -> EuRes<usize> {
         let len = self.stack.len() as isize;
         let j = if i < 0 { !i } else { len - i - 1 };
         (0 <= j && j < len)
             .then_some(j as usize)
-            .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1))
+            .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1).into())
     }
 
-    pub fn check_nargs(&self, n: usize) -> anyhow::Result<()> {
+    pub fn check_nargs(&self, n: usize) -> EuRes<()> {
         if self.stack.len() < n {
-            Err(anyhow!(
-                "actual stack len {} < {} expected",
-                self.stack.len(),
-                n,
-            ))
+            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n,).into())
         } else {
             Ok(())
         }
