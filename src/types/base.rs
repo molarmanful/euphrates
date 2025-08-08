@@ -21,7 +21,10 @@ use ecow::{
 };
 use hipstr::HipStr;
 use itertools::Itertools;
-use num_traits::ToPrimitive;
+use num_traits::{
+    AsPrimitive,
+    ToPrimitive,
+};
 use ordered_float::OrderedFloat;
 use winnow::Parser;
 
@@ -44,9 +47,9 @@ pub enum EuType<'eu> {
     #[debug("{_0:?}i64")]
     I64(i64),
     #[debug("{_0:?}f32")]
-    F32(f32),
+    F32(OrderedFloat<f32>),
     #[debug("{_0:?}")]
-    F64(f64),
+    F64(OrderedFloat<f64>),
     #[debug("{_0:?}")]
     Char(char),
 
@@ -74,6 +77,31 @@ pub enum EuType<'eu> {
 }
 
 impl<'eu> EuType<'eu> {
+    #[inline]
+    pub fn i32(n: impl Into<i32>) -> Self {
+        Self::I32(n.into())
+    }
+
+    #[inline]
+    pub fn i64(n: impl Into<i64>) -> Self {
+        Self::I64(n.into())
+    }
+
+    #[inline]
+    pub fn f32(n: impl Into<OrderedFloat<f32>>) -> Self {
+        Self::F32(n.into())
+    }
+
+    #[inline]
+    pub fn f64(n: impl Into<OrderedFloat<f64>>) -> Self {
+        Self::F64(n.into())
+    }
+
+    #[inline]
+    pub fn char(n: impl Into<char>) -> Self {
+        Self::Char(n.into())
+    }
+
     #[inline]
     pub fn str(s: impl Into<HipStr<'eu>>) -> Self {
         Self::Str(s.into())
@@ -412,10 +440,10 @@ fn gen_fn_neg() {
             fn neg(self) -> Self {
                 match self {
                     {{arms}}
-                    Self::Bool(b) => Self::I32(b.into()).neg(),
-                    Self::Char(c) => Self::I32(c as i32).neg(),
-                    Self::Str(s) => Self::opt(s.parse().ok().map(|t: f64| Self::F64(t).neg())),
-                    _ if self.is_vecz() => self.map(|t| Ok(t.neg())).unwrap(),
+                    Self::Bool(b) => -Self::I32(b.into()),
+                    Self::Char(c) => -Self::I32(c as i32),
+                    Self::Str(s) => Self::opt(s.parse().ok().map(|t| -Self::F64(t))),
+                    _ if self.is_vecz() => self.map(|t| Ok(-t)).unwrap(),
                     _ => Self::Opt(None),
                 }
             }
@@ -455,7 +483,11 @@ fn gen_fn_math_binops() {
                     }
                 } else {
                     crabtime::quote! {
-                        (Self::{{t0}}(a), Self::{{t1}}(b)) => Self::{{c}}((a as {{n}}).{{f}}(b as {{n}})),
+                        (Self::{{t0}}(a), Self::{{t1}}(b)) => {
+                            let a: OrderedFloat<{{n}}> = a.as_();
+                            let b: OrderedFloat<{{n}}> = b.as_();
+                            Self::{{c}}(a.{{f}}(b))
+                        }
                     }
                 }
             })
@@ -465,10 +497,20 @@ fn gen_fn_math_binops() {
             .iter()
             .cartesian_product(types1)
             .map(|(t0, (t1, n1))| {
-                let n0 = t0.to_lowercase();
+                let n0 = if t0.chars().next() == Some('F') {
+                    format!("OrderedFloat<{}>", t0.to_lowercase())
+                } else {
+                    t0.to_lowercase()
+                };
                 crabtime::quote! {
-                    (Self::{{t0}}(a), Self::{{t1}}(b)) => Self::{{t0}}(a.{{f}}(b as {{n1}} as {{n0}})),
-                    (Self::{{t1}}(a), Self::{{t0}}(b)) => Self::{{t0}}((a as {{n1}} as {{n0}}).{{f}}(b)),
+                    (Self::{{t0}}(a), Self::{{t1}}(b)) => {
+                        let b: {{n0}} = (b as {{n1}}).as_();
+                        Self::{{t0}}(a.{{f}}(b))
+                    }
+                    (Self::{{t1}}(a), Self::{{t0}}(b)) => {
+                        let a: {{n0}} = (a as {{n1}}).as_();
+                        Self::{{t0}}(a.{{f}}(b))
+                    }
                 }
             })
             .join("");
@@ -477,7 +519,11 @@ fn gen_fn_math_binops() {
             .iter()
             .cartesian_product(types2)
             .map(|(t0, t1)| {
-                let n0 = t0.to_lowercase();
+                let n0 = if t0.chars().next() == Some('F') {
+                    format!("OrderedFloat<{}>", t0.to_lowercase())
+                } else {
+                    t0.to_lowercase()
+                };
                 crabtime::quote! {
                     (Self::{{t0}}(a), Self::{{t1}}(b)) => Self::opt(
                         b.parse().ok().map(|t: {{n0}}| Self::{{t0}}(a.{{f}}(t)))
@@ -500,8 +546,8 @@ fn gen_fn_math_binops() {
                         (Self::Char(a), Self::Char(b)) => Self::I32((a as i32).{{f}}(b as i32)),
                         {{arms_as}}
                         (Self::Str(a), Self::Str(b)) => Self::opt((|| {
-                            let a: f64 = a.parse().ok()?;
-                            let b: f64 = b.parse().ok()?;
+                            let a: OrderedFloat<f64> = a.parse().ok()?;
+                            let b: OrderedFloat<f64> = b.parse().ok()?;
                             Some(Self::F64(a.{{f}}(b)))
                         })()),
                         {{arms_parse}}

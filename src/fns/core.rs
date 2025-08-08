@@ -3,6 +3,10 @@ use std::{
     mem,
 };
 
+use ordered_float::{
+    FloatCore,
+    OrderedFloat,
+};
 use phf::phf_map;
 
 use super::EuDef;
@@ -23,8 +27,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "MaxF32" => MAX_F32,
     "MinF64" => MIN_F64,
     "MaxF64" => MAX_F64,
-    "inf" => INF,
-    "inf32" => INF32,
+    "Inf" => INF,
+    "Inf32" => INF32,
     "NaN" => NAN,
     "NaN32" => NAN32,
     "SeqN0" => SEQ_N0,
@@ -122,8 +126,8 @@ const FALSE: EuDef = |env| {
 };
 
 #[crabtime::function]
-fn gen_fn_num_consts() {
-    let types = ["I32", "I64", "F32", "F64"];
+fn gen_fn_int_consts() {
+    let types = ["I32", "I64"];
     let consts = ["MIN", "MAX"];
     for t in types {
         let n = t.to_lowercase();
@@ -138,30 +142,48 @@ fn gen_fn_num_consts() {
     }
 }
 
-gen_fn_num_consts!();
+gen_fn_int_consts!();
+
+#[crabtime::function]
+fn gen_fn_float_consts() {
+    let types = ["F32", "F64"];
+    let consts = [("MIN", "min_value"), ("MAX", "max_value")];
+    for t in types {
+        for (c, f) in consts {
+            crabtime::output! {
+                const {{c}}_{{t}}: EuDef = |env| {
+                    env.push(EuType::{{t}}(OrderedFloat::{{f}}()));
+                    Ok(())
+                };
+            };
+        }
+    }
+}
+
+gen_fn_float_consts!();
 
 const INF: EuDef = |env| {
-    env.push(EuType::F64(f64::INFINITY));
+    env.push(EuType::F64(OrderedFloat::infinity()));
     Ok(())
 };
 
 const INF32: EuDef = |env| {
-    env.push(EuType::F32(f32::INFINITY));
+    env.push(EuType::F32(OrderedFloat::infinity()));
     Ok(())
 };
 
 const NAN: EuDef = |env| {
-    env.push(EuType::F64(f64::NAN));
+    env.push(EuType::F64(OrderedFloat::nan()));
     Ok(())
 };
 
 const NAN32: EuDef = |env| {
-    env.push(EuType::F32(f32::NAN));
+    env.push(EuType::F32(OrderedFloat::nan()));
     Ok(())
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.push(EuType::seq((0..).map(EuType::I64).map(Ok)));
+    env.push(EuType::seq((0..).map(EuType::i64).map(Ok)));
     Ok(())
 };
 
@@ -346,14 +368,14 @@ const TO_BOOL: EuDef = |env| {
 
 #[crabtime::function]
 fn gen_def_to_num() {
-    let types = ["I32", "F32", "I64", "F64"];
+    let types = ["I32", "I64", "F32", "F64"];
     for &t in &types {
         let n = t.to_lowercase();
         let n_up = t.to_uppercase();
         crabtime::output! {
             const TO_{{n_up}}: EuDef = |env| {
                 let a0 = env.pop()?;
-                env.push(EuType::opt(a0.to_{{n}}().map(EuType::{{t}})));
+                env.push(EuType::opt(a0.to_{{n}}().map(EuType::{{n}})));
                 Ok(())
             };
         }
