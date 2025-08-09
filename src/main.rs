@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-0.0_ >str
+1.0 1f32 =
 "#;
 
 fn main() {

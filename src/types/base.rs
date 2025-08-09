@@ -183,6 +183,21 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
+    pub fn is_num(&self) -> bool {
+        self.is_i_32() || self.is_i_64() || self.is_f_32() || self.is_f_64()
+    }
+
+    #[inline]
+    pub fn is_num_like(&self) -> bool {
+        self.is_num() || self.is_bool() || self.is_char()
+    }
+
+    #[inline]
+    pub fn is_num_parse(&self) -> bool {
+        self.is_num() || self.is_str()
+    }
+
+    #[inline]
     pub fn is_vecz(&self) -> bool {
         self.is_opt() || self.is_res() || self.is_vec() || self.is_seq()
     }
@@ -294,6 +309,86 @@ impl<'eu> EuType<'eu> {
     }
 }
 
+#[crabtime::function]
+fn gen_num_tower() {
+    use itertools::Itertools;
+
+    let types0 = ["I32", "I64", "F32", "F64"];
+    let types1 = [("Bool", "I32"), ("Char", "I32")];
+
+    let arms = itertools::repeat_n(types0, 2)
+        .multi_cartesian_product()
+        .map(|ts| {
+            let t0 = ts[0];
+            let t1 = ts[1];
+            let c = types0[std::cmp::max(
+                types0.iter().position(|&t| t == t0).unwrap(),
+                types0.iter().position(|&t| t == t1).unwrap(),
+            )];
+            let n = c.to_lowercase();
+            if t0.chars().next() == Some('I') && t1.chars().next() == Some('I') {
+                crabtime::quote! {
+                    (Self::{{t0}}(a), Self::{{t1}}(b)) => (Self::{{c}}(a as {{n}}), Self::{{c}}(b as {{n}})),
+                }
+            } else {
+                crabtime::quote! {
+                    (Self::{{t0}}(a), Self::{{t1}}(b)) => {
+                        let a: OrderedFloat<{{n}}> = a.as_();
+                        let b: OrderedFloat<{{n}}> = b.as_();
+                        (Self::{{c}}(a), Self::{{c}}(b))
+                    }
+                }
+            }
+        })
+        .join("");
+
+    let arms_like = types1
+        .map(|(t0, t1)| {
+            let n = t1.to_lowercase();
+            crabtime::quote! {
+                (Self::{{t0}}(t), b) => Self::{{t1}}(t as {{n}}).num_tower(b),
+                (a, Self::{{t0}}(t)) => a.num_tower(Self::{{t1}}(t as {{n}})),
+            }
+        })
+        .join("");
+
+    let arms_parse = types0.map(|t| (t, t)).into_iter()
+        .chain(types1)
+        .map(|(t0, t1)| {
+            crabtime::quote! {
+                (Self::Str(s), b @ Self::{{t0}}(_)) => Self::{{t1}}(s.parse().ok()?).parse_num_tower(b),
+                (a @ Self::{{t0}}(_), Self::Str(s)) => a.parse_num_tower(Self::{{t1}}(s.parse().ok()?)),
+            }
+        })
+        .join("");
+
+    crabtime::output! {
+        impl EuType<'_> {
+            pub fn num_tower(self, other: Self) -> (Self, Self) {
+                match (self, other) {
+                    {{arms}}
+                    {{arms_like}}
+                    ts => ts
+                }
+            }
+
+            pub fn parse_num_tower(self, other: Self) -> Option<(Self, Self)> {
+                match (self, other) {
+                    (Self::Str(a), Self::Str(b)) => {
+                        a.parse().ok()
+                            .zip(b.parse().ok())
+                            .map(|(a, b)| (Self::F64(a), Self::F64(b)))
+                    }
+                    {{arms_parse}}
+                    (a, b) => (a.is_num_like() || b.is_num_like()).then(|| a.num_tower(b))
+                }
+            }
+        }
+    }
+}
+
+gen_num_tower!();
+
 impl PartialEq for EuType<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -308,6 +403,10 @@ impl PartialEq for EuType<'_> {
             (Self::Res(l0), Self::Res(r0)) => l0 == r0,
             (Self::Vec(l0), Self::Vec(r0)) | (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
             (Self::Seq(l0), Self::Seq(r0)) => l0.clone().eq(r0.clone()),
+            (a, b) if a.is_num() && b.is_num() => {
+                let (a, b) = a.clone().num_tower(b.clone());
+                a == b
+            }
             _ => false,
         }
     }
@@ -316,7 +415,7 @@ impl PartialEq for EuType<'_> {
 impl Eq for EuType<'_> {}
 
 #[crabtime::function]
-fn gen_fn_to_num() {
+fn gen_type_to_num() {
     let types = ["I32", "I64", "F32", "F64"];
     for t in types {
         let tl = t.to_lowercase();
@@ -350,10 +449,10 @@ fn gen_fn_to_num() {
     }
 }
 
-gen_fn_to_num!();
+gen_type_to_num!();
 
 #[crabtime::function]
-fn gen_fn_to_size() {
+fn gen_type_to_size() {
     let types = ["I32", "I64", "F32", "F64"];
     for n in ["isize", "usize"] {
         let nq = format!(r#""{n}""#);
@@ -386,10 +485,10 @@ fn gen_fn_to_size() {
     }
 }
 
-gen_fn_to_size!();
+gen_type_to_size!();
 
 #[crabtime::function]
-fn gen_fn_to_bool() {
+fn gen_type_to_bool() {
     let types = ["I32", "I64", "F32", "F64"];
     let arms = types
         .map(|t| {
@@ -419,10 +518,10 @@ fn gen_fn_to_bool() {
     }
 }
 
-gen_fn_to_bool!();
+gen_type_to_bool!();
 
 #[crabtime::function]
-fn gen_fn_neg() {
+fn gen_impl_neg() {
     let types = ["I32", "I64", "F32", "F64"];
     let arms = types
         .map(|t| {
@@ -451,86 +550,20 @@ fn gen_fn_neg() {
     }
 }
 
-gen_fn_neg!();
+gen_impl_neg!();
 
 #[crabtime::function]
-fn gen_fn_math_binops() {
+fn gen_math_binops() {
     use itertools::Itertools;
 
-    let types0 = ["I32", "I64", "F32", "F64"];
-    let types1 = [("Bool", "u8"), ("Char", "i32")];
-    let types2 = ["Str"];
-
+    let types = ["I32", "I64", "F32", "F64"];
     for name in ["Add", "Sub", "Mul", "Div"] {
         let f = name.to_lowercase();
 
-        let arms_num = itertools::repeat_n(types0, 2)
-            .multi_cartesian_product()
-            .map(|ts| {
-                let t0 = ts[0];
-                let t1 = ts[1];
-                let c = types0[std::cmp::max(
-                    types0.iter().position(|&t| t == t0).unwrap(),
-                    types0.iter().position(|&t| t == t1).unwrap(),
-                )];
-                let n = c.to_lowercase();
-                let f_chk = format!("checked_{f}");
-                if t0.chars().next() == Some('I') && t1.chars().next() == Some('I') {
-                    crabtime::quote! {
-                        (Self::{{t0}}(a), Self::{{t1}}(b)) => {
-                            Self::opt((a as {{n}}).{{f_chk}}(b as {{n}}).map(Self::{{c}}))
-                        }
-                    }
-                } else {
-                    crabtime::quote! {
-                        (Self::{{t0}}(a), Self::{{t1}}(b)) => {
-                            let a: OrderedFloat<{{n}}> = a.as_();
-                            let b: OrderedFloat<{{n}}> = b.as_();
-                            Self::{{c}}(a.{{f}}(b))
-                        }
-                    }
-                }
-            })
-            .join("");
-
-        let arms_as = types0
-            .iter()
-            .cartesian_product(types1)
-            .map(|(t0, (t1, n1))| {
-                let n0 = if t0.chars().next() == Some('F') {
-                    format!("OrderedFloat<{}>", t0.to_lowercase())
-                } else {
-                    t0.to_lowercase()
-                };
+        let arms_num = types
+            .map(|t| {
                 crabtime::quote! {
-                    (Self::{{t0}}(a), Self::{{t1}}(b)) => {
-                        let b: {{n0}} = (b as {{n1}}).as_();
-                        Self::{{t0}}(a.{{f}}(b))
-                    }
-                    (Self::{{t1}}(a), Self::{{t0}}(b)) => {
-                        let a: {{n0}} = (a as {{n1}}).as_();
-                        Self::{{t0}}(a.{{f}}(b))
-                    }
-                }
-            })
-            .join("");
-
-        let arms_parse = types0
-            .iter()
-            .cartesian_product(types2)
-            .map(|(t0, t1)| {
-                let n0 = if t0.chars().next() == Some('F') {
-                    format!("OrderedFloat<{}>", t0.to_lowercase())
-                } else {
-                    t0.to_lowercase()
-                };
-                crabtime::quote! {
-                    (Self::{{t0}}(a), Self::{{t1}}(b)) => Self::opt(
-                        b.parse().ok().map(|t: {{n0}}| Self::{{t0}}(a.{{f}}(t)))
-                    ),
-                    (Self::{{t1}}(a), Self::{{t0}}(b)) => Self::opt(
-                        a.parse().ok().map(|t: {{n0}}| Self::{{t0}}(t.{{f}}(b)))
-                    ),
+                    (Self::{{t}}(a), Self::{{t}}(b)) => Self::{{t}}(a.{{f}}(b)),
                 }
             })
             .join("");
@@ -542,16 +575,14 @@ fn gen_fn_math_binops() {
                 fn {{f}}(self, rhs: Self) -> Self {
                     match (self, rhs) {
                         {{arms_num}}
-                        (Self::Bool(a), Self::Bool(b)) => Self::I32((a as i32).{{f}}(b as i32)),
-                        (Self::Char(a), Self::Char(b)) => Self::I32((a as i32).{{f}}(b as i32)),
-                        {{arms_as}}
-                        (Self::Str(a), Self::Str(b)) => Self::opt((|| {
-                            let a: OrderedFloat<f64> = a.parse().ok()?;
-                            let b: OrderedFloat<f64> = b.parse().ok()?;
-                            Some(Self::F64(a.{{f}}(b)))
+                        (a, b) if a.is_num_like() && b.is_num_like() => {
+                            let (a, b) = a.num_tower(b);
+                            a.{{f}}(b)
+                        }
+                        (a, b) if a.is_num_parse() || b.is_num_parse() => Self::opt((|| {
+                            a.parse_num_tower(b).map(|(a, b)| a.{{f}}(b))
                         })()),
-                        {{arms_parse}}
-                        (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, |a, b| Ok(Self::{{f}}(a, b))).unwrap(),
+                        (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, |a, b| Ok(a.{{f}}(b))).unwrap(),
                         _ => Self::Opt(None),
                     }
                 }
@@ -560,4 +591,4 @@ fn gen_fn_math_binops() {
     }
 }
 
-gen_fn_math_binops!();
+gen_math_binops!();

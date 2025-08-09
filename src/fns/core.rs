@@ -93,6 +93,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "!" => NOT,
 
+    "=" => EQ,
+
     "_" => NEG,
     "+" => ADD,
     "-" => SUB,
@@ -491,6 +493,23 @@ const NOT: EuDef = |env| {
     env.push(EuType::Bool(!a0));
     Ok(())
 };
+
+#[crabtime::function]
+fn gen_fn_cmp_binops() {
+    for (name, op) in [("EQ", "==")] {
+        crabtime::output! {
+            const {{name}}: EuDef = |env| {
+                env.check_nargs(2)?;
+                let a1 = env.pop().unwrap();
+                let a0 = env.pop().unwrap();
+                env.push(EuType::Bool(a0 {{op}} a1));
+                Ok(())
+            };
+        }
+    }
+}
+
+gen_fn_cmp_binops!();
 
 const NEG: EuDef = |env| {
     let a0 = env.pop()?;
