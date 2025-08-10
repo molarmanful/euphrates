@@ -93,7 +93,12 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "!" => NOT,
 
+    "cmp" => CMP,
     "=" => EQ,
+    "<" => LT,
+    "<=" => LE,
+    ">" => GT,
+    ">=" => GE,
 
     "_" => NEG,
     "+" => ADD,
@@ -103,6 +108,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "tk" => TAKE,
     "dp" => DROP,
+    "sort" => SORT,
 
     "map" => MAP,
     "mapf" => MAPF,
@@ -494,9 +500,23 @@ const NOT: EuDef = |env| {
     Ok(())
 };
 
+const CMP: EuDef = |env| {
+    let a1 = env.pop()?;
+    let a0 = env.pop()?;
+    env.push(EuType::i32(a0.cmp(&a1) as i32));
+    Ok(())
+};
+
 #[crabtime::function]
 fn gen_fn_cmp_binops() {
-    for (name, op) in [("EQ", "==")] {
+    for (name, op) in [
+        ("EQ", "=="),
+        ("NE", "!="),
+        ("LT", "<"),
+        ("LE", "<="),
+        ("GT", ">"),
+        ("GE", ">="),
+    ] {
         crabtime::output! {
             const {{name}}: EuDef = |env| {
                 env.check_nargs(2)?;
@@ -525,7 +545,7 @@ fn gen_fn_math_binops() {
                 env.check_nargs(2)?;
                 let a1 = env.pop().unwrap();
                 let a0 = env.pop().unwrap();
-                env.push(a0 {{op}} a1);
+                env.push((a0 {{op}} a1)?);
                 Ok(())
             };
         }
@@ -553,6 +573,12 @@ const DROP: EuDef = |env| {
         let n = n.to_res_usize()?;
         Ok(EuType::seq(a0.clone().skip(n)))
     })?);
+    Ok(())
+};
+
+const SORT: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.sorted()?);
     Ok(())
 };
 

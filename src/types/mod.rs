@@ -1,6 +1,9 @@
 mod base;
 
-use std::sync::Arc;
+use std::{
+    cmp::Ordering,
+    sync::Arc,
+};
 
 pub use base::*;
 use derive_more::{
@@ -42,3 +45,15 @@ impl PartialEq for EuErr {
 }
 
 impl Eq for EuErr {}
+
+impl PartialOrd for EuErr {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for EuErr {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.to_string().cmp(&other.to_string())
+    }
+}
