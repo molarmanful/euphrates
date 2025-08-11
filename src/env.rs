@@ -33,7 +33,7 @@ pub struct EuEnv<'eu> {
     pub scope: EuScope<'eu>,
 }
 
-type EuScope<'eu> = imbl::HashMap<HipStr<'eu>, EuType<'eu>>;
+pub type EuScope<'eu> = imbl::HashMap<HipStr<'eu>, EuType<'eu>>;
 
 impl<'eu> EuEnv<'eu> {
     #[inline]
@@ -59,6 +59,15 @@ impl<'eu> EuEnv<'eu> {
         let mut env = Self::new(ts, args, scope);
         env.eval()?;
         Ok(env)
+    }
+
+    #[inline]
+    pub fn apply_n_1<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuType<'eu>>
+    where
+        T: IntoIterator<Item = EuType<'eu>>,
+        T::IntoIter: 'eu,
+    {
+        Self::apply(ts, args, scope).and_then(|mut env| env.pop())
     }
 
     #[inline]

@@ -584,23 +584,27 @@ const SORT: EuDef = |env| {
 
 const MAP: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
-    env.push(a0.map(move |t| {
-        EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
-    })?);
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().map_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.map_env(f, scope))
+    }?);
     Ok(())
 };
 
 const MAPF: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
-    env.push(a0.flat_map(move |t| {
-        EuEnv::apply(a1.clone(), &[t], scope.clone()).and_then(|mut env| env.pop())
-    })?);
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().flat_map_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.flat_map_env(f, scope))
+    }?);
     Ok(())
 };
 
@@ -618,24 +622,28 @@ const FLAT_REC: EuDef = |env| {
 
 const ZIP: EuDef = |env| {
     env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
-    env.push(a0.zip(a1, move |a, b| {
-        EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
-    })?);
+    env.push(if a2.is_many() {
+        a2.map(move |f| a0.clone().zip_env(a1.clone(), f, scope.clone()))
+    } else {
+        a2.map_once(|f| a0.zip_env(a1, f, scope))
+    }?);
     Ok(())
 };
 
 const FOLD: EuDef = |env| {
     env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
-    env.push(a0.fold(a1, move |a, b| {
-        EuEnv::apply(a2.clone(), &[a, b], scope.clone()).and_then(|mut env| env.pop())
-    })?);
+    env.push(if a2.is_many() {
+        a2.map(move |f| a0.clone().fold_env(a1.clone(), f, scope.clone()))
+    } else {
+        a2.map_once(|f| a0.fold_env(a1, f, scope))
+    }?);
     Ok(())
 };

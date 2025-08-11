@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-MaxI64 "a"+
+(1 2 3 4)#vec ((1+) (1-))#vec map
 "#;
 
 fn main() {
