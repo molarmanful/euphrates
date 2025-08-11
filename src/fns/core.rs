@@ -32,9 +32,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "NaN" => NAN,
     "NaN32" => NAN32,
     "SeqN0" => SEQ_N0,
+    "Stack" => STACK,
 
     "dup" => DUP,
-    "dups" => DUPS,
     "dupd" => DUPD,
     "over" => OVER,
     "ddup" => DDUP,
@@ -55,6 +55,10 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "rot_" => ROT_,
     "roll" => ROLL,
     "roll_" => ROLL_,
+    "wrap" => WRAP,
+    "wrap_" => WRAP_,
+    "usurp" => USURP,
+    "sub" => SUB_STACK,
 
     "print" => PRINT,
     "println" => PRINTLN,
@@ -196,14 +200,14 @@ const SEQ_N0: EuDef = |env| {
     Ok(())
 };
 
-const DUP: EuDef = |env| {
-    env.check_nargs(1)?;
-    env.push(env.last().unwrap().clone());
+const STACK: EuDef = |env| {
+    env.push(EuType::vec(env.stack.clone()));
     Ok(())
 };
 
-const DUPS: EuDef = |env| {
-    env.push(EuType::vec(env.stack.clone()));
+const DUP: EuDef = |env| {
+    env.check_nargs(1)?;
+    env.push(env.last().unwrap().clone());
     Ok(())
 };
 
@@ -338,6 +342,31 @@ const ROLL_: EuDef = |env| {
     let i = env.iflip(a0)?;
     let t = env.stack.pop().unwrap();
     env.stack.insert(i, t);
+    Ok(())
+};
+
+const WRAP: EuDef = |env| {
+    let a0 = EuType::Vec(mem::take(&mut env.stack));
+    env.stack.push(a0);
+    Ok(())
+};
+
+const WRAP_: EuDef = |env| {
+    let a0 = env.pop()?.to_vec()?;
+    env.stack.extend(a0);
+    Ok(())
+};
+
+const USURP: EuDef = |env| {
+    env.stack = env.pop()?.to_vec()?;
+    Ok(())
+};
+
+const SUB_STACK: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.stack.pop().unwrap().to_vec()?;
+    env.push(EuType::Vec(EuEnv::apply(a1, &a0, env.scope.clone())?.stack));
     Ok(())
 };
 

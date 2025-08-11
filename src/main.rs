@@ -1,8 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-1Some 2 (+ dup)scan
-(1)#vec 2 (+ dup)scan
+(1 2 3 4)#vec (swap 2*)sub
 "#;
 
 fn main() {
