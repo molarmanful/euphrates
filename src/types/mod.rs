@@ -2,14 +2,12 @@ mod base;
 
 use std::{
     cmp::Ordering,
+    error,
     sync::Arc,
 };
 
 pub use base::*;
-use derive_more::{
-    Display,
-    Error,
-};
+use derive_more::Display;
 use dyn_clone::DynClone;
 
 pub type EuIter<'eu, T = EuType<'eu>> = Box<dyn Iterator<Item = T> + 'eu>;
@@ -29,8 +27,14 @@ dyn_clone::clone_trait_object!(<T> CloneIter<'_, T>);
 
 pub type EuRes<T> = anyhow::Result<T, EuErr>;
 
-#[derive(Debug, Display, Clone, Error)]
+#[derive(Debug, Display, Clone)]
 pub struct EuErr(pub Arc<anyhow::Error>);
+
+impl error::Error for EuErr {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        self.0.source()
+    }
+}
 
 impl From<anyhow::Error> for EuErr {
     fn from(err: anyhow::Error) -> Self {
