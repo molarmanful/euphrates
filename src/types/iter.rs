@@ -195,6 +195,77 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn scan<F>(self, init: Self, mut f: F) -> EuRes<Self>
+    where
+        F: FnMut(Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts
+                .into_iter()
+                .scan(init, |acc, t| match f(acc.clone(), t) {
+                    Ok((st, t)) => {
+                        *acc = st;
+                        match t {
+                            Self::Opt(None) | Self::Res(Err(_)) => None,
+                            Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
+                            t => Some(Ok(t)),
+                        }
+                    }
+                    Err(e) => Some(Err(e)),
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Seq(it) => {
+                Ok(Self::seq(it.scan(
+                    init,
+                    move |acc, t| match t.and_then(|t| f(acc.clone(), t)) {
+                        Ok((st, t)) => {
+                            *acc = st;
+                            match t {
+                                Self::Opt(None) | Self::Res(Err(_)) => None,
+                                Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
+                                t => Some(Ok(t)),
+                            }
+                        }
+                        Err(e) => Some(Err(e)),
+                    },
+                )))
+            }
+            _ => self.scan_once(init, f),
+        }
+    }
+
+    pub fn scan_once<F>(self, init: Self, f: F) -> EuRes<Self>
+    where
+        F: FnOnce(Self, Self) -> EuRes<(Self, Self)> + 'eu,
+    {
+        match self {
+            Self::Opt(Some(t)) => Ok(Self::opt(match f(init, *t)?.1 {
+                Self::Opt(None) | Self::Res(Err(_)) => None,
+                Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(*t),
+                t => Some(t),
+            })),
+            Self::Res(Ok(t)) => Ok(Self::res(match f(init, *t)?.1 {
+                e @ (Self::Opt(None) | Self::Res(Err(_))) => Err(e),
+                Self::Opt(Some(t)) | Self::Res(Ok(t)) => Ok(*t),
+                t => Ok(t),
+            })),
+            Self::Opt(None) | Self::Res(Err(_)) => Ok(self),
+            _ => Ok(self),
+        }
+    }
+
+    pub fn scan_env(self, init: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.scan(init, move |acc, t| {
+                EuEnv::apply_n_2(f.clone(), &[acc, t], scope.clone())
+            })
+        } else {
+            self.scan_once(init, move |acc, t| EuEnv::apply_n_2(f, &[acc, t], scope))
+        }
+    }
+
     pub fn sorted(mut self) -> EuRes<Self> {
         match self {
             Self::Vec(ref mut ts) => {

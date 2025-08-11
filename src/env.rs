@@ -71,6 +71,24 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
+    pub fn apply_n_2<T>(
+        ts: T,
+        args: &[EuType<'eu>],
+        scope: EuScope<'eu>,
+    ) -> EuRes<(EuType<'eu>, EuType<'eu>)>
+    where
+        T: IntoIterator<Item = EuType<'eu>>,
+        T::IntoIter: 'eu,
+    {
+        Self::apply(ts, args, scope).and_then(|mut env| {
+            env.check_nargs(2)?;
+            let a1 = env.stack.pop().unwrap();
+            let a0 = env.stack.pop().unwrap();
+            Ok((a0, a1))
+        })
+    }
+
+    #[inline]
     pub fn run_str(input: &str) -> EuRes<Self> {
         let mut env = Self::str(input)?;
         env.eval()?;

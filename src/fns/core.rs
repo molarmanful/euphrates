@@ -116,6 +116,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "flat*" => FLAT_REC,
     "zip" => ZIP,
     "fold" => FOLD,
+    "scan" => SCAN,
 };
 
 const NONE: EuDef = |env| {
@@ -644,6 +645,20 @@ const FOLD: EuDef = |env| {
         a2.map(move |f| a0.clone().fold_env(a1.clone(), f, scope.clone()))
     } else {
         a2.map_once(|f| a0.fold_env(a1, f, scope))
+    }?);
+    Ok(())
+};
+
+const SCAN: EuDef = |env| {
+    env.check_nargs(3)?;
+    let a2 = env.stack.pop().unwrap();
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a2.is_many() {
+        a2.map(move |f| a0.clone().scan_env(a1.clone(), f, scope.clone()))
+    } else {
+        a2.map_once(|f| a0.scan_env(a1, f, scope))
     }?);
     Ok(())
 };
