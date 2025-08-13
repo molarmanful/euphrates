@@ -13,8 +13,8 @@ fn gen_eqv_ord() {
     use itertools::Itertools;
 
     let types = [
-        "Bool", "Char", "I32", "I64", "F32", "F64", "Word", "Str", "Opt", "Res", "Expr", "Vec",
-        "Seq",
+        "Bool", "Char", "I32", "I64", "IBig", "F32", "F64", "Word", "Str", "Opt", "Res", "Expr",
+        "Vec", "Seq",
     ];
 
     let arms = itertools::repeat_n(types, 2)
@@ -52,7 +52,8 @@ gen_eqv_ord!();
 #[crabtime::function]
 fn gen_partial_eq() {
     let types = [
-        "Bool", "I32", "I64", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec", "Expr",
+        "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
+        "Expr",
     ];
     let arms = types
         .map(|t| {
@@ -94,7 +95,8 @@ fn gen_ord() {
     use itertools::Itertools;
 
     let types = [
-        "Bool", "I32", "I64", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec", "Expr",
+        "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
+        "Expr",
     ];
     let arms = types
         .map(|t| {
@@ -113,7 +115,7 @@ fn gen_ord() {
             let t1 = *ts[1];
             let m = *nums.iter().find(|&&t| t == t0 || t == t1).unwrap();
             let n = if t0 == m { t1 } else { t0 };
-            if t0.chars().next().unwrap() == t1.chars().next().unwrap() {
+            if t0.chars().next() == t1.chars().next() {
                 crabtime::quote! {
                     (Self::{{t0}}(l0), Self::{{t1}}(r0)) => Self::{{n}}((*l0).as_()).cmp(&Self::{{n}}((*r0).as_())),
                 }
@@ -136,7 +138,24 @@ fn gen_ord() {
                 }
             }
         })
-        .join("\n");
+        .join("");
+
+    let arms_ibig = nums
+        .map(|t| {
+            if t.chars().next() == Some('I') {
+                crabtime::quote! {
+                    (Self::IBig(l0), Self::{{t}}(r0)) => l0.cmp(&(*r0).into()),
+                    (l0 @ Self::{{t}}(_), r0 @ Self::IBig(_)) => r0.cmp(l0).reverse(),
+                }
+            } else {
+                let n = t.to_lowercase();
+                crabtime::quote! {
+                    (Self::{{t}}(l0), Self::IBig(r0)) => l0.cmp(&r0.to_{{n}}().value().into()),
+                    (l0 @ Self::IBig(_), r0 @ Self::{{t}}(_)) => r0.cmp(l0).reverse(),
+                }
+            }
+        })
+        .join("");
 
     crabtime::output! {
         impl Ord for EuType<'_> {
@@ -148,6 +167,7 @@ fn gen_ord() {
                     (Self::Word(_), _) => Ordering::Greater,
                     (l0, r0 @ (Self::Bool(_) | Self::Word(_))) => r0.cmp(l0).reverse(),
                     {{arms_num}}
+                    {{arms_ibig}}
                     (a, b) if a.is_num_like() && b.is_num_like() => {
                         let (a1, b1) = a.clone().num_tower(b.clone()).unwrap();
                         a1.cmp(&b1).then_with(|| a.eqv_ord(b))

@@ -1,6 +1,7 @@
 use std::iter;
 
 use anyhow::anyhow;
+use dashu_int::IBig;
 use derive_more::{
     Debug,
     Display,
@@ -30,10 +31,12 @@ use crate::parser::euphrates;
 pub enum EuType<'eu> {
     #[debug("{}", if *_0 { "True" } else { "False" })]
     Bool(bool),
-    #[debug("{_0:?}")]
+    #[debug("{_0:?}i32")]
     I32(i32),
     #[debug("{_0:?}i64")]
     I64(i64),
+    #[debug("{_0:?}")]
+    IBig(IBig),
     #[debug("{}", if _0.is_infinite() { format!("{}Inf32", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
     F32(OrderedFloat<f32>),
     #[debug("{}", if _0.is_infinite() { format!("{}Inf", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
@@ -73,6 +76,11 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn i64(n: impl Into<i64>) -> Self {
         Self::I64(n.into())
+    }
+
+    #[inline]
+    pub fn ibig(n: impl Into<IBig>) -> Self {
+        Self::IBig(n.into())
     }
 
     #[inline]
@@ -172,7 +180,7 @@ impl<'eu> EuType<'eu> {
 
     #[inline]
     pub fn is_num(&self) -> bool {
-        self.is_i_32() || self.is_i_64() || self.is_f_32() || self.is_f_64()
+        self.is_i_32() || self.is_i_64() || self.is_i_big() || self.is_f_32() || self.is_f_64()
     }
 
     #[inline]
@@ -203,14 +211,41 @@ impl<'eu> EuType<'eu> {
 
 #[crabtime::function]
 fn gen_type_to_num() {
-    let types = ["I32", "I64", "F32", "F64"];
-    for t in types {
-        let tl = t.to_lowercase();
+    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    for t0 in types {
+        let tl = t0.to_lowercase();
+        let tlp = if t0 == "IBig" { t0 } else { &tl };
         let tlq = format!(r#""{tl}""#);
         let arms = types
-            .map(|t| {
-                crabtime::quote! {
-                    Self::{{t}}(n) => n.to_{{tl}}(),
+            .map(|t1| {
+                if t1 == t0 {
+                    if t0.chars().next() == Some('I') {
+                        crabtime::quote! {
+                            Self::{{t1}}(n) => Some(n),
+                        }
+                    } else {
+                        crabtime::quote! {
+                            Self::{{t1}}(n) => Some(n.0),
+                        }
+                    }
+                } else if t1 == "IBig" && t0.chars().next() == Some('F') {
+                    crabtime::quote! {
+                        Self::{{t1}}(n) => Some(n.to_{{tl}}().value()),
+                    }
+                } else if t0 == "IBig" {
+                    if t1.chars().next() == Some('I') {
+                        crabtime::quote! {
+                            Self::{{t1}}(n) => Some(n.into()),
+                        }
+                    } else {
+                        crabtime::quote! {
+                            Self::{{t1}}(n) => n.0.try_into().ok(),
+                        }
+                    }
+                } else {
+                    crabtime::quote! {
+                        Self::{{t1}}(n) => n.to_{{tl}}(),
+                    }
                 }
             })
             .join("");
@@ -218,15 +253,15 @@ fn gen_type_to_num() {
         crabtime::output! {
             impl EuType<'_> {
                 #[inline]
-                pub fn to_res_{{tl}}(self) -> EuRes<{{tl}}> {
+                pub fn try_{{tl}}(self) -> EuRes<{{tlp}}> {
                     self.to_{{tl}}().ok_or_else(|| anyhow!(concat!({{tlq}}, " conversion failed")).into())
                 }
 
-                pub fn to_{{tl}}(self) -> Option<{{tl}}> {
+                pub fn to_{{tl}}(self) -> Option<{{tlp}}> {
                     match self {
                         {{arms}}
                         Self::Bool(b) => Some(b.into()),
-                        Self::Char(c) => (c as u32).to_{{tl}}(),
+                        Self::Char(c) => Self::I32(c as i32).to_{{tl}}(),
                         Self::Str(s) => s.parse().ok(),
                         _ => None,
                     }
@@ -240,7 +275,7 @@ gen_type_to_num!();
 
 #[crabtime::function]
 fn gen_type_to_size() {
-    let types = ["I32", "I64", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F32", "F64"];
     for n in ["isize", "usize"] {
         let nq = format!(r#""{n}""#);
         let arms = types
@@ -254,7 +289,7 @@ fn gen_type_to_size() {
         crabtime::output! {
             impl EuType<'_> {
                 #[inline]
-                pub fn to_res_{{n}}(self) -> EuRes<{{n}}> {
+                pub fn try_{{n}}(self) -> EuRes<{{n}}> {
                     self.to_{{n}}().ok_or_else(|| anyhow!(concat!({{nq}}, " conversion failed")).into())
                 }
 
@@ -292,6 +327,7 @@ fn gen_type_to_bool() {
                 match value {
                     EuType::Bool(b) => b,
                     {{arms}}
+                    EuType::IBig(n) => !n.is_zero(),
                     EuType::Char(c) => c != '\0',
                     EuType::Str(s) => !s.is_empty(),
                     EuType::Word(_) => true,

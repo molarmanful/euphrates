@@ -3,6 +3,7 @@ use std::ops::{
     Div,
     Mul,
     Neg,
+    Rem,
     Sub,
 };
 
@@ -52,6 +53,23 @@ fn gen_num_tower() {
         })
         .join("");
 
+    let arms_ibig = types0
+        .map(|t| {
+            let n = t.to_lowercase();
+            if t.chars().next() == Some('I') {
+                crabtime::quote! {
+                    (a @ Self::IBig(_), Self::{{t}}(b)) => Some((a, Self::ibig(b))),
+                    (Self::{{t}}(a), b @ Self::IBig(_)) => Some((Self::ibig(a), b)),
+                }
+            } else {
+                crabtime::quote! {
+                    (Self::IBig(a), b @ Self::{{t}}(_)) => Some((Self::{{n}}(a.to_{{n}}().value()), b)),
+                    (a @ Self::{{t}}(_), Self::IBig(b)) => Some((a, Self::{{n}}(b.to_{{n}}().value()))),
+                }
+            }
+        })
+        .join("");
+
     let arms_like = types1
         .map(|(t0, t1)| {
             let n = t1.to_lowercase();
@@ -78,6 +96,7 @@ fn gen_num_tower() {
                 match (self, other) {
                     {{arms_same}}
                     {{arms_num}}
+                    {{arms_ibig}}
                     {{arms_like}}
                     _ => None
                 }
@@ -102,7 +121,7 @@ gen_num_tower!();
 
 #[crabtime::function]
 fn gen_impl_neg() {
-    let types = ["I32", "I64", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F32", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();
@@ -136,14 +155,28 @@ gen_impl_neg!();
 fn gen_math_binops() {
     use itertools::Itertools;
 
-    let types = ["I32", "I64", "F32", "F64"];
-    for name in ["Add", "Sub", "Mul", "Div"] {
+    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    for name in ["Add", "Sub", "Mul", "Div", "Rem"] {
         let f = name.to_lowercase();
         let fq = format!(r#""{f}""#);
 
         let arms = types
             .map(|t| {
-                if t.chars().next().unwrap() == 'I' {
+                if t == "IBig" {
+                    let un = if name == "Div" || name == "Rem" {
+                        crabtime::quote! {
+                            (Self::IBig(a), Self::IBig(b)) if b.is_zero() => {
+                                Err(anyhow!("{} on `{a:?}` and `0` is undefined", {{fq}}).into())
+                            }
+                        }
+                    } else {
+                        crabtime::quote!()
+                    };
+                    crabtime::quote! {
+                        {{un}}
+                        (Self::IBig(a), Self::IBig(b)) => Ok(Self::IBig(a.{{f}}(b))),
+                    }
+                } else if t.chars().next() == Some('I') {
                     crabtime::quote! {
                         (Self::{{t}}(a), Self::{{t}}(b)) => {
                             a.checked_{{f}}(b)
@@ -159,6 +192,21 @@ fn gen_math_binops() {
             })
             .join("");
 
+        let arm_mod = types
+            .map(|t| {
+                if name == "Rem" && t != "IBig" && t.chars().next() == Some('I') {
+                    crabtime::quote! {
+                        (Self::IBig(a), Self::{{t}}(0)) => {
+                            Err(anyhow!("{} on `{a:?}` and `0` is undefined", {{fq}}).into())
+                        }
+                        (Self::IBig(ref a), Self::{{t}}(b)) => Ok(Self::{{t}}(a.rem(b))),
+                    }
+                } else {
+                    crabtime::quote!()
+                }
+            })
+            .join("");
+
         crabtime::output! {
             impl {{name}} for EuType<'_> {
                 type Output = EuRes<Self>;
@@ -166,6 +214,7 @@ fn gen_math_binops() {
                 fn {{f}}(self, rhs: Self) -> Self::Output {
                     match (self, rhs) {
                         {{arms}}
+                        {{arm_mod}}
                         (a, b) if a.is_num_like() && b.is_num_like() => {
                             let (a, b) = a.num_tower(b).unwrap();
                             a.{{f}}(b)

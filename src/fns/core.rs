@@ -68,6 +68,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "f32" => TO_F32,
     "i64" => TO_I64,
     "f64" => TO_F64,
+    "ibig" => TO_IBIG,
 
     ">str" => TO_STR,
 
@@ -109,6 +110,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "-" => SUB,
     "*" => MUL,
     "/" => DIV,
+    "%" => REM,
 
     "tk" => TAKE,
     "dp" => DROP,
@@ -196,7 +198,7 @@ const NAN32: EuDef = |env| {
 };
 
 const SEQ_N0: EuDef = |env| {
-    env.push(EuType::seq((0..).map(EuType::i64).map(Ok)));
+    env.push(EuType::seq((0..).map(EuType::ibig).map(Ok)));
     Ok(())
 };
 
@@ -242,7 +244,7 @@ const EDUP: EuDef = |env| {
 };
 
 const PICK: EuDef = |env| {
-    let a0 = env.pop()?.to_res_isize()?;
+    let a0 = env.pop()?.try_isize()?;
     env.push(env.stack[env.iflip(a0)?].clone());
     Ok(())
 };
@@ -276,7 +278,7 @@ const QPOP: EuDef = |env| {
 };
 
 const NIX: EuDef = |env| {
-    let a0 = env.pop()?.to_res_isize()?;
+    let a0 = env.pop()?.try_isize()?;
     env.stack.remove(env.iflip(a0)?);
     Ok(())
 };
@@ -308,7 +310,7 @@ const TUCK: EuDef = |env| {
 };
 
 const TRADE: EuDef = |env| {
-    let a0 = env.pop()?.to_res_isize()?;
+    let a0 = env.pop()?.try_isize()?;
     let i = env.iflip(a0)?;
     let j = env.iflip(0).unwrap();
     env.stack.make_mut().swap(i, j);
@@ -330,7 +332,7 @@ const ROT_: EuDef = |env| {
 };
 
 const ROLL: EuDef = |env| {
-    let a0 = env.pop()?.to_res_isize()?;
+    let a0 = env.pop()?.try_isize()?;
     let t = env.stack.remove(env.iflip(a0)?);
     env.push(t);
     Ok(())
@@ -338,7 +340,7 @@ const ROLL: EuDef = |env| {
 
 const ROLL_: EuDef = |env| {
     env.check_nargs(2)?;
-    let a0 = env.stack.pop().unwrap().to_res_isize()?;
+    let a0 = env.stack.pop().unwrap().try_isize()?;
     let i = env.iflip(a0)?;
     let t = env.stack.pop().unwrap();
     env.stack.insert(i, t);
@@ -406,7 +408,7 @@ const TO_BOOL: EuDef = |env| {
 
 #[crabtime::function]
 fn gen_def_to_num() {
-    let types = ["I32", "I64", "F32", "F64"];
+    let types = ["I32", "I64", "F32", "F64", "IBig"];
     for &t in &types {
         let n = t.to_lowercase();
         let n_up = t.to_uppercase();
@@ -569,7 +571,13 @@ const NEG: EuDef = |env| {
 
 #[crabtime::function]
 fn gen_fn_math_binops() {
-    for (name, op) in [("ADD", "+"), ("SUB", "-"), ("MUL", "*"), ("DIV", "/")] {
+    for (name, op) in [
+        ("ADD", "+"),
+        ("SUB", "-"),
+        ("MUL", "*"),
+        ("DIV", "/"),
+        ("REM", "%"),
+    ] {
         crabtime::output! {
             const {{name}}: EuDef = |env| {
                 env.check_nargs(2)?;
@@ -589,7 +597,7 @@ const TAKE: EuDef = |env| {
     let a1 = env.stack.pop().unwrap();
     let a0 = env.pop()?.to_seq();
     env.push(a1.map(move |n| {
-        let n = n.to_res_usize()?;
+        let n = n.try_usize()?;
         Ok(EuType::seq(a0.clone().take(n)))
     })?);
     Ok(())
@@ -600,7 +608,7 @@ const DROP: EuDef = |env| {
     let a1 = env.stack.pop().unwrap();
     let a0 = env.pop()?.to_seq();
     env.push(a1.map(move |n| {
-        let n = n.to_res_usize()?;
+        let n = n.try_usize()?;
         Ok(EuType::seq(a0.clone().skip(n)))
     })?);
     Ok(())
