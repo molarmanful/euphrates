@@ -16,6 +16,7 @@ use itertools::Itertools;
 use num_traits::{
     Signed,
     ToPrimitive,
+    Zero,
 };
 use ordered_float::OrderedFloat;
 use winnow::Parser;
@@ -311,12 +312,12 @@ gen_type_to_size!();
 
 #[crabtime::function]
 fn gen_type_to_bool() {
-    let types = ["I32", "I64", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F32", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();
             crabtime::quote! {
-                EuType::{{t}}(n) => n != 0 as {{n}},
+                EuType::{{t}}(n) => !n.is_zero(),
             }
         })
         .join("");
@@ -327,7 +328,6 @@ fn gen_type_to_bool() {
                 match value {
                     EuType::Bool(b) => b,
                     {{arms}}
-                    EuType::IBig(n) => !n.is_zero(),
                     EuType::Char(c) => c != '\0',
                     EuType::Str(s) => !s.is_empty(),
                     EuType::Word(_) => true,
