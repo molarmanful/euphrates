@@ -87,7 +87,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ">seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
-    "@seq" => GEN_SEQ,
+    "fold_" => FOLD_,
 
     "#" => EVAL,
     "&#" => AND_EVAL,
@@ -482,7 +482,30 @@ const WRAP_SEQ: EuDef = |env| {
     Ok(())
 };
 
-const GEN_SEQ: EuDef = |env| todo!();
+const FOLD_: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+
+    env.push(if a1.is_many() {
+        a1.map(move |f| {
+            let f = f.to_expr()?;
+            let scope = scope.clone();
+            Ok(EuType::Seq(a0.clone().unfold(move |acc| {
+                EuEnv::apply_n_2(f.clone(), &[acc], scope.clone())
+            })))
+        })
+    } else {
+        a1.map_once(|f| {
+            let f = f.to_expr()?;
+            Ok(EuType::Seq(a0.unfold(move |acc| {
+                EuEnv::apply_n_2(f.clone(), &[acc], scope.clone())
+            })))
+        })
+    }?);
+    Ok(())
+};
 
 const EVAL: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;

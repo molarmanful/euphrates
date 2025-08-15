@@ -7,6 +7,7 @@ use itertools::Itertools;
 
 use super::{
     EuRes,
+    EuSeq,
     EuType,
 };
 use crate::{
@@ -18,6 +19,23 @@ use crate::{
 };
 
 impl<'eu> EuType<'eu> {
+    pub fn unfold<F>(mut self, mut f: F) -> EuSeq<'eu>
+    where
+        F: FnMut(Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+    {
+        Box::new(iter::from_fn(move || match f(self.clone()) {
+            Ok((st, t)) => {
+                self = st;
+                match t {
+                    Self::Opt(None) | Self::Res(Err(_)) => None,
+                    Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
+                    t => Some(Ok(t)),
+                }
+            }
+            Err(e) => Some(Err(e)),
+        }))
+    }
+
     pub fn take(self, n: isize) -> EuRes<Self> {
         match self {
             Self::Opt(o) => Ok(Self::Opt(if n != 0 { o } else { None })),
