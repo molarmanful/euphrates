@@ -64,7 +64,7 @@ pub enum EuType<'eu> {
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<Self>),
     #[debug("Seq:(...)")]
-    #[display("{}", _0.clone().map(Self::res_str).join(""))]
+    #[display("{}", match _0.clone().try_collect::<_, Vec<_>, _>() { Ok(ts) => ts.into_iter().join(""), Err(e) => "".into() })]
     Seq(EuSeq<'eu>),
 }
 
@@ -207,6 +207,21 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn is_many(&self) -> bool {
         self.is_vec() || self.is_seq()
+    }
+
+    pub fn concat(self, other: Self) -> EuRes<Self> {
+        match (self, other) {
+            (a, b) if a.is_seq() || b.is_seq() => Ok(Self::seq(a.to_seq().chain(b.to_seq()))),
+            (a, b) if a.is_vec() || b.is_vec() => {
+                Ok(Self::vec([a.to_vec()?, b.to_vec()?].concat()))
+            }
+            (a, b) if a.is_expr() || b.is_expr() => {
+                Ok(Self::expr([a.to_vec()?, b.to_vec()?].concat()))
+            }
+            (a, b) if a.is_str() || b.is_str() => Ok(Self::str(format!("{a}{b}"))),
+            (Self::Char(a), Self::Char(b)) => Ok(Self::str(format!("{a}{b}"))),
+            (a, b) => Ok(Self::vec([a, b])),
+        }
     }
 }
 

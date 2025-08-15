@@ -92,7 +92,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "#" => EVAL,
     "&#" => AND_EVAL,
     "|#" => OR_EVAL,
-    "?#" => IF_EVAL,
+    "&|#" => IF_EVAL,
 
     "->" => BIND_ARGS,
     "?" => TRY,
@@ -112,6 +112,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "*" => MUL,
     "/" => DIV,
     "%" => REM,
+
+    "++" => CONCAT,
 
     "tk" => TAKE,
     "dp" => DROP,
@@ -530,7 +532,7 @@ const IF_EVAL: EuDef = |env| {
     env.check_nargs(3)?;
     let a2 = env.pop().unwrap().to_expr()?;
     let a1 = env.pop().unwrap().to_expr()?;
-    let a0: bool = env.pop().unwrap().into();
+    let a0 = env.pop().unwrap().into();
     env.eval_iter(if a0 { a1 } else { a2 })
 };
 
@@ -617,6 +619,14 @@ fn gen_fn_math_binops() {
 }
 
 gen_fn_math_binops!();
+
+const CONCAT: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.concat(a1)?);
+    Ok(())
+};
 
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
