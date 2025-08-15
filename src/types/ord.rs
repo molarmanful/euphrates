@@ -175,7 +175,7 @@ fn gen_ord() {
                     (a, b) if a.is_vecz() || a.is_str() || a.is_expr() || b.is_vecz() || b.is_str() || b.is_expr() => {
                         a.clone().to_seq().cmp(b.clone().to_seq()).then_with(|| a.eqv_ord(b))
                     }
-                    (a, b) => panic!("order not defined between {a:?} and {b:?}"),
+                    _ => unreachable!(),
                 }
             }
         }

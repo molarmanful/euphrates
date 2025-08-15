@@ -87,6 +87,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ">seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
+    "@seq" => GEN_SEQ,
 
     "#" => EVAL,
     "&#" => AND_EVAL,
@@ -481,6 +482,8 @@ const WRAP_SEQ: EuDef = |env| {
     Ok(())
 };
 
+const GEN_SEQ: EuDef = |env| todo!();
+
 const EVAL: EuDef = |env| {
     let a0 = env.pop()?.to_expr()?;
     env.eval_iter(a0)
@@ -595,22 +598,24 @@ gen_fn_math_binops!();
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
-    let a0 = env.pop()?.to_seq();
-    env.push(a1.map(move |n| {
-        let n = n.try_usize()?;
-        Ok(EuType::seq(a0.clone().take(n)))
-    })?);
+    let a0 = env.pop()?;
+    env.push(if a1.is_many() {
+        a1.map(move |n| a0.clone().take(n.try_isize()?))
+    } else {
+        a1.map_once(|n| a0.take(n.try_isize()?))
+    }?);
     Ok(())
 };
 
 const DROP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
-    let a0 = env.pop()?.to_seq();
-    env.push(a1.map(move |n| {
-        let n = n.try_usize()?;
-        Ok(EuType::seq(a0.clone().skip(n)))
-    })?);
+    let a0 = env.pop()?;
+    env.push(if a1.is_many() {
+        a1.map(move |n| a0.clone().drop(n.try_isize()?))
+    } else {
+        a1.map_once(|n| a0.drop(n.try_isize()?))
+    }?);
     Ok(())
 };
 

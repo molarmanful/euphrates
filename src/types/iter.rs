@@ -1,4 +1,7 @@
-use std::iter;
+use std::{
+    cmp,
+    iter,
+};
 
 use itertools::Itertools;
 
@@ -15,6 +18,62 @@ use crate::{
 };
 
 impl<'eu> EuType<'eu> {
+    pub fn take(self, n: isize) -> EuRes<Self> {
+        match self {
+            Self::Opt(o) => Ok(Self::Opt(if n != 0 { o } else { None })),
+            Self::Res(r) => Ok(Self::Res(if n != 0 {
+                r
+            } else {
+                Err(Box::new(Self::Opt(None)))
+            })),
+            _ if self.is_vecz() => {
+                let a = n.abs_diff(0);
+                if n < 0 {
+                    match self {
+                        Self::Vec(ts) => Ok(Self::vec(&ts[ts.len().saturating_sub(a)..])),
+                        Self::Seq(_) => Self::vec(self.to_vec()?).take(n),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match self {
+                        Self::Vec(ts) => Ok(Self::vec(&ts[..cmp::min(a, ts.len())])),
+                        Self::Seq(it) => Ok(Self::seq(it.take(a))),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).take(n),
+        }
+    }
+
+    pub fn drop(self, n: isize) -> EuRes<Self> {
+        match self {
+            Self::Opt(o) => Ok(Self::Opt(if n != 0 { None } else { o })),
+            Self::Res(r) => Ok(Self::Res(if n != 0 {
+                Err(Box::new(Self::Opt(None)))
+            } else {
+                r
+            })),
+            _ if self.is_vecz() => {
+                let a = n.abs_diff(0);
+                if n < 0 {
+                    match self {
+                        Self::Vec(ts) => Ok(Self::vec(&ts[..ts.len().saturating_sub(a)])),
+                        Self::Seq(_) => Self::vec(self.to_vec()?).drop(n),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match self {
+                        Self::Vec(ts) => Ok(Self::vec(&ts[cmp::min(a, ts.len())..])),
+                        Self::Seq(it) => Ok(Self::seq(it.skip(a))),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).take(n),
+        }
+    }
+
     pub fn map<F>(self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self) -> EuRes<Self> + Clone + 'eu,
