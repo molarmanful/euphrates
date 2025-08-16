@@ -124,6 +124,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "mapf" => MAPF,
     "flat" => FLAT,
     "flat*" => FLAT_REC,
+    "fltr" => FILTER,
     "zip" => ZIP,
     "fold" => FOLD,
     "scan" => SCAN,
@@ -704,6 +705,19 @@ const FLAT: EuDef = |env| {
 const FLAT_REC: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(a0.flatten_rec()?);
+    Ok(())
+};
+
+const FILTER: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().filter_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.filter_env(f, scope))
+    }?);
     Ok(())
 };
 

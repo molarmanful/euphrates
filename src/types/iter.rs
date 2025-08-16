@@ -1,6 +1,7 @@
 use std::{
     cmp,
     iter,
+    slice,
 };
 
 use itertools::Itertools;
@@ -183,6 +184,59 @@ impl<'eu> EuType<'eu> {
             self.flat_map(|t| t.flatten_rec())
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn filter<F>(self, mut f: F) -> EuRes<Self>
+    where
+        F: FnMut(&Self) -> EuRes<bool> + Clone + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts
+                .into_iter()
+                .filter_map(|t| match f(&t) {
+                    Ok(b) => b.then_some(Ok(t)),
+                    Err(e) => Some(Err(e)),
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Seq(it) => {
+                Ok(Self::seq(it.filter(move |t| {
+                    t.as_ref().map(|t| f(t).unwrap_or(true)).unwrap_or(true)
+                })))
+            }
+            _ => self.filter_once(f),
+        }
+    }
+
+    pub fn filter_once<F>(self, f: F) -> EuRes<Self>
+    where
+        F: FnOnce(&Self) -> EuRes<bool> + 'eu,
+    {
+        match self {
+            Self::Opt(o) => o
+                .and_then(|t| {
+                    let t = *t;
+                    match f(&t) {
+                        Ok(b) => b.then_some(Ok(t)),
+                        Err(e) => Some(Err(e)),
+                    }
+                })
+                .transpose()
+                .map(Self::opt),
+            Self::Res(r) => Self::Opt(r.ok()).filter_once(f),
+            _ => Self::opt(self.to_opt()).filter_once(f),
+        }
+    }
+
+    pub fn filter_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.filter(move |t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+            })
+        } else {
+            self.filter_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
         }
     }
 
