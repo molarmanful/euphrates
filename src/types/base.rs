@@ -142,6 +142,14 @@ impl<'eu> EuType<'eu> {
         Self::Seq(Box::new(it))
     }
 
+    pub fn to_opt(self) -> Option<Self> {
+        match self {
+            Self::Opt(o) => o.map(|t| *t),
+            Self::Res(r) => r.ok().map(|t| *t),
+            _ => Some(self),
+        }
+    }
+
     pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
         match self {
             Self::Vec(ts) | Self::Expr(ts) => Ok(ts),

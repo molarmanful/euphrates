@@ -26,11 +26,7 @@ impl<'eu> EuType<'eu> {
         Box::new(iter::from_fn(move || match f(self.clone()) {
             Ok((st, t)) => {
                 self = st;
-                match t {
-                    Self::Opt(None) | Self::Res(Err(_)) => None,
-                    Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
-                    t => Some(Ok(t)),
-                }
+                t.to_opt().map(Ok)
             }
             Err(e) => Some(Err(e)),
         }))
@@ -254,10 +250,9 @@ impl<'eu> EuType<'eu> {
     where
         F: FnOnce(Self, Self) -> EuRes<Self> + 'eu,
     {
-        match self {
-            Self::Opt(Some(t)) | Self::Res(Ok(t)) => f(init, *t),
-            Self::Opt(None) | Self::Res(Err(_)) => Ok(init),
-            _ => f(self, init),
+        match self.to_opt() {
+            Some(t) => f(init, t),
+            None => Ok(init),
         }
     }
 
@@ -282,11 +277,7 @@ impl<'eu> EuType<'eu> {
                 .scan(init, |acc, t| match f(acc.clone(), t) {
                     Ok((st, t)) => {
                         *acc = st;
-                        match t {
-                            Self::Opt(None) | Self::Res(Err(_)) => None,
-                            Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
-                            t => Some(Ok(t)),
-                        }
+                        t.to_opt().map(Ok)
                     }
                     Err(e) => Some(Err(e)),
                 })
@@ -298,11 +289,7 @@ impl<'eu> EuType<'eu> {
                     move |acc, t| match t.and_then(|t| f(acc.clone(), t)) {
                         Ok((st, t)) => {
                             *acc = st;
-                            match t {
-                                Self::Opt(None) | Self::Res(Err(_)) => None,
-                                Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(Ok(*t)),
-                                t => Some(Ok(t)),
-                            }
+                            t.to_opt().map(Ok)
                         }
                         Err(e) => Some(Err(e)),
                     },
@@ -317,14 +304,11 @@ impl<'eu> EuType<'eu> {
         F: FnOnce(Self, Self) -> EuRes<(Self, Self)> + 'eu,
     {
         match self {
-            Self::Opt(Some(t)) => Ok(Self::opt(match f(init, *t)?.1 {
-                Self::Opt(None) | Self::Res(Err(_)) => None,
-                Self::Opt(Some(t)) | Self::Res(Ok(t)) => Some(*t),
-                t => Some(t),
-            })),
+            Self::Opt(Some(t)) => Ok(Self::opt(f(init, *t)?.1.to_opt())),
             Self::Res(Ok(t)) => Ok(Self::res(match f(init, *t)?.1 {
-                e @ (Self::Opt(None) | Self::Res(Err(_))) => Err(e),
                 Self::Opt(Some(t)) | Self::Res(Ok(t)) => Ok(*t),
+                Self::Res(Err(e)) => Err(*e),
+                e @ Self::Opt(None) => Err(e),
                 t => Ok(t),
             })),
             Self::Opt(None) | Self::Res(Err(_)) => Ok(self),
