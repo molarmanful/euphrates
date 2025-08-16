@@ -76,6 +76,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "Ok" => OK,
     "Err" => ERR,
+    "#res" => EVAL_RES,
 
     ">vec" => TO_VEC,
     "Vec" => WRAP_VEC,
@@ -400,6 +401,16 @@ const OK: EuDef = |env| {
 const ERR: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(EuType::res(Err(a0)));
+    Ok(())
+};
+
+const EVAL_RES: EuDef = |env| {
+    let a0 = env.pop()?.to_expr()?;
+    env.push(EuType::res_str(EuEnv::apply_n_1(
+        a0,
+        &env.stack,
+        env.scope.clone(),
+    )));
     Ok(())
 };
 

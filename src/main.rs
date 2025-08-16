@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 1)#vec (wrap_ ddup + ++ swap)fold_ 100tk >vec
+1 2 3 4 0 (a b) -> (a b /)#res
 "#;
 
 fn main() {
