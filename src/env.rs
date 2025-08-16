@@ -185,18 +185,19 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn bind_args<T>(&mut self, ts: T) -> EuRes<()>
-    where
-        T: IntoIterator<Item = EuType<'eu>>,
-        T::IntoIter: DoubleEndedIterator,
-    {
-        for t in ts.into_iter().rev() {
-            let v = self.stack.pop().context("insufficient args passed")?;
-            match t {
-                EuType::Word(w) => self.scope.insert(w, v),
-                _ => todo!(),
-            };
-        }
+    pub fn bind_args(&mut self, t: EuType<'eu>) -> EuRes<()> {
+        match t {
+            EuType::Word(w) => {
+                let v = self.stack.pop().context("insufficient args passed")?;
+                self.scope.insert(w, v);
+            }
+            EuType::Expr(ts) => {
+                for t in ts.into_iter().rev() {
+                    self.bind_args(t)?;
+                }
+            }
+            _ => todo!(),
+        };
         Ok(())
     }
 

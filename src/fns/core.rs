@@ -548,7 +548,7 @@ const IF_EVAL: EuDef = |env| {
 };
 
 const BIND_ARGS: EuDef = |env| {
-    let a0 = env.pop()?.to_expr()?;
+    let a0 = env.pop()?;
     env.bind_args(a0)
 };
 
