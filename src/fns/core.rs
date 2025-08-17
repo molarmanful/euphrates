@@ -119,7 +119,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "tk" => TAKE,
     "dp" => DROP,
     "sort" => SORT,
-    "/sort" => SORT_BY,
 
     "map" => MAP,
     "mapf" => MAPF,
@@ -129,6 +128,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "zip" => ZIP,
     "fold" => FOLD,
     "scan" => SCAN,
+    "/sort" => SORT_BY,
+    "find" => FIND,
 };
 
 const NONE: EuDef = |env| {
@@ -772,6 +773,18 @@ const SORT_BY: EuDef = |env| {
         a1.map(move |f| a0.clone().sorted_by_env(f, scope.clone()))
     } else {
         a1.map_once(|f| a0.sorted_by_env(f, scope))
+    }?);
+    Ok(())
+};
+
+const FIND: EuDef = |env| {
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().find_env(f, scope.clone()).map(EuType::opt))
+    } else {
+        a1.map_once(|f| a0.find_env(f, scope).map(EuType::opt))
     }?);
     Ok(())
 };

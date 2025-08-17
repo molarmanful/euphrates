@@ -1,3 +1,5 @@
+#![feature(try_find)]
+
 pub mod env;
 pub mod fns;
 pub mod parser;

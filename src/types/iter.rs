@@ -302,7 +302,7 @@ impl<'eu> EuType<'eu> {
 
     pub fn fold<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
-        F: FnMut(Self, Self) -> EuRes<Self> + Clone + 'eu,
+        F: FnMut(Self, Self) -> EuRes<Self> + 'eu,
     {
         match self {
             Self::Vec(ts) => ts.into_iter().try_fold(init, f),
@@ -429,5 +429,48 @@ impl<'eu> EuType<'eu> {
             )
             .map(|t| t.cmp(&Self::ibig(0)))
         })
+    }
+
+    pub fn find<F>(self, mut f: F) -> EuRes<Option<Self>>
+    where
+        F: FnMut(&Self) -> EuRes<bool> + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts.into_iter().try_find(f),
+            Self::Seq(mut it) => it
+                .try_find(|r| r.as_ref().map_err(|e| e.clone()).and_then(&mut f))
+                .and_then(Option::transpose),
+            _ => self.find_once(f),
+        }
+    }
+
+    pub fn find_once<F>(self, f: F) -> EuRes<Option<Self>>
+    where
+        F: FnOnce(&Self) -> EuRes<bool> + 'eu,
+    {
+        match self {
+            Self::Opt(o) => o
+                .and_then(|t| {
+                    let t = *t;
+                    match f(&t) {
+                        Ok(b) => b.then_some(Ok(t)),
+                        Err(e) => Some(Err(e)),
+                    }
+                })
+                .transpose(),
+            Self::Res(r) => Self::Opt(r.ok()).find_once(f),
+            _ => Self::opt(self.to_opt()).find_once(f),
+        }
+    }
+
+    pub fn find_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Option<Self>> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.find(move |t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+            })
+        } else {
+            self.find_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+        }
     }
 }
