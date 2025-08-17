@@ -100,7 +100,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "!" => NOT,
 
-    "cmp" => CMP,
+    "<=>" => CMP,
     "=" => EQ,
     "<" => LT,
     "<=" => LE,
@@ -119,6 +119,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "tk" => TAKE,
     "dp" => DROP,
     "sort" => SORT,
+    "/sort" => SORT_BY,
 
     "map" => MAP,
     "mapf" => MAPF,
@@ -759,6 +760,18 @@ const SCAN: EuDef = |env| {
         a2.map(move |f| a0.clone().scan_env(a1.clone(), f, scope.clone()))
     } else {
         a2.map_once(|f| a0.scan_env(a1, f, scope))
+    }?);
+    Ok(())
+};
+
+const SORT_BY: EuDef = |env| {
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().sorted_by_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.sorted_by_env(f, scope))
     }?);
     Ok(())
 };

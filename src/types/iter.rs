@@ -1,12 +1,20 @@
 use std::{
-    cmp,
+    cmp::{
+        self,
+        Ordering,
+    },
     iter,
+    panic::{
+        self,
+        AssertUnwindSafe,
+    },
     slice,
 };
 
 use itertools::Itertools;
 
 use super::{
+    EuErr,
     EuRes,
     EuSeq,
     EuType,
@@ -16,7 +24,10 @@ use crate::{
         EuEnv,
         EuScope,
     },
-    utils::swap_errors,
+    utils::{
+        swap_errors,
+        unpanic,
+    },
 };
 
 impl<'eu> EuType<'eu> {
@@ -389,5 +400,34 @@ impl<'eu> EuType<'eu> {
             }
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
+    }
+
+    pub fn sorted_by<F>(mut self, mut f: F) -> EuRes<Self>
+    where
+        F: FnMut(&Self, &Self) -> EuRes<Ordering>,
+    {
+        match self {
+            Self::Vec(ref mut ts) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    ts.make_mut()
+                        .sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)))
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
+            _ => Self::Vec(self.to_vec()?).sorted(),
+        }
+    }
+
+    pub fn sorted_by_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        let f = f.to_expr()?;
+        self.sorted_by(|a, b| {
+            EuEnv::apply_n_1(
+                f.clone(),
+                &[slice::from_ref(a), slice::from_ref(b)].concat(),
+                scope.clone(),
+            )
+            .map(|t| t.cmp(&Self::ibig(0)))
+        })
     }
 }

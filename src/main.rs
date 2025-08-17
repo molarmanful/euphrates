@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 2 3 4)#vec (2%)fltr
+(1 4 2 3)#vec (1 0/)/sort
 "#;
 
 fn main() {
