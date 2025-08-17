@@ -473,4 +473,54 @@ impl<'eu> EuType<'eu> {
             self.find_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
         }
     }
+
+    pub fn any<F>(self, f: F) -> EuRes<bool>
+    where
+        F: FnMut(&Self) -> EuRes<bool> + 'eu,
+    {
+        self.find(f).map(|o| o.is_some())
+    }
+
+    pub fn any_once<F>(self, f: F) -> EuRes<bool>
+    where
+        F: FnOnce(&Self) -> EuRes<bool> + 'eu,
+    {
+        self.find_once(f).map(|o| o.is_some())
+    }
+
+    pub fn any_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<bool> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.any(move |t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+            })
+        } else {
+            self.any_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+        }
+    }
+
+    pub fn all<F>(self, mut f: F) -> EuRes<bool>
+    where
+        F: FnMut(&Self) -> EuRes<bool> + 'eu,
+    {
+        self.any(move |t| f(t).map(|b| !b)).map(|b| !b)
+    }
+
+    pub fn all_once<F>(self, f: F) -> EuRes<bool>
+    where
+        F: FnOnce(&Self) -> EuRes<bool> + 'eu,
+    {
+        self.any_once(|t| f(t).map(|b| !b)).map(|b| !b)
+    }
+
+    pub fn all_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<bool> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.all(move |t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+            })
+        } else {
+            self.all_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+        }
+    }
 }

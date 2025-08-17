@@ -130,6 +130,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "scan" => SCAN,
     "/sort" => SORT_BY,
     "find" => FIND,
+    "any" => ANY,
+    "all" => ALL,
 };
 
 const NONE: EuDef = |env| {
@@ -785,6 +787,30 @@ const FIND: EuDef = |env| {
         a1.map(move |f| a0.clone().find_env(f, scope.clone()).map(EuType::opt))
     } else {
         a1.map_once(|f| a0.find_env(f, scope).map(EuType::opt))
+    }?);
+    Ok(())
+};
+
+const ANY: EuDef = |env| {
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().any_env(f, scope.clone()).map(EuType::Bool))
+    } else {
+        a1.map_once(|f| a0.any_env(f, scope).map(EuType::Bool))
+    }?);
+    Ok(())
+};
+
+const ALL: EuDef = |env| {
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().all_env(f, scope.clone()).map(EuType::Bool))
+    } else {
+        a1.map_once(|f| a0.all_env(f, scope).map(EuType::Bool))
     }?);
     Ok(())
 };
