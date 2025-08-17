@@ -44,6 +44,17 @@ impl<'eu> EuType<'eu> {
         }))
     }
 
+    pub fn repeat(self) -> EuSeq<'eu> {
+        Box::new(iter::repeat(Ok(self)))
+    }
+
+    pub fn cycle(self) -> EuSeq<'eu> {
+        match self {
+            Self::Seq(it) => Box::new(it.cycle()),
+            _ => Box::new(self.to_seq().cycle()),
+        }
+    }
+
     pub fn take(self, n: isize) -> EuRes<Self> {
         match self {
             Self::Opt(o) => Ok(Self::Opt(if n != 0 { o } else { None })),

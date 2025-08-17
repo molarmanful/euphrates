@@ -89,6 +89,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     ">seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
     "fold_" => FOLD_,
+    "rpt" => RPT,
+    "cyc" => CYC,
 
     "#" => EVAL,
     "&#" => AND_EVAL,
@@ -522,6 +524,18 @@ const FOLD_: EuDef = |env| {
             })))
         })
     }?);
+    Ok(())
+};
+
+const RPT: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::Seq(a0.repeat()));
+    Ok(())
+};
+
+const CYC: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::Seq(a0.cycle()));
     Ok(())
 };
 
