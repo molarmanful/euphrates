@@ -1,0 +1,5 @@
+package euphrates:glue;
+
+world glue {
+    export run: func(code: string);
+}

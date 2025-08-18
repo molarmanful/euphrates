@@ -8,12 +8,20 @@ pub mod utils;
 
 use env::EuEnv;
 
-pub fn wasm(code: &str) {
-    match EuEnv::run_str(code) {
-        Ok(env) => println!("{env}"),
-        Err(e) => {
-            eprintln!("ERR:");
-            e.0.chain().for_each(|c| eprintln!("{c}"));
+wit_bindgen::generate!();
+
+struct Glue;
+
+impl Guest for Glue {
+    fn run(code: String) {
+        match EuEnv::run_str(&code) {
+            Ok(env) => println!("{env}"),
+            Err(e) => {
+                eprintln!("ERR:");
+                e.0.chain().for_each(|c| eprintln!("{c}"));
+            }
         }
     }
 }
+
+export!(Glue);

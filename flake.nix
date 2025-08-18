@@ -24,6 +24,8 @@
         }:
 
         let
+          inherit (pkgs) lib;
+
           baseCraneLib =
             cs:
             (inputs.crane.mkLib pkgs).overrideToolchain (
@@ -49,11 +51,21 @@
           );
 
           cranePkg =
-            o:
+            o@{
+              cargoTest ? false,
+              ...
+            }:
             craneLib.buildPackage (
               {
-                src = craneLib.cleanCargoSource ./.;
-                checkPhaseCargoCommand = "cargo fmt --check && cargo clippy";
+                src = lib.cleanSourceWith {
+                  src = ./.;
+                  filter =
+                    path: type: (builtins.match ".*wit$" path != null) || (craneLib.filterCargoSources path type);
+                };
+                checkPhaseCargoCommand = "cargo fmt --check && cargo clippy ${
+                  if cargoTest then "&& cargo test" else ""
+                }";
+                nativeBuildInputs = with pkgs; [ mold ];
               }
               // o
             );
@@ -62,7 +74,7 @@
 
           packages = {
             default = cranePkg {
-              nativeBuildInputs = with pkgs; [ mold ];
+              cargoTest = true;
             };
 
             wasm = cranePkg {
@@ -74,6 +86,8 @@
             packages = with pkgs; [
               taplo
               mold
+              nodejs_latest
+              pnpm
             ];
 
             inputsFrom = [ (craneLibDev.devShell { }) ];
