@@ -82,15 +82,31 @@
             };
           };
 
-          devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              taplo
-              mold
-              nodejs_latest
-              pnpm
-            ];
+          devShells = {
+            default = pkgs.mkShell {
+              packages =
+                let
+                  unocss-language-server = pkgs.callPackage ./nix/unocss-language-server.nix { };
+                in
+                with pkgs;
+                commonPkgs
+                ++ [
+                  taplo
+                  mold
+                  nodejs_latest
+                  pnpm
+                  dprint
+                  eslint
+                  vscode-langservers-extracted
+                  vtsls
+                  svelte-language-server
+                  emmet-language-server
+                  unocss-language-server
+                  stylelint-lsp
+                ];
 
-            inputsFrom = [ (craneLibDev.devShell { }) ];
+              inputsFrom = [ (craneLibDev.devShell { }) ];
+            };
           };
         };
     };

@@ -1,0 +1,20 @@
+:root {
+  @apply bg-black text-neutral font-mono;
+}
+
+.box {
+  @apply b b-zinc p-2 text-white focus:b-white transition-colors outline-none;
+}
+
+textarea.box {
+  @apply placeholder-zinc;
+}
+
+button:not(:disabled) {
+  @apply cursor-pointer;
+}
+
+.btn {
+  @apply px-2 py-1 text-zinc b b-current [&:hover,&:focus]:text-white
+    transition-colors;
+}

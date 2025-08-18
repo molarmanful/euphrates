@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "https://cdn.jsdelivr.net/npm/@molarmanful/fe-tools/dprint.json"
+  ]
+}
