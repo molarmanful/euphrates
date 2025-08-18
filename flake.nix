@@ -32,6 +32,8 @@
                 [
                   minimal.rustc
                   minimal.cargo
+                  complete.clippy
+                  complete.rustfmt
                   targets.wasm32-wasip2.latest.rust-std
                 ]
                 ++ cs
@@ -41,25 +43,37 @@
           craneLibDev = baseCraneLib (
             with inputs'.fenix.packages.complete;
             [
-              clippy
-              rustfmt
               rust-analyzer
               rust-src
             ]
           );
+
+          cranePkg =
+            o:
+            craneLib.buildPackage (
+              {
+                src = craneLib.cleanCargoSource ./.;
+                checkPhaseCargoCommand = "cargo fmt --check && cargo clippy";
+              }
+              // o
+            );
         in
         {
 
-          packages.default = craneLib.buildPackage {
-            src = craneLib.cleanCargoSource ./.;
-            doCheck = false;
-            CARGO_BUILD_TARGET = "wasm32-wasip2";
+          packages = {
+            default = cranePkg {
+              nativeBuildInputs = with pkgs; [ mold ];
+            };
+
+            wasm = cranePkg {
+              CARGO_BUILD_TARGET = "wasm32-wasip2";
+            };
           };
 
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
-              wasm-pack
               taplo
+              mold
             ];
 
             inputsFrom = [ (craneLibDev.devShell { }) ];
