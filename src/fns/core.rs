@@ -131,6 +131,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "fold" => FOLD,
     "scan" => SCAN,
     "/sort" => SORT_BY,
+    "#sort" => SORT_BY_KEY,
     "find" => FIND,
     "any" => ANY,
     "all" => ALL,
@@ -789,6 +790,18 @@ const SORT_BY: EuDef = |env| {
         a1.map(move |f| a0.clone().sorted_by_env(f, scope.clone()))
     } else {
         a1.map_once(|f| a0.sorted_by_env(f, scope))
+    }?);
+    Ok(())
+};
+
+const SORT_BY_KEY: EuDef = |env| {
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().sorted_by_key_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.sorted_by_key_env(f, scope))
     }?);
     Ok(())
 };

@@ -108,7 +108,7 @@ impl<'eu> EuEnv<'eu> {
         while let Some(t) = self.queue.next() {
             println!("{t:?}\n>>>");
             self.eval_type(t)?;
-            println!("{self}\n<<<");
+            println!("{self}\n<<<\n");
         }
         Ok(())
     }

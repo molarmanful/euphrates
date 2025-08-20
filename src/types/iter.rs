@@ -426,7 +426,7 @@ impl<'eu> EuType<'eu> {
                 res.map(|()| self)
                     .map_err(|e| *e.downcast::<EuErr>().unwrap())
             }
-            _ => Self::Vec(self.to_vec()?).sorted(),
+            _ => Self::Vec(self.to_vec()?).sorted_by(f),
         }
     }
 
@@ -440,6 +440,28 @@ impl<'eu> EuType<'eu> {
             )
             .map(|t| t.cmp(&Self::ibig(0)))
         })
+    }
+
+    pub fn sorted_by_key<F>(mut self, mut f: F) -> EuRes<Self>
+    where
+        F: FnMut(&Self) -> EuRes<Self>,
+    {
+        match self {
+            Self::Vec(ref mut ts) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    ts.make_mut()
+                        .sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)))
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
+            _ => Self::Vec(self.to_vec()?).sorted(),
+        }
+    }
+
+    pub fn sorted_by_key_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        let f = f.to_expr()?;
+        self.sorted_by_key(|t| EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()))
     }
 
     pub fn find<F>(self, mut f: F) -> EuRes<Option<Self>>
