@@ -1,6 +1,7 @@
 use std::{
     iter,
     mem,
+    slice,
 };
 
 use ordered_float::{
@@ -127,6 +128,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "flat" => FLAT,
     "rflat" => FLAT_REC,
     "fltr" => FILTER,
+    "?tk" => TAKE_WHILE,
     "zip" => ZIP,
     "fold" => FOLD,
     "scan" => SCAN,
@@ -725,6 +727,19 @@ const FILTER: EuDef = |env| {
         a1.map(move |f| a0.clone().filter_env(f, scope.clone()))
     } else {
         a1.map_once(|f| a0.filter_env(f, scope))
+    }?);
+    Ok(())
+};
+
+const TAKE_WHILE: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().take_while_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.take_while_env(f, scope))
     }?);
     Ok(())
 };
