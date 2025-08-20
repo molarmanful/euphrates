@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-(1 4 2 3)#vec ((5=) (2=))#vec find
+SeqN0 (1 0/)?tk >vec
 "#;
 
 fn main() {

@@ -125,7 +125,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "map" => MAP,
     "mapf" => MAPF,
     "flat" => FLAT,
-    "flat*" => FLAT_REC,
+    "rflat" => FLAT_REC,
     "fltr" => FILTER,
     "zip" => ZIP,
     "fold" => FOLD,
@@ -510,20 +510,9 @@ const FOLD_: EuDef = |env| {
     let scope = env.scope.clone();
 
     env.push(if a1.is_many() {
-        a1.map(move |f| {
-            let f = f.to_expr()?;
-            let scope = scope.clone();
-            Ok(EuType::Seq(a0.clone().unfold(move |acc| {
-                EuEnv::apply_n_2(f.clone(), &[acc], scope.clone())
-            })))
-        })
+        a1.map(move |f| a0.clone().unfold_env(f, scope.clone()).map(EuType::Seq))
     } else {
-        a1.map_once(|f| {
-            let f = f.to_expr()?;
-            Ok(EuType::Seq(a0.unfold(move |acc| {
-                EuEnv::apply_n_2(f.clone(), &[acc], scope.clone())
-            })))
-        })
+        a1.map_once(|f| a0.unfold_env(f, scope).map(EuType::Seq))
     }?);
     Ok(())
 };

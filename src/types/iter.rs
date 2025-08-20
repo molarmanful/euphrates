@@ -33,15 +33,22 @@ use crate::{
 impl<'eu> EuType<'eu> {
     pub fn unfold<F>(mut self, mut f: F) -> EuSeq<'eu>
     where
-        F: FnMut(Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+        F: FnMut(&Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
-        Box::new(iter::from_fn(move || match f(self.clone()) {
-            Ok((st, t)) => {
-                self = st;
-                t.to_opt().map(Ok)
-            }
-            Err(e) => Some(Err(e)),
+        Box::new(iter::from_fn(move || {
+            f(&self)
+                .map(|(st, t)| {
+                    self = st;
+                    t.to_opt()
+                })
+                .transpose()
         }))
+    }
+
+    pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<EuSeq<'eu>> {
+        f.to_expr().map(|f| {
+            self.unfold(move |acc| EuEnv::apply_n_2(f.clone(), slice::from_ref(acc), scope.clone()))
+        })
     }
 
     pub fn repeat(self) -> EuSeq<'eu> {
@@ -155,11 +162,9 @@ impl<'eu> EuType<'eu> {
                 })
                 .try_collect()
                 .map(Self::Vec),
-            Self::Seq(it) => Ok(Self::seq(it.flat_map(move |r| {
-                match if let Ok(t) = r { f(t) } else { r } {
-                    Ok(t) => t.to_seq(),
-                    e => Box::new(iter::once(e)),
-                }
+            Self::Seq(it) => Ok(Self::seq(it.flat_map(move |r| match r.and_then(&mut f) {
+                Ok(t) => t.to_seq(),
+                e => Box::new(iter::once(e)),
             }))),
             _ => self.flat_map_once(f),
         }
@@ -216,17 +221,12 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Vec(ts) => ts
                 .into_iter()
-                .filter_map(|t| match f(&t) {
-                    Ok(b) => b.then_some(Ok(t)),
-                    Err(e) => Some(Err(e)),
-                })
+                .filter_map(|t| f(&t).map(|b| b.then_some(t)).transpose())
                 .try_collect()
                 .map(Self::Vec),
-            Self::Seq(it) => {
-                Ok(Self::seq(it.filter(move |t| {
-                    t.as_ref().map(|t| f(t).unwrap_or(true)).unwrap_or(true)
-                })))
-            }
+            Self::Seq(it) => Ok(Self::seq(it.filter_map(move |r| {
+                r.and_then(|t| f(&t).map(|b| b.then_some(t))).transpose()
+            }))),
             _ => self.filter_once(f),
         }
     }
@@ -239,10 +239,7 @@ impl<'eu> EuType<'eu> {
             Self::Opt(o) => o
                 .and_then(|t| {
                     let t = *t;
-                    match f(&t) {
-                        Ok(b) => b.then_some(Ok(t)),
-                        Err(e) => Some(Err(e)),
-                    }
+                    f(&t).map(|b| b.then_some(t)).transpose()
                 })
                 .transpose()
                 .map(Self::opt),
@@ -345,43 +342,40 @@ impl<'eu> EuType<'eu> {
 
     pub fn scan<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
-        F: FnMut(Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+        F: FnMut(&Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
         match self {
             Self::Vec(ts) => ts
                 .into_iter()
-                .scan(init, |acc, t| match f(acc.clone(), t) {
-                    Ok((st, t)) => {
-                        *acc = st;
-                        t.to_opt().map(Ok)
-                    }
-                    Err(e) => Some(Err(e)),
+                .scan(init, |acc, t| {
+                    f(acc, t)
+                        .map(|(st, t)| {
+                            *acc = st;
+                            t.to_opt()
+                        })
+                        .transpose()
                 })
                 .try_collect()
                 .map(Self::Vec),
-            Self::Seq(it) => {
-                Ok(Self::seq(it.scan(
-                    init,
-                    move |acc, t| match t.and_then(|t| f(acc.clone(), t)) {
-                        Ok((st, t)) => {
-                            *acc = st;
-                            t.to_opt().map(Ok)
-                        }
-                        Err(e) => Some(Err(e)),
-                    },
-                )))
-            }
+            Self::Seq(it) => Ok(Self::seq(it.scan(init, move |acc, t| {
+                t.and_then(|t| f(acc, t))
+                    .map(|(st, t)| {
+                        *acc = st;
+                        t.to_opt()
+                    })
+                    .transpose()
+            }))),
             _ => self.scan_once(init, f),
         }
     }
 
     pub fn scan_once<F>(self, init: Self, f: F) -> EuRes<Self>
     where
-        F: FnOnce(Self, Self) -> EuRes<(Self, Self)> + 'eu,
+        F: FnOnce(&Self, Self) -> EuRes<(Self, Self)> + 'eu,
     {
         match self {
-            Self::Opt(Some(t)) => Ok(Self::opt(f(init, *t)?.1.to_opt())),
-            Self::Res(Ok(t)) => Ok(Self::res(match f(init, *t)?.1 {
+            Self::Opt(Some(t)) => Ok(Self::opt(f(&init, *t)?.1.to_opt())),
+            Self::Res(Ok(t)) => Ok(Self::res(match f(&init, *t)?.1 {
                 Self::Opt(Some(t)) | Self::Res(Ok(t)) => Ok(*t),
                 Self::Res(Err(e)) => Err(*e),
                 e @ Self::Opt(None) => Err(e),
@@ -396,10 +390,16 @@ impl<'eu> EuType<'eu> {
         let f = f.to_expr()?;
         if self.is_many() {
             self.scan(init, move |acc, t| {
-                EuEnv::apply_n_2(f.clone(), &[acc, t], scope.clone())
+                EuEnv::apply_n_2(
+                    f.clone(),
+                    &[slice::from_ref(acc), &[t]].concat(),
+                    scope.clone(),
+                )
             })
         } else {
-            self.scan_once(init, move |acc, t| EuEnv::apply_n_2(f, &[acc, t], scope))
+            self.scan_once(init, move |acc, t| {
+                EuEnv::apply_n_2(f, &[slice::from_ref(acc), &[t]].concat(), scope)
+            })
         }
     }
 
@@ -485,10 +485,7 @@ impl<'eu> EuType<'eu> {
             Self::Opt(o) => o
                 .and_then(|t| {
                     let t = *t;
-                    match f(&t) {
-                        Ok(b) => b.then_some(Ok(t)),
-                        Err(e) => Some(Err(e)),
-                    }
+                    f(&t).map(|b| b.then_some(t)).transpose()
                 })
                 .transpose(),
             Self::Res(r) => Self::Opt(r.ok()).find_once(f),
