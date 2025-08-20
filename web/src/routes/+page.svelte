@@ -33,12 +33,14 @@
       run
     </button>
   </header>
+
   <main class='flex flex-1 gap-4 size-full *:flex-1'>
     <textarea
       class='box resize-none'
       bind:value={code}
       placeholder='code goes here...'
     ></textarea>
+
     <textarea
       disabled
       class='box h-full whitespace-pre-wrap overflow-auto'
