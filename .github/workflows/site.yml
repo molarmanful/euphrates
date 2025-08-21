@@ -13,9 +13,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/determinate-nix-action@v3
@@ -28,9 +25,12 @@ jobs:
           node-version: "*"
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm i --frozen-lockfile
-      - run: pnpm build
-      - run: touch build/.nojekyll
+      - run: |
+          cd web
+          pnpm i --frozen-lockfile
+          pnpm build
+          touch build/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build
+          path: web/build
+      - uses: actions/deploy-pages@v4
