@@ -1,3 +1,4 @@
+mod iter_ext;
 use std::{
     any::Any,
     panic::{
@@ -5,6 +6,8 @@ use std::{
         UnwindSafe,
     },
 };
+
+pub use iter_ext::*;
 
 #[inline]
 pub fn swap_errors<T, E0, E1>(r: Result<Result<T, E0>, E1>) -> Result<Result<T, E1>, E0> {

@@ -25,6 +25,7 @@ use crate::{
         EuScope,
     },
     utils::{
+        IterExt,
         swap_errors,
         unpanic,
     },
@@ -291,6 +292,40 @@ impl<'eu> EuType<'eu> {
             })
         } else {
             self.take_while_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+        }
+    }
+
+    pub fn drop_while<F>(self, f: F) -> EuRes<Self>
+    where
+        F: FnMut(&Self) -> EuRes<bool> + Clone + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts
+                .into_iter()
+                .map(Ok)
+                .skip_while_ok(f)
+                .try_collect()
+                .map(Self::Vec),
+            Self::Seq(it) => Ok(Self::seq(it.skip_while_ok(f))),
+            _ => self.drop_while_once(f),
+        }
+    }
+
+    pub fn drop_while_once<F>(self, f: F) -> EuRes<Self>
+    where
+        F: FnOnce(&Self) -> EuRes<bool> + 'eu,
+    {
+        self.filter_once(|t| f(t).map(|b| !b))
+    }
+
+    pub fn drop_while_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.drop_while(move |t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+            })
+        } else {
+            self.drop_while_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
         }
     }
 

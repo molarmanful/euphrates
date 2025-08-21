@@ -1,7 +1,7 @@
 use euphrates::env::EuEnv;
 
 const TEST: &str = r#"
-SeqN0 (1 0/)?tk >vec
+SeqN0 (((5<) (10>))#vec map ()any)?dp 100tk >vec
 "#;
 
 fn main() {
