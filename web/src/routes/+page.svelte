@@ -22,16 +22,25 @@
   })
 </script>
 
+<svelte:window
+  onkeydown={(e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'Enter') glue.run(code)
+  }}
+/>
+
 <div class='p-4 flex flex-col gap-4 h-screen'>
   <header>
-    <button
-      class='btn'
-      onclick={() => {
-        glue.run(code)
-      }}
-    >
-      run
-    </button>
+    <h1 class='mb-3'>euphrates</h1>
+    <div class='flex gap-3 items-start'>
+      <button
+        class='btn'
+        onclick={() => {
+          glue.run(code)
+        }}
+      >
+        run
+      </button>
+    </div>
   </header>
 
   <main class='flex flex-1 gap-4 size-full *:flex-1'>

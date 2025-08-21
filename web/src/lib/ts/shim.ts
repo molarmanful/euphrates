@@ -1,4 +1,4 @@
-// These should be removed if/when the WASI shim types are fixed.
+// NOTE: These should be removed if/when the WASI shim types are fixed.
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
