@@ -11,7 +11,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "eslint .",
-    "wasm": "nix build ..#wasm && jco transpile ../result/lib/euphrates.wasm -o src/lib/wasm --instantiation"
+    "wasm": "nix build ..#wasm && jco transpile result/lib/euphrates.wasm -o src/lib/wasm --instantiation"
   },
   "devDependencies": {
     "@bytecodealliance/jco": "^1.13.3",
