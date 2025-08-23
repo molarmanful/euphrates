@@ -131,6 +131,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "?dp" => DROP_WHILE,
     "zip" => ZIP,
     "fold" => FOLD,
+    "fold1" => FOLD1,
     "scan" => SCAN,
     "/sort" => SORT_BY,
     "#sort" => SORT_BY_KEY,
@@ -781,6 +782,19 @@ const FOLD: EuDef = |env| {
         a2.map(move |f| a0.clone().fold_env(a1.clone(), f, scope.clone()))
     } else {
         a2.map_once(|f| a0.fold_env(a1, f, scope))
+    }?);
+    Ok(())
+};
+
+const FOLD1: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().fold1_env(f, scope.clone()).map(EuType::opt))
+    } else {
+        a1.map_once(|f| a0.fold1_env(f, scope).map(EuType::opt))
     }?);
     Ok(())
 };

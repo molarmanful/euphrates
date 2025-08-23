@@ -410,6 +410,30 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn fold1<F>(self, mut f: F) -> EuRes<Option<Self>>
+    where
+        F: FnMut(Self, Self) -> EuRes<Self> + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts.into_iter().try_reduce(f),
+            Self::Seq(it) => it.reduce(|a, b| f(a?, b?)).transpose(),
+            _ => self.fold1_once(),
+        }
+    }
+
+    pub fn fold1_once(self) -> EuRes<Option<Self>> {
+        Ok(self.to_opt())
+    }
+
+    pub fn fold1_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Option<Self>> {
+        let f = f.to_expr()?;
+        if self.is_many() {
+            self.fold1(move |a, b| EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone()))
+        } else {
+            self.fold1_once()
+        }
+    }
+
     pub fn scan<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(&Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,

@@ -1,4 +1,5 @@
 #![feature(try_find)]
+#![feature(iterator_try_reduce)]
 
 pub mod env;
 pub mod fns;
