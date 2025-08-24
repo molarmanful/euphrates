@@ -55,6 +55,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "rot_" => ROT_,
     "roll" => ROLL,
     "roll_" => ROLL_,
+    "," => PAIR,
     "wrap" => WRAP,
     "wrap_" => WRAP_,
     "usurp" => USURP,
@@ -138,6 +139,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "find" => FIND,
     "any" => ANY,
     "all" => ALL,
+    "cprod" => CPROD,
 };
 
 const NONE: EuDef = |env| {
@@ -359,6 +361,14 @@ const ROLL_: EuDef = |env| {
     let i = env.iflip(a0)?;
     let t = env.stack.pop().unwrap();
     env.stack.insert(i, t);
+    Ok(())
+};
+
+const PAIR: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.stack.push(EuType::vec([a0, a1]));
     Ok(())
 };
 
@@ -678,6 +688,21 @@ const DROP: EuDef = |env| {
 const SORT: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(a0.sorted()?);
+    Ok(())
+};
+
+const CPROD: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.pop().unwrap();
+    let a0 = env.pop().unwrap().to_vec()?;
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| {
+            EuType::multi_cartesian_product_env(a0.clone(), f, scope.clone()).map(EuType::Seq)
+        })
+    } else {
+        a1.map_once(|f| EuType::multi_cartesian_product_env(a0, f, scope).map(EuType::Seq))
+    }?);
     Ok(())
 };
 

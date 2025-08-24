@@ -11,6 +11,7 @@ use std::{
     slice,
 };
 
+use ecow::EcoVec;
 use itertools::Itertools;
 
 use super::{
@@ -646,5 +647,28 @@ impl<'eu> EuType<'eu> {
         } else {
             self.all_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
         }
+    }
+
+    pub fn multi_cartesian_product<F>(ts: EcoVec<Self>, mut f: F) -> EuSeq<'eu>
+    where
+        F: FnMut(EcoVec<Self>) -> EuRes<Self> + Clone + 'eu,
+    {
+        Box::new(
+            ts.into_iter()
+                .map(Self::to_seq)
+                .multi_cartesian_product()
+                .map(move |rs| f(rs.into_iter().try_collect()?)),
+        )
+    }
+
+    pub fn multi_cartesian_product_env(
+        ts: EcoVec<Self>,
+        f: Self,
+        scope: EuScope<'eu>,
+    ) -> EuRes<EuSeq<'eu>> {
+        let f = f.to_expr()?;
+        Ok(Self::multi_cartesian_product(ts, move |ts| {
+            EuEnv::apply_n_1(f.clone(), &ts, scope.clone())
+        }))
     }
 }
