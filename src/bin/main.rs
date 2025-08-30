@@ -1,16 +1,23 @@
+use std::io;
+
+use clap::Parser;
 use euphrates::env::EuEnv;
 
-const TEST: &str = r#"
-SeqN0 rpt 4tk *zip 10tk >vec
-"#;
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {}
 
 fn main() {
-    match EuEnv::run_str(TEST) {
-        Ok(env) => println!("{env}"),
-        Err(e) => {
-            eprintln!("ERR:");
-            e.0.chain().for_each(|c| eprintln!("{c}"));
-            std::process::exit(1);
-        }
+    let _cli = Cli::parse();
+    match io::read_to_string(io::stdin()) {
+        Ok(code) => match EuEnv::run_str(&code) {
+            Ok(env) => println!("{env}"),
+            Err(e) => {
+                eprintln!("ERR:");
+                e.0.chain().for_each(|c| eprintln!("{c}"));
+                std::process::exit(1);
+            }
+        },
+        Err(e) => eprintln!("ERR:\n{e}"),
     }
 }

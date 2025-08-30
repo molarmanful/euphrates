@@ -28,6 +28,7 @@ dyn-clone = "1.0.20"
 ordered-float = "5.0.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
 wit-bindgen = "0.44.0"
+clap = { version = "4.5.46", features = ["derive"] }
 
 [build-dependencies]
 itertools = "0.14.0"
