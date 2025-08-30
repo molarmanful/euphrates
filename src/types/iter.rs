@@ -25,6 +25,7 @@ use crate::{
         EuEnv,
         EuScope,
     },
+    types::EuSeqImpl,
     utils::{
         IterExt,
         swap_errors,
@@ -33,21 +34,21 @@ use crate::{
 };
 
 impl<'eu> EuType<'eu> {
-    pub fn unfold<F>(mut self, mut f: F) -> EuSeq<'eu>
+    pub fn unfold<F>(mut self, mut f: F) -> impl EuSeqImpl<'eu>
     where
         F: FnMut(&Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
-        Box::new(iter::from_fn(move || {
+        iter::from_fn(move || {
             f(&self)
                 .map(|(st, t)| {
                     self = st;
                     t.to_opt()
                 })
                 .transpose()
-        }))
+        })
     }
 
-    pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<EuSeq<'eu>> {
+    pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<impl EuSeqImpl<'eu>> {
         f.to_expr().map(|f| {
             self.unfold(move |acc| EuEnv::apply_n_2(f.clone(), slice::from_ref(acc), scope.clone()))
         })
@@ -379,6 +380,16 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn multi_zip(ts: EcoVec<Self>) -> impl EuSeqImpl<'eu> {
+        let mut it = ts.into_iter().map(Self::to_seq).collect_vec();
+        iter::from_fn(move || {
+            it.iter_mut()
+                .map(|it1| it1.next())
+                .collect::<Option<Result<_, _>>>()
+                .map(|r| r.map(Self::Vec))
+        })
+    }
+
     pub fn fold<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self, Self) -> EuRes<Self> + 'eu,
@@ -649,26 +660,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn multi_cartesian_product<F>(ts: EcoVec<Self>, mut f: F) -> EuSeq<'eu>
-    where
-        F: FnMut(EcoVec<Self>) -> EuRes<Self> + Clone + 'eu,
-    {
-        Box::new(
-            ts.into_iter()
-                .map(Self::to_seq)
-                .multi_cartesian_product()
-                .map(move |rs| f(rs.into_iter().try_collect()?)),
-        )
-    }
-
-    pub fn multi_cartesian_product_env(
-        ts: EcoVec<Self>,
-        f: Self,
-        scope: EuScope<'eu>,
-    ) -> EuRes<EuSeq<'eu>> {
-        let f = f.to_expr()?;
-        Ok(Self::multi_cartesian_product(ts, move |ts| {
-            EuEnv::apply_n_1(f.clone(), &ts, scope.clone())
-        }))
+    pub fn multi_cartesian_product(ts: EcoVec<Self>) -> impl EuSeqImpl<'eu> {
+        ts.into_iter()
+            .map(Self::to_seq)
+            .multi_cartesian_product()
+            .map(|rs| rs.into_iter().try_collect().map(Self::Vec))
     }
 }

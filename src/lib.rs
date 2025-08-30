@@ -1,5 +1,6 @@
 #![feature(try_find)]
 #![feature(iterator_try_reduce)]
+#![feature(trait_alias)]
 
 pub mod env;
 pub mod fns;

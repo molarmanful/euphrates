@@ -121,12 +121,14 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "tk" => TAKE,
     "dp" => DROP,
+    "flat" => FLAT,
+    "rflat" => FLAT_REC,
     "sort" => SORT,
+    "*zip" => MULTI_ZIP,
+    "*cprod" => MULTI_CPROD,
 
     "map" => MAP,
     "mapf" => MAPF,
-    "flat" => FLAT,
-    "rflat" => FLAT_REC,
     "fltr" => FILTER,
     "?tk" => TAKE_WHILE,
     "?dp" => DROP_WHILE,
@@ -139,7 +141,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "find" => FIND,
     "any" => ANY,
     "all" => ALL,
-    "cprod" => CPROD,
 };
 
 const NONE: EuDef = |env| {
@@ -523,9 +524,9 @@ const FOLD_: EuDef = |env| {
     let scope = env.scope.clone();
 
     env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().unfold_env(f, scope.clone()).map(EuType::Seq))
+        a1.map(move |f| a0.clone().unfold_env(f, scope.clone()).map(EuType::seq))
     } else {
-        a1.map_once(|f| a0.unfold_env(f, scope).map(EuType::Seq))
+        a1.map_once(|f| a0.unfold_env(f, scope).map(EuType::seq))
     }?);
     Ok(())
 };
@@ -691,18 +692,28 @@ const SORT: EuDef = |env| {
     Ok(())
 };
 
-const CPROD: EuDef = |env| {
+const FLAT: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.flatten()?);
+    Ok(())
+};
+
+const FLAT_REC: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.flatten_rec()?);
+    Ok(())
+};
+
+const MULTI_ZIP: EuDef = |env| {
+    let a0 = env.pop()?.to_vec()?;
+    env.push(EuType::seq(EuType::multi_zip(a0)));
+    Ok(())
+};
+
+const MULTI_CPROD: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.pop().unwrap();
     let a0 = env.pop().unwrap().to_vec()?;
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| {
-            EuType::multi_cartesian_product_env(a0.clone(), f, scope.clone()).map(EuType::Seq)
-        })
-    } else {
-        a1.map_once(|f| EuType::multi_cartesian_product_env(a0, f, scope).map(EuType::Seq))
-    }?);
+    env.push(EuType::seq(EuType::multi_cartesian_product(a0)));
     Ok(())
 };
 
@@ -729,18 +740,6 @@ const MAPF: EuDef = |env| {
     } else {
         a1.map_once(|f| a0.flat_map_env(f, scope))
     }?);
-    Ok(())
-};
-
-const FLAT: EuDef = |env| {
-    let a0 = env.pop()?;
-    env.push(a0.flatten()?);
-    Ok(())
-};
-
-const FLAT_REC: EuDef = |env| {
-    let a0 = env.pop()?;
-    env.push(a0.flatten_rec()?);
     Ok(())
 };
 

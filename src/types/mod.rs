@@ -12,6 +12,8 @@ pub type EuIter<'eu, T = EuType<'eu>> = Box<dyn Iterator<Item = T> + 'eu>;
 
 type EuSeq<'eu> = Box<dyn CloneIter<'eu, EuRes<EuType<'eu>>> + 'eu>;
 
+pub trait EuSeqImpl<'eu> = Iterator<Item = EuRes<EuType<'eu>>> + Clone;
+
 pub trait CloneIter<'t, T>
 where
     T: 't,
