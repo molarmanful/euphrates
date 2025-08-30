@@ -11,7 +11,6 @@ use std::{
     slice,
 };
 
-use ecow::EcoVec;
 use itertools::Itertools;
 
 use super::{
@@ -380,7 +379,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn multi_zip(ts: EcoVec<Self>) -> impl EuSeqImpl<'eu> {
+    pub fn multi_zip(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
         let mut it = ts.into_iter().map(Self::to_seq).collect_vec();
         iter::from_fn(move || {
             it.iter_mut()
@@ -660,7 +659,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn multi_cartesian_product(ts: EcoVec<Self>) -> impl EuSeqImpl<'eu> {
+    pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
         ts.into_iter()
             .map(Self::to_seq)
             .multi_cartesian_product()
