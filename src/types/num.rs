@@ -8,7 +8,11 @@ use std::ops::{
 };
 
 use anyhow::anyhow;
-use num_traits::AsPrimitive;
+use dashu_int::IBig;
+use num_traits::{
+    AsPrimitive,
+    Pow,
+};
 use ordered_float::OrderedFloat;
 
 use super::{
@@ -126,23 +130,23 @@ fn gen_impl_neg() {
         .map(|t| {
             let n = t.to_lowercase();
             crabtime::quote! {
-                Self::{{t}}(n) => Self::{{t}}(-n),
+                Self::{{t}}(n) => Ok(Self::{{t}}(-n)),
             }
         })
         .join("");
 
     crabtime::output! {
         impl Neg for EuType<'_> {
-            type Output = Self;
+            type Output = EuRes<Self>;
 
-            fn neg(self) -> Self {
+            fn neg(self) -> Self::Output {
                 match self {
                     {{arms}}
                     Self::Bool(b) => -Self::I32(b.into()),
                     Self::Char(c) => -Self::I32(c as i32),
-                    Self::Str(s) => Self::opt(s.parse().ok().map(|t| -Self::F64(t))),
-                    _ if self.is_vecz() => self.map(|t| Ok(-t)).unwrap(),
-                    _ => Self::Opt(None),
+                    Self::Str(s) => -Self::F64(s.parse().map_err(|_| anyhow!(concat!("failed to parse before neg")))?),
+                    _ if self.is_vecz() => self.map(|t| -t),
+                    _ => Err(anyhow!("cannot neg {self:?}").into()),
                 }
             }
         }
@@ -234,3 +238,62 @@ fn gen_math_binops() {
 }
 
 gen_math_binops!();
+
+#[crabtime::function]
+fn gen_pow() {
+    use itertools::Itertools;
+
+    let types = ["I32", "I64"];
+    let arms = itertools::repeat_n(types, 2)
+        .multi_cartesian_product()
+        .map(|ts| {
+            let a = ts[1];
+            let b = ts[0];
+            let al = a.to_lowercase();
+            crabtime::quote! {
+                (Self::{{a}}(a), y @ Self::{{b}}(b)) if b >= 0 => a
+                    .checked_pow(y.try_u32()?)
+                    .map(Self::{{al}})
+                    .ok_or_else(|| anyhow!("pow on `{a:?}` and `{b:?}` is undefined").into()),
+            }
+        })
+        .join("");
+
+    crabtime::output! {
+        impl Pow<Self> for EuType<'_> {
+            type Output = EuRes<Self>;
+
+            fn pow(self, rhs: Self) -> Self::Output {
+                match (self, rhs) {
+                    (Self::F32(a), Self::I32(b)) => Ok(Self::f32(a.powi(b))),
+                    (Self::F64(a), Self::I32(b)) => Ok(Self::f64(a.powi(b))),
+                    (Self::F32(a), Self::F32(b)) => Ok(Self::f32(a.powf(*b))),
+                    (Self::F64(a), Self::F64(b)) => Ok(Self::f64(a.powf(*b))),
+                    {{arms}}
+                    (Self::IBig(a), y @ Self::I32(b)) if b >= 0 => {
+                        y.try_usize().map(|b| Self::ibig(a.pow(b)))
+                    }
+                    (Self::IBig(a), y @ Self::I64(b)) if b >= 0 => {
+                        y.try_usize().map(|b| Self::ibig(a.pow(b)))
+                    }
+                    (Self::IBig(a), Self::IBig(b)) if b.ge(&IBig::ZERO) => {
+                        Self::IBig(b).try_usize().map(|b| Self::ibig(a.pow(b)))
+                    }
+                    (a, b) if a.is_int() && b.is_int() => Self::f64(a.try_f64()?).pow(b),
+                    (a, b) if a.is_num_like() && b.is_num_like() => {
+                        let (a, b) = a.num_tower(b).unwrap();
+                        a.pow(b)
+                    }
+                    (a, b) if a.is_num_parse() && b.is_num_parse() => a
+                        .parse_num_tower(b)
+                        .ok_or_else(|| anyhow!("failed to parse before pow").into())
+                        .and_then(|(a, b)| a.pow(b)),
+                    (a, b) if a.is_vecz() || b.is_vecz() => a.zip(b, |a, b| a.pow(b)),
+                    (a, b) => Err(anyhow!("cannot pow `{a:?}` and `{b:?}`").into()),
+                }
+            }
+        }
+    }
+}
+
+gen_pow!();

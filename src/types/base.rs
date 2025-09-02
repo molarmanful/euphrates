@@ -203,6 +203,11 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
+    pub fn is_int(&self) -> bool {
+        self.is_i_32() || self.is_i_64() || self.is_i_big()
+    }
+
+    #[inline]
     pub fn is_vecz(&self) -> bool {
         self.is_once() || self.is_many()
     }
@@ -298,9 +303,9 @@ fn gen_type_to_num() {
 gen_type_to_num!();
 
 #[crabtime::function]
-fn gen_type_to_size() {
+fn gen_type_to_num_other() {
     let types = ["I32", "I64", "IBig", "F32", "F64"];
-    for n in ["isize", "usize"] {
+    for n in ["isize", "usize", "u32", "u64"] {
         let nq = format!(r#""{n}""#);
         let arms = types
             .map(|t| {
@@ -331,7 +336,7 @@ fn gen_type_to_size() {
     }
 }
 
-gen_type_to_size!();
+gen_type_to_num_other!();
 
 #[crabtime::function]
 fn gen_type_to_bool() {

@@ -1,8 +1,16 @@
 use std::{
     iter,
     mem,
+    ops::{
+        Add,
+        Div,
+        Mul,
+        Rem,
+        Sub,
+    },
 };
 
+use num_traits::Pow;
 use ordered_float::{
     FloatCore,
     OrderedFloat,
@@ -116,6 +124,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "*" => MUL,
     "/" => DIV,
     "%" => REM,
+    "^" => POW,
 
     "++" => CONCAT,
 
@@ -627,25 +636,20 @@ gen_fn_cmp_binops!();
 
 const NEG: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(-a0);
+    env.push((-a0)?);
     Ok(())
 };
 
 #[crabtime::function]
 fn gen_fn_math_binops() {
-    for (name, op) in [
-        ("ADD", "+"),
-        ("SUB", "-"),
-        ("MUL", "*"),
-        ("DIV", "/"),
-        ("REM", "%"),
-    ] {
+    for name in ["ADD", "SUB", "MUL", "DIV", "REM", "POW"] {
+        let op = name.to_lowercase();
         crabtime::output! {
             const {{name}}: EuDef = |env| {
                 env.check_nargs(2)?;
                 let a1 = env.pop().unwrap();
                 let a0 = env.pop().unwrap();
-                env.push((a0 {{op}} a1)?);
+                env.push(a0.{{op}}(a1)?);
                 Ok(())
             };
         }
