@@ -4,6 +4,7 @@ use std::{
         Ordering,
     },
     iter,
+    mem,
     panic::{
         self,
         AssertUnwindSafe,
@@ -64,16 +65,37 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn get_take(self, i: isize) -> EuRes<Option<Self>> {
+        match self {
+            Self::Opt(o) => Ok((i == 0).then(|| o.map(|t| *t)).flatten()),
+            Self::Res(r) => Self::Opt(r.ok()).get_take(i),
+            Self::Vec(mut ts) => Ok(if i < 0 {
+                ts.len().checked_add_signed(i)
+            } else {
+                Some(i as usize)
+            }
+            .and_then(|i| {
+                ts.make_mut()
+                    .get_mut(i)
+                    .map(|t| mem::replace(t, Self::Opt(None)))
+            })),
+            Self::Seq(mut it) => {
+                if i < 0 {
+                    Self::Vec(Self::Seq(it).to_vec()?).get_take(i)
+                } else {
+                    it.nth(i as usize).transpose()
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).get_take(i),
+        }
+    }
+
     pub fn take(self, n: isize) -> EuRes<Self> {
         match self {
-            Self::Opt(o) => Ok(Self::Opt(if n != 0 { o } else { None })),
-            Self::Res(r) => Ok(Self::Res(if n != 0 {
-                r
-            } else {
-                Err(Box::new(Self::Opt(None)))
-            })),
+            Self::Opt(o) => Ok(Self::Opt((n != 0).then_some(o).flatten())),
+            Self::Res(r) => Self::Opt(r.ok()).take(n),
             _ if self.is_vecz() => {
-                let a = n.abs_diff(0);
+                let a = n.unsigned_abs();
                 if n < 0 {
                     match self {
                         Self::Vec(ts) => Ok(Self::vec(&ts[ts.len().saturating_sub(a)..])),
@@ -95,13 +117,9 @@ impl<'eu> EuType<'eu> {
     pub fn drop(self, n: isize) -> EuRes<Self> {
         match self {
             Self::Opt(o) => Ok(Self::Opt(if n != 0 { None } else { o })),
-            Self::Res(r) => Ok(Self::Res(if n != 0 {
-                Err(Box::new(Self::Opt(None)))
-            } else {
-                r
-            })),
+            Self::Res(r) => Self::Opt(r.ok()).drop(n),
             _ if self.is_vecz() => {
-                let a = n.abs_diff(0);
+                let a = n.unsigned_abs();
                 if n < 0 {
                     match self {
                         Self::Vec(ts) => Ok(Self::vec(&ts[..ts.len().saturating_sub(a)])),

@@ -128,6 +128,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "++" => CONCAT,
 
+    ":" => GET,
     "tk" => TAKE,
     "dp" => DROP,
     "flat" => FLAT,
@@ -666,10 +667,22 @@ const CONCAT: EuDef = |env| {
     Ok(())
 };
 
+const GET: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(if a1.is_many() {
+        a1.map(move |n| a0.clone().get_take(n.try_isize()?).map(EuType::opt))
+    } else {
+        a1.map_once(|n| a0.get_take(n.try_isize()?).map(EuType::opt))
+    }?);
+    Ok(())
+};
+
 const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
-    let a0 = env.pop()?;
+    let a0 = env.stack.pop().unwrap();
     env.push(if a1.is_many() {
         a1.map(move |n| a0.clone().take(n.try_isize()?))
     } else {
@@ -681,7 +694,7 @@ const TAKE: EuDef = |env| {
 const DROP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
-    let a0 = env.pop()?;
+    let a0 = env.stack.pop().unwrap();
     env.push(if a1.is_many() {
         a1.map(move |n| a0.clone().drop(n.try_isize()?))
     } else {
