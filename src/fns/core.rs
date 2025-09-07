@@ -236,8 +236,7 @@ const STACK: EuDef = |env| {
 };
 
 const DUP: EuDef = |env| {
-    env.check_nargs(1)?;
-    env.push(env.last().unwrap().clone());
+    env.push(env.last()?.clone());
     Ok(())
 };
 
@@ -560,23 +559,23 @@ const EVAL: EuDef = |env| {
 
 const AND_EVAL: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.pop().unwrap().to_expr()?;
-    let a0 = env.pop().unwrap().into();
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.stack.pop().unwrap().into();
     if a0 { env.eval_iter(a1) } else { Ok(()) }
 };
 
 const OR_EVAL: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.pop().unwrap().to_expr()?;
-    let a0 = env.pop().unwrap().into();
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.stack.pop().unwrap().into();
     if a0 { Ok(()) } else { env.eval_iter(a1) }
 };
 
 const IF_EVAL: EuDef = |env| {
     env.check_nargs(3)?;
-    let a2 = env.pop().unwrap().to_expr()?;
-    let a1 = env.pop().unwrap().to_expr()?;
-    let a0 = env.pop().unwrap().into();
+    let a2 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.stack.pop().unwrap().into();
     env.eval_iter(if a0 { a1 } else { a2 })
 };
 
@@ -605,8 +604,9 @@ const NOT: EuDef = |env| {
 };
 
 const CMP: EuDef = |env| {
-    let a1 = env.pop()?;
-    let a0 = env.pop()?;
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
     env.push(EuType::i32(a0.cmp(&a1) as i32));
     Ok(())
 };
@@ -624,8 +624,8 @@ fn gen_fn_cmp_binops() {
         crabtime::output! {
             const {{name}}: EuDef = |env| {
                 env.check_nargs(2)?;
-                let a1 = env.pop().unwrap();
-                let a0 = env.pop().unwrap();
+                let a1 = env.stack.pop().unwrap();
+                let a0 = env.stack.pop().unwrap();
                 env.push(EuType::Bool(a0 {{op}} a1));
                 Ok(())
             };
@@ -648,8 +648,8 @@ fn gen_fn_math_binops() {
         crabtime::output! {
             const {{name}}: EuDef = |env| {
                 env.check_nargs(2)?;
-                let a1 = env.pop().unwrap();
-                let a0 = env.pop().unwrap();
+                let a1 = env.stack.pop().unwrap();
+                let a0 = env.stack.pop().unwrap();
                 env.push(a0.{{op}}(a1)?);
                 Ok(())
             };
@@ -729,7 +729,7 @@ const MULTI_ZIP: EuDef = |env| {
 
 const MULTI_CPROD: EuDef = |env| {
     env.check_nargs(2)?;
-    let a0 = env.pop().unwrap().to_vec()?;
+    let a0 = env.stack.pop().unwrap().to_vec()?;
     env.push(EuType::seq(EuType::multi_cartesian_product(a0)));
     Ok(())
 };
@@ -855,6 +855,7 @@ const SCAN: EuDef = |env| {
 };
 
 const SORT_BY: EuDef = |env| {
+    env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
@@ -867,6 +868,7 @@ const SORT_BY: EuDef = |env| {
 };
 
 const SORT_BY_KEY: EuDef = |env| {
+    env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
@@ -879,6 +881,7 @@ const SORT_BY_KEY: EuDef = |env| {
 };
 
 const FIND: EuDef = |env| {
+    env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
@@ -891,6 +894,7 @@ const FIND: EuDef = |env| {
 };
 
 const ANY: EuDef = |env| {
+    env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
@@ -903,6 +907,7 @@ const ANY: EuDef = |env| {
 };
 
 const ALL: EuDef = |env| {
+    env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     let scope = env.scope.clone();
