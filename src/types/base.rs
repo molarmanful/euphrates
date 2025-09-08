@@ -24,6 +24,7 @@ use winnow::Parser;
 use super::{
     EuRes,
     EuSeq,
+    EuSyn,
 };
 use crate::parser::euphrates;
 
@@ -57,12 +58,12 @@ pub enum EuType<'eu> {
     #[display("{}", match _0 { Ok(t) => t.to_string(), Err(e) => e.to_string() })]
     Res(Result<Box<Self>, Box<Self>>),
 
-    #[debug("Vec:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("[{}]", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
     Vec(EcoVec<Self>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
-    Expr(EcoVec<Self>),
+    Expr(EcoVec<EuSyn<'eu>>),
     #[debug("Seq:(...)")]
     #[display("{}", match _0.clone().try_collect::<_, Vec<_>, _>() { Ok(ts) => ts.into_iter().join(""), Err(e) => "".into() })]
     Seq(EuSeq<'eu>),
@@ -130,7 +131,7 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn expr(ts: impl Into<EcoVec<Self>>) -> Self {
+    pub fn expr(ts: impl Into<EcoVec<EuSyn<'eu>>>) -> Self {
         Self::Expr(ts.into())
     }
 
@@ -152,7 +153,8 @@ impl<'eu> EuType<'eu> {
 
     pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
         match self {
-            Self::Vec(ts) | Self::Expr(ts) => Ok(ts),
+            Self::Vec(ts) => Ok(ts),
+            Self::Expr(ts) => Ok(ts.into_iter().map(EuSyn::into).collect()),
             Self::Str(s) => s.chars().map(|t| Ok(Self::Char(t))).collect(),
             Self::Opt(o) => o.into_iter().map(|t| Ok(*t)).collect(),
             Self::Res(r) => r.into_iter().map(|t| Ok(*t)).collect(),
@@ -161,13 +163,13 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn to_expr(self) -> EuRes<EcoVec<Self>> {
+    pub fn to_expr(self) -> EuRes<EcoVec<EuSyn<'eu>>> {
         match self {
             Self::Expr(ts) => Ok(ts),
             Self::Str(s) => euphrates
                 .parse(&s)
                 .map_err(|e| anyhow!(e.into_inner()).into()),
-            _ => Ok(eco_vec![self]),
+            _ => Ok(eco_vec![EuSyn::Raw(self)]),
         }
     }
 
@@ -182,8 +184,9 @@ impl<'eu> EuType<'eu> {
             ),
             Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
             Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
-            Self::Vec(ts) | Self::Expr(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(Ok)),
-            t => Box::new(iter::once(Ok(t))),
+            Self::Vec(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(Ok)),
+            Self::Expr(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(|t| Ok(t.into()))),
+            _ => Box::new(iter::once(Ok(self))),
         }
     }
 
@@ -229,7 +232,7 @@ impl<'eu> EuType<'eu> {
                 Ok(Self::vec([a.to_vec()?, b.to_vec()?].concat()))
             }
             (a, b) if a.is_expr() || b.is_expr() => {
-                Ok(Self::expr([a.to_vec()?, b.to_vec()?].concat()))
+                Ok(Self::expr([a.to_expr()?, b.to_expr()?].concat()))
             }
             (a, b) if a.is_str() || b.is_str() => Ok(Self::str(format!("{a}{b}"))),
             (Self::Char(a), Self::Char(b)) => Ok(Self::str(format!("{a}{b}"))),
@@ -361,7 +364,8 @@ fn gen_type_to_bool() {
                     EuType::Word(_) => true,
                     EuType::Opt(o) => o.is_some(),
                     EuType::Res(r) => r.is_ok(),
-                    EuType::Vec(ts) | EuType::Expr(ts) => !ts.is_empty(),
+                    EuType::Vec(ts) => !ts.is_empty(),
+                    EuType::Expr(ts) => !ts.is_empty(),
                     EuType::Seq(it) => Iterator::peekable(it).peek().is_some(),
                 }
             }

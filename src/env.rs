@@ -21,6 +21,7 @@ use crate::{
     types::{
         EuIter,
         EuRes,
+        EuSyn,
         EuType,
     },
 };
@@ -39,7 +40,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
@@ -53,7 +54,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn apply<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuEnv<'eu>>
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         let mut env = Self::new(ts, args, scope);
@@ -64,7 +65,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn apply_n_1<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuType<'eu>>
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         Self::apply(ts, args, scope).and_then(|mut env| env.pop())
@@ -77,7 +78,7 @@ impl<'eu> EuEnv<'eu> {
         scope: EuScope<'eu>,
     ) -> EuRes<(EuType<'eu>, EuType<'eu>)>
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         Self::apply(ts, args, scope).and_then(|mut env| {
@@ -107,10 +108,22 @@ impl<'eu> EuEnv<'eu> {
     pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
             println!("{t:?}\n>>>");
-            self.eval_type(t)?;
+            self.eval_syn(t)?;
             println!("{self}\n<<<\n");
         }
         Ok(())
+    }
+
+    fn eval_syn(&mut self, t: EuSyn<'eu>) -> EuRes<()> {
+        match t {
+            EuSyn::Vec(ts) => {
+                self.push(EuType::vec(
+                    EuEnv::apply(ts, &[], self.scope.clone())?.stack,
+                ));
+                Ok(())
+            }
+            EuSyn::Raw(t) => self.eval_type(t),
+        }
     }
 
     fn eval_type(&mut self, t: EuType<'eu>) -> EuRes<()> {
@@ -144,7 +157,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn eval_iter<T>(&mut self, ts: T) -> EuRes<()>
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         if self.queue.peek().is_none() {
@@ -160,7 +173,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn load_iter<T>(&mut self, ts: T)
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         let empty: EuIter<'eu> = Box::new(iter::empty());
@@ -174,7 +187,7 @@ impl<'eu> EuEnv<'eu> {
     #[inline]
     pub fn frame<T>(&self, ts: T) -> Self
     where
-        T: IntoIterator<Item = EuType<'eu>>,
+        T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
@@ -185,13 +198,13 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn bind_args(&mut self, t: EuType<'eu>) -> EuRes<()> {
+    pub fn bind_args(&mut self, t: EuSyn<'eu>) -> EuRes<()> {
         match t {
-            EuType::Word(w) => {
+            EuSyn::Raw(EuType::Word(w)) => {
                 let v = self.stack.pop().context("insufficient args passed")?;
                 self.scope.insert(w, v);
             }
-            EuType::Expr(ts) => {
+            EuSyn::Raw(EuType::Expr(ts)) => {
                 for t in ts.into_iter().rev() {
                     self.bind_args(t)?;
                 }

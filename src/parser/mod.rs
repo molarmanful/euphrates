@@ -28,11 +28,14 @@ use winnow::{
     },
 };
 
-use crate::types::EuType;
+use crate::types::{
+    EuSyn,
+    EuType,
+};
 
-pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuType<'eu>>> {
+pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuSyn<'eu>>> {
     terminated(
-        repeat(0.., preceded(ws, eu_type)).fold(EcoVec::new, |mut ts, t| {
+        repeat(0.., preceded(ws, eu_syn)).fold(EcoVec::new, |mut ts, t| {
             ts.push(t);
             ts
         }),
@@ -41,27 +44,30 @@ pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuType<'eu>>> {
     .parse_next(input)
 }
 
-fn eu_type<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     dispatch!(peek(any);
         '`' => eu_str_raw,
         '"' => eu_str,
         '\'' => eu_char,
-        '(' => eu_vec,
+        '(' => eu_expr,
         ')' => fail,
+        '[' => eu_vec,
+        ']' => fail,
         '0'..='9' => eu_num,
         _ => eu_word,
     )
     .parse_next(input)
 }
 
-fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
         .output_into::<HipStr>()
         .map(EuType::str)
+        .map(EuSyn::Raw)
         .parse_next(input)
 }
 
-fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited(
         '"',
         repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
@@ -76,15 +82,17 @@ fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
         opt('"'),
     )
     .map(EuType::str)
+    .map(EuSyn::Raw)
     .parse_next(input)
 }
 
-fn eu_char<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_char<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     preceded(
         '\'',
         cut_err(eu_char_atom.verify_map(|x| x.map(EuType::Char)))
             .context(StrContext::Label("char")),
     )
+    .map(EuSyn::Raw)
     .parse_next(input)
 }
 
@@ -139,11 +147,15 @@ fn eu_char_uni(input: &mut &str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
-    delimited('(', euphrates.map(EuType::expr), opt(')')).parse_next(input)
+fn eu_expr<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+    delimited('(', euphrates.map(EuType::expr).map(EuSyn::Raw), opt(')')).parse_next(input)
 }
 
-fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+    delimited('[', euphrates.map(EuSyn::Vec), opt(']')).parse_next(input)
+}
+
+fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     let ((_, dec, exp), ns) = (
         digit1,
         opt(preceded('.', digit1)),
@@ -175,13 +187,14 @@ fn gen_fn_int_suffix() {
         })
         .join("");
     crabtime::output! {
-        fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
+        fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
             cut_err(alt((
                 {{arms}}
                 empty
                     .try_map(|_| ns.parse().map(EuType::IBig))
                     .context(StrContext::Label("int")),
             )))
+            .map(EuSyn::Raw)
             .parse_next(input)
         }
     }
@@ -189,7 +202,7 @@ fn gen_fn_int_suffix() {
 
 gen_fn_int_suffix!();
 
-fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     cut_err(not(alt(("i32", "i64", "ibig"))))
         .context(StrContext::Label("float suffix"))
         .context(StrContext::Expected(StrContextValue::Description(
@@ -207,15 +220,17 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuType<'eu>> 
             .try_map(|_| ns.parse().map(EuType::F64))
             .context(StrContext::Label("float")),
     )))
+    .map(EuSyn::Raw)
     .parse_next(input)
 }
 
-fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuType<'eu>> {
+fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     take_while(0.., |c: char| {
-        !matches!(c, '`' | '"' | '\'' | '(' | ')') && !c.is_whitespace()
+        !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']') && !c.is_whitespace()
     })
     .output_into::<HipStr>()
     .map(EuType::word)
+    .map(EuSyn::Raw)
     .parse_next(input)
 }
 

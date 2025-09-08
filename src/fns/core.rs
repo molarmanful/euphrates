@@ -504,13 +504,13 @@ const EVAL_VEC: EuDef = |env| {
 
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
-    env.push(EuType::res_str(a0.map(EuType::vec)));
+    env.push(EuType::res_str(a0.map(EuType::expr)));
     Ok(())
 };
 
 const WRAP_EXPR: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::expr([a0]));
+    env.push(EuType::expr([a0.into()]));
     Ok(())
 };
 
@@ -581,7 +581,7 @@ const IF_EVAL: EuDef = |env| {
 
 const BIND_ARGS: EuDef = |env| {
     let a0 = env.pop()?;
-    env.bind_args(a0)
+    env.bind_args(a0.into())
 };
 
 const TRY: EuDef = |env| {

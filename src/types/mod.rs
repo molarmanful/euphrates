@@ -3,12 +3,14 @@ mod err;
 mod iter;
 mod num;
 mod ord;
+mod syn;
 
 pub use base::*;
 use dyn_clone::DynClone;
 pub use err::*;
+pub use syn::*;
 
-pub type EuIter<'eu, T = EuType<'eu>> = Box<dyn Iterator<Item = T> + 'eu>;
+pub type EuIter<'eu, T = EuSyn<'eu>> = Box<dyn Iterator<Item = T> + 'eu>;
 
 type EuSeq<'eu> = Box<dyn CloneIter<'eu, EuRes<EuType<'eu>>> + 'eu>;
 
