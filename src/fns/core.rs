@@ -68,6 +68,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "wrap_" => WRAP_,
     "usurp" => USURP,
     "sub" => SUB_STACK,
+    "dip" => DIP,
 
     "print" => PRINT,
     "println" => PRINTLN,
@@ -404,6 +405,15 @@ const SUB_STACK: EuDef = |env| {
     let a1 = env.stack.pop().unwrap().to_expr()?;
     let a0 = env.stack.pop().unwrap().to_vec()?;
     env.push(EuType::Vec(EuEnv::apply(a1, &a0, env.scope.clone())?.stack));
+    Ok(())
+};
+
+const DIP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a0 = env.stack.pop().unwrap();
+    env.stack = EuEnv::apply(a1, &env.stack, env.scope.clone())?.stack;
+    env.push(a0);
     Ok(())
 };
 
