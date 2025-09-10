@@ -1,17 +1,16 @@
 <script lang='ts'>
+  import { replaceState } from '$app/navigation'
+  import { page } from '$app/state'
   import { Glue } from '$lib/svelte/glue.svelte'
+  import { compress, decompress } from '$lib/ts/utils'
   import { onMount } from 'svelte'
 
   const glue = new Glue()
 
+  let stdin = $state('')
   let code = $state('')
 
-  onMount(async () => {
-    await glue.init()
-  })
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters, @typescript-eslint/no-unused-vars
-  const autoScroll = <T>(node: HTMLTextAreaElement, _: T) => ({
+  const autoScroll = (...[node]: [HTMLTextAreaElement, unknown]) => ({
     update() {
       requestAnimationFrame(() => {
         node.scroll({
@@ -20,6 +19,36 @@
       })
     },
   })
+
+  const processKV = async (
+    k: string,
+    v: string,
+  ): Promise<[[string, string]] | []> => v ? [[k, await compress(v)]] : []
+
+  const setParams = async () => {
+    const kvs = await Promise.all([
+      processKV('code', code),
+      processKV('stdin', stdin),
+    ])
+    const params = new URLSearchParams(kvs.flat())
+    replaceState(
+      `?${params}`,
+      page.state,
+    )
+  }
+
+  const getParam = async (p: string) => {
+    const b64 = page.url.searchParams.get(p)
+    return b64 ? await decompress(b64) : ''
+  }
+
+  onMount(async () => {
+    await glue.init()
+    ;[stdin, code] = await Promise.all([
+      getParam('stdin'),
+      getParam('code'),
+    ])
+  })
 </script>
 
 <svelte:window
@@ -27,6 +56,10 @@
     if (e.ctrlKey && e.key === 'Enter') glue.run(code)
   }}
 />
+
+<svelte:head>
+  <title>euphrates</title>
+</svelte:head>
 
 <div class='p-4 flex flex-col gap-4 h-screen'>
   <header>
@@ -48,6 +81,7 @@
       class='box resize-none'
       bind:value={code}
       placeholder='code goes here...'
+      oninput={setParams}
     ></textarea>
 
     <textarea
