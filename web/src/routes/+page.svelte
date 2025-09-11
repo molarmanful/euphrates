@@ -2,13 +2,19 @@
   import { replaceState } from '$app/navigation'
   import { page } from '$app/state'
   import { Glue } from '$lib/svelte/glue.svelte'
-  import { compress, decompress } from '$lib/ts/utils'
+  import { clsx, compress, decompress } from '$lib/ts/utils'
   import { onMount } from 'svelte'
 
   const glue = new Glue()
 
-  let stdin = $state('')
-  let code = $state('')
+  let params = $state({
+    header: { value: '', open: false },
+    code: { value: '', open: true },
+    footer: { value: '', open: false },
+    input: { value: '', open: true },
+  })
+
+  type ParamKey = keyof typeof params
 
   const autoScroll = (...[node]: [HTMLTextAreaElement, unknown]) => ({
     update() {
@@ -20,40 +26,46 @@
     },
   })
 
-  const processKV = async (
-    k: string,
-    v: string,
-  ): Promise<[[string, string]] | []> => v ? [[k, await compress(v)]] : []
-
   const setParams = async () => {
-    const kvs = await Promise.all([
-      processKV('code', code),
-      processKV('stdin', stdin),
-    ])
-    const params = new URLSearchParams(kvs.flat())
     replaceState(
-      `?${params}`,
+      `?${new URLSearchParams(
+        await Promise.all(
+          Object.entries(params)
+            .filter(([, { value }]) => value)
+            .map(async ([k, { value }]) => [k, await compress(value)]),
+        ),
+      )}`,
       page.state,
     )
   }
 
-  const getParam = async (p: string) => {
+  const getParam = async (p: ParamKey) => {
     const b64 = page.url.searchParams.get(p)
-    return b64 ? await decompress(b64) : ''
+    if (b64) {
+      params[p].value = await decompress(b64)
+      params[p].open = true
+    }
+  }
+
+  const run = () => {
+    glue.run(
+      (['header', 'code', 'footer'] as const)
+        .map(p => params[p].value)
+        .join('\n'),
+    )
   }
 
   onMount(async () => {
     await glue.init()
-    ;[stdin, code] = await Promise.all([
-      getParam('stdin'),
-      getParam('code'),
-    ])
+    await Promise.all(
+      Object.keys(params).map(p => getParam(p as ParamKey)),
+    )
   })
 </script>
 
 <svelte:window
   onkeydown={(e: KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'Enter') glue.run(code)
+    if (e.ctrlKey && e.key === 'Enter') run()
   }}
 />
 
@@ -61,33 +73,80 @@
   <title>euphrates</title>
 </svelte:head>
 
-<div class='p-4 flex flex-col gap-4 h-screen'>
+<div class='p-4 flex flex-col gap-2 h-screen'>
   <header>
     <h1 class='mb-3'>euphrates</h1>
     <div class='flex gap-3 items-start'>
       <button
         class='btn'
-        onclick={() => {
-          glue.run(code)
-        }}
+        onclick={run}
       >
         run
       </button>
     </div>
   </header>
 
-  <main class='flex flex-1 gap-4 size-full *:flex-1'>
-    <textarea
-      class='box resize-none'
-      bind:value={code}
-      placeholder='code goes here...'
-      oninput={setParams}
-    ></textarea>
+  <main class='gap-4 grid grid-cols-2 size-full'>
+    <div class='flex flex-col gap-1'>
+      {#snippet paramBox(p: ParamKey)}
+        <div
+          class={clsx(
+            'box',
+            params[p].open
+              && (p === 'code' ? 'flex-1' : 'h-1/5'),
+          )}
+        >
+          <button
+            class='text-left'
+            onclick={() => {
+              params[p].open = !params[p].open
+            }}
+          >
+            <svg
+              viewBox='0 0 100 100'
+              class={clsx(
+                'h-2 inline-block transition-transform fill-current',
+                params[p].open && 'rotate-90',
+              )}
+            >
+              <polygon points='0 0, 0 100, 100 50' />
+            </svg>
+            {p}
+            {#if p === 'code'}
+              <span class='float-right'>
+                <code>{params.code.value.length}</code> chars /
+                <code>{
+                  new TextEncoder().encode(params.code.value).length
+                }</code> bytes
+              </span>
+            {/if}
+          </button>
+          {#if params[p].open}
+            <textarea
+              class='whitespace-pre'
+              bind:value={params[p].value}
+              placeholder='{p} goes here...'
+              oninput={setParams}
+            ></textarea>
+          {/if}
+        </div>
+      {/snippet}
 
-    <textarea
-      disabled
-      class='box h-full whitespace-pre-wrap overflow-auto'
-      use:autoScroll={glue.out}
-    >{glue.out}</textarea>
+      <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
+      {@render paramBox('header')}
+      {@render paramBox('code')}
+      {@render paramBox('footer')}
+      <!-- eslint-enable @typescript-eslint/no-confusing-void-expression -->
+    </div>
+
+    <div class='box'>
+      <label for='output'>output</label>
+      <textarea
+        id='output'
+        disabled
+        class='whitespace-pre-wrap'
+        use:autoScroll={glue.out}
+      >{glue.out}</textarea>
+    </div>
   </main>
 </div>

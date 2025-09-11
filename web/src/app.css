@@ -11,12 +11,17 @@ body {
 }
 
 .box {
-  @apply b b-slate p-2 text-slate-50 focus:b-slate-50 transition-colors
-    outline-none;
+  @apply text-sm flex flex-col gap-1 text-slate
+    has-[:not(:first-child:focus):focus]:text-slate-50 transition-colors;
 }
 
-textarea.box {
-  @apply placeholder-slate font-mono;
+.box > :not(:first-child) {
+  @apply b b-slate p-2 text-slate-50 focus:b-slate-50 transition outline-none
+    font-normal flex-1;
+}
+
+.box > textarea {
+  @apply resize-none placeholder-slate font-mono;
 }
 
 button:not(:disabled) {
