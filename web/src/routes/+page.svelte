@@ -11,7 +11,7 @@
     header: { value: '', open: false },
     code: { value: '', open: true },
     footer: { value: '', open: false },
-    input: { value: '', open: true },
+    input: { value: '', open: false },
   })
 
   type ParamKey = keyof typeof params
@@ -86,52 +86,51 @@
     </div>
   </header>
 
-  <main class='gap-4 grid grid-cols-2 size-full'>
-    <div class='flex flex-col gap-1'>
-      {#snippet paramBox(p: ParamKey)}
-        <div
+  {#snippet paramBox(p: ParamKey)}
+    <div
+      class={clsx(
+        'box',
+        params[p].open
+          && (p === 'code' ? 'flex-1' : 'h-1/5'),
+      )}
+    >
+      <button
+        class='text-left'
+        onclick={() => {
+          params[p].open = !params[p].open
+        }}
+      >
+        <svg
+          viewBox='0 0 100 100'
           class={clsx(
-            'box',
-            params[p].open
-              && (p === 'code' ? 'flex-1' : 'h-1/5'),
+            'h-2 inline-block transition-transform fill-current',
+            params[p].open && 'rotate-90',
           )}
         >
-          <button
-            class='text-left'
-            onclick={() => {
-              params[p].open = !params[p].open
-            }}
-          >
-            <svg
-              viewBox='0 0 100 100'
-              class={clsx(
-                'h-2 inline-block transition-transform fill-current',
-                params[p].open && 'rotate-90',
-              )}
-            >
-              <polygon points='0 0, 0 100, 100 50' />
-            </svg>
-            {p}
-            {#if p === 'code'}
-              <span class='float-right'>
-                <code>{params.code.value.length}</code> chars /
-                <code>{
-                  new TextEncoder().encode(params.code.value).length
-                }</code> bytes
-              </span>
-            {/if}
-          </button>
-          {#if params[p].open}
-            <textarea
-              class='whitespace-pre'
-              bind:value={params[p].value}
-              placeholder='{p} goes here...'
-              oninput={setParams}
-            ></textarea>
-          {/if}
-        </div>
-      {/snippet}
+          <polygon points='0 0, 0 100, 100 50' />
+        </svg>
+        {p}
+        {#if p === 'code'}
+          <span class='float-right'>
+            <code>{params.code.value.length}</code> chars /
+            <code>{new TextEncoder().encode(params.code.value).length}</code>
+            bytes
+          </span>
+        {/if}
+      </button>
+      {#if params[p].open}
+        <textarea
+          class='whitespace-pre'
+          bind:value={params[p].value}
+          placeholder='{p} goes here...'
+          oninput={setParams}
+        ></textarea>
+      {/if}
+    </div>
+  {/snippet}
 
+  <main class='gap-4 grid grid-cols-2 size-full'>
+    <div class='flex flex-col gap-1'>
       <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
       {@render paramBox('header')}
       {@render paramBox('code')}
@@ -139,14 +138,20 @@
       <!-- eslint-enable @typescript-eslint/no-confusing-void-expression -->
     </div>
 
-    <div class='box'>
-      <label for='output'>output</label>
-      <textarea
-        id='output'
-        disabled
-        class='whitespace-pre-wrap'
-        use:autoScroll={glue.out}
-      >{glue.out}</textarea>
+    <div class='flex flex-col gap-1'>
+      <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
+      {@render paramBox('input')}
+      <!-- eslint-enable @typescript-eslint/no-confusing-void-expression -->
+
+      <div class='box flex-1'>
+        <label for='output'>output</label>
+        <textarea
+          id='output'
+          disabled
+          class='whitespace-pre-wrap'
+          use:autoScroll={glue.out}
+        >{glue.out}</textarea>
+      </div>
     </div>
   </main>
 </div>
