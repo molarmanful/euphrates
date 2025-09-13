@@ -1,50 +1,69 @@
-:root {
-  color-scheme: dark;
+@import url('https://api.fontshare.com/css?f[]=satoshi@400,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Satoshi', sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', monospace;
 }
 
-html {
-  @apply bg-slate-950;
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    @apply bg-slate-950;
+  }
+
+  body {
+    @apply text-slate-50 font-sans;
+  }
+
+  button:not(:disabled) {
+    @apply cursor-pointer;
+  }
+
+  h1, h2, h3 {
+    @apply text-slate-200 font-bold;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
 }
 
-body {
-  @apply text-slate-50 font-sans1;
-}
+@layer components {
+  .box {
+    @apply text-sm flex flex-col gap-1 text-slate-400 transition-colors;
 
-.box {
-  @apply text-sm flex flex-col gap-1 text-slate
-    has-[:not(:first-child:focus):focus]:text-slate-50 transition-colors;
-}
+    @variant has-[:not(:first-child:focus):focus] {
+      @apply text-slate-50;
+    }
+  }
 
-.box > :not(:first-child) {
-  @apply b b-slate p-2 text-slate-50 focus:b-slate-50 transition outline-none
-    font-normal flex-1;
-}
+  .box > :not(:first-child) {
+    @apply border border-slate-400 p-2 text-slate-50 focus:border-slate-50
+      transition outline-none font-normal flex-1;
+  }
 
-.box > textarea {
-  @apply resize-none placeholder-slate font-mono;
-}
+  .box > textarea {
+    @apply resize-none placeholder-slate-400 font-mono;
+  }
 
-button:not(:disabled) {
-  @apply cursor-pointer;
-}
+  .btn {
+    @apply px-2 py-1 text-slate-400 border border-current transition-colors;
 
-.btn {
-  @apply px-2 py-1 text-slate b b-current [&:hover,&:focus]:text-slate-50
-    transition-colors;
-}
-
-h1, h2, h3 {
-  @apply text-slate-200 font-bold;
-}
-
-h1 {
-  @apply text-3xl;
-}
-
-h2 {
-  @apply text-2xl;
-}
-
-h3 {
-  @apply text-xl;
+    @variant [&:hover,&:focus] {
+      @apply text-slate-50;
+    }
+  }
 }

@@ -10,7 +10,6 @@ export default molarmanfulLint({
         allowDefaultProject: [
           'eslint.config.ts',
           'svelte.config.ts',
-          'uno.config.ts',
         ],
       },
     },
@@ -18,6 +17,12 @@ export default molarmanfulLint({
   svelte: {
     parserOptions: {
       svelteConfig,
+    },
+  },
+}).append({
+  settings: {
+    'better-tailwindcss': {
+      entryPoint: 'src/app.css',
     },
   },
 })

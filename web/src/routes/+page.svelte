@@ -4,6 +4,7 @@
   import { Glue } from '$lib/svelte/glue.svelte'
   import { clsx, compress, decompress } from '$lib/ts/utils'
   import { onMount } from 'svelte'
+  import { fade } from 'svelte/transition'
 
   const glue = new Glue()
 
@@ -73,10 +74,10 @@
   <title>euphrates</title>
 </svelte:head>
 
-<div class='p-4 flex flex-col gap-2 h-screen'>
+<div class='flex h-screen flex-col gap-2 p-4'>
   <header>
     <h1 class='mb-3'>euphrates</h1>
-    <div class='flex gap-3 items-start'>
+    <div class='flex items-start gap-3'>
       <button
         class='btn'
         onclick={run}
@@ -103,15 +104,15 @@
         <svg
           viewBox='0 0 100 100'
           class={clsx(
-            'h-2 inline-block transition-transform fill-current',
+            'inline-block h-2 fill-current transition-transform',
             params[p].open && 'rotate-90',
           )}
         >
           <polygon points='0 0, 0 100, 100 50' />
         </svg>
         {p}
-        {#if p === 'code'}
-          <span class='float-right'>
+        {#if p === 'code' && params[p].open}
+          <span transition:fade={{ duration: 150 }} class='float-right'>
             <code>{params.code.value.length}</code> chars /
             <code>{new TextEncoder().encode(params.code.value).length}</code>
             bytes
@@ -129,7 +130,7 @@
     </div>
   {/snippet}
 
-  <main class='gap-4 grid grid-cols-2 size-full'>
+  <main class='grid size-full grid-cols-2 gap-4'>
     <div class='flex flex-col gap-1'>
       <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
       {@render paramBox('header')}

@@ -93,23 +93,18 @@
             };
 
             web = pkgs.mkShell {
-              packages =
-                let
-                  unocss-language-server = pkgs.callPackage ./nix/unocss-language-server.nix { };
-                in
-                with pkgs;
-                [
-                  nodejs_latest
-                  pnpm
-                  dprint
-                  eslint
-                  vscode-langservers-extracted
-                  vtsls
-                  svelte-language-server
-                  emmet-language-server
-                  unocss-language-server
-                  stylelint-lsp
-                ];
+              packages = with pkgs; [
+                nodejs_latest
+                pnpm
+                dprint
+                eslint
+                vscode-langservers-extracted
+                vtsls
+                svelte-language-server
+                emmet-language-server
+                tailwindcss-language-server
+                stylelint-lsp
+              ];
             };
           };
         };

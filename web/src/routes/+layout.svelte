@@ -3,7 +3,6 @@
 
   import { clsx } from '$lib/ts/utils'
 
-  import 'uno.css'
   import '../app.css'
 
   let { children }: { children: Snippet } = $props()
@@ -15,6 +14,6 @@
   })
 </script>
 
-<div class={clsx('transition-opacity', loaded ? 'opacity-100' : 'opacity-0.01')}>
+<div class={clsx('transition-opacity', loaded ? 'opacity-100' : 'opacity-[0.01]')}>
   {@render children()}
 </div>

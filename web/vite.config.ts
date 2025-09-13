@@ -1,7 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite'
-import unocss from 'unocss/vite'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [unocss(), sveltekit()],
+  plugins: [tailwindcss(), sveltekit()],
 })
