@@ -15,7 +15,7 @@ fn test_empty() {
 
 #[test]
 fn test_int() {
-    assert_eq!(parse("1234"), Ok(eco_vec![EuType::i32(1234).into()]));
+    assert_eq!(parse("1234"), Ok(eco_vec![EuType::ibig(1234).into()]));
     assert_eq!(parse("1234i64"), Ok(eco_vec![EuType::i64(1234).into()]));
 }
 
@@ -64,14 +64,14 @@ fn test_dec() {
     assert_eq!(
         parse("1234..5678"),
         Ok(eco_vec![
-            EuType::i32(1234).into(),
+            EuType::ibig(1234).into(),
             EuType::word("..5678").into()
         ])
     );
     assert_eq!(
         parse("123.f32"),
         Ok(eco_vec![
-            EuType::i32(123).into(),
+            EuType::ibig(123).into(),
             EuType::word(".f32").into()
         ])
     );
@@ -161,9 +161,9 @@ fn test_expr() {
         parse(r#"(1 "2" 3+ asdf)"#),
         Ok(eco_vec![
             EuType::expr([
-                EuType::i32(1).into(),
+                EuType::ibig(1).into(),
                 EuType::str("2").into(),
-                EuType::i32(3).into(),
+                EuType::ibig(3).into(),
                 EuType::word("+").into(),
                 EuType::word("asdf").into()
             ])
@@ -174,9 +174,9 @@ fn test_expr() {
         parse(r#"(1 "2" 3+ asdf"#),
         Ok(eco_vec![
             EuType::expr([
-                EuType::i32(1).into(),
+                EuType::ibig(1).into(),
                 EuType::str("2").into(),
-                EuType::i32(3).into(),
+                EuType::ibig(3).into(),
                 EuType::word("+").into(),
                 EuType::word("asdf").into()
             ])
@@ -187,8 +187,8 @@ fn test_expr() {
         parse(r#"((1 "2") 3+ (asdf))"#),
         Ok(eco_vec![
             EuType::expr([
-                EuType::expr([EuType::i32(1).into(), EuType::str("2").into()]).into(),
-                EuType::i32(3).into(),
+                EuType::expr([EuType::ibig(1).into(), EuType::str("2").into()]).into(),
+                EuType::ibig(3).into(),
                 EuType::word("+").into(),
                 EuType::expr([EuType::word("asdf").into()]).into()
             ])
@@ -208,9 +208,9 @@ fn test_vec() {
     assert_eq!(
         parse(r#"[1 "2" 3+ asdf]"#),
         Ok(eco_vec![EuSyn::Vec(eco_vec![
-            EuType::i32(1).into(),
+            EuType::ibig(1).into(),
             EuType::str("2").into(),
-            EuType::i32(3).into(),
+            EuType::ibig(3).into(),
             EuType::word("+").into(),
             EuType::word("asdf").into()
         ])])
@@ -218,9 +218,9 @@ fn test_vec() {
     assert_eq!(
         parse(r#"[1 "2" 3+ asdf"#),
         Ok(eco_vec![EuSyn::Vec(eco_vec![
-            EuType::i32(1).into(),
+            EuType::ibig(1).into(),
             EuType::str("2").into(),
-            EuType::i32(3).into(),
+            EuType::ibig(3).into(),
             EuType::word("+").into(),
             EuType::word("asdf").into()
         ])])
@@ -228,10 +228,10 @@ fn test_vec() {
     assert_eq!(
         parse(r#"[[1 "2"] 3+ [asdf]]"#),
         Ok(eco_vec![EuSyn::Vec(eco_vec![
-            EuType::expr([EuType::i32(1).into(), EuType::str("2").into()]).into(),
-            EuType::i32(3).into(),
+            EuSyn::Vec(eco_vec![EuType::ibig(1).into(), EuType::str("2").into()]),
+            EuType::ibig(3).into(),
             EuType::word("+").into(),
-            EuType::expr([EuType::word("asdf").into()]).into()
+            EuSyn::Vec(eco_vec![EuType::word("asdf").into()])
         ])])
     );
 }
@@ -247,7 +247,7 @@ fn test_all() {
     assert_eq!(
         parse(r#"1234"testing testing 123"#),
         Ok(eco_vec![
-            EuType::i32(1234).into(),
+            EuType::ibig(1234).into(),
             EuType::str("testing testing 123").into()
         ])
     );
@@ -275,14 +275,14 @@ fn test_all() {
     assert_eq!(
         parse("123ever"),
         Ok(eco_vec![
-            EuType::i32(123).into(),
+            EuType::ibig(123).into(),
             EuType::word("ever").into()
         ])
     );
     assert_eq!(
         parse("123e.4"),
         Ok(eco_vec![
-            EuType::i32(123).into(),
+            EuType::ibig(123).into(),
             EuType::word("e.4").into()
         ])
     );
@@ -290,8 +290,8 @@ fn test_all() {
         parse("(1 2+)map"),
         Ok(eco_vec![
             EuType::expr([
-                EuType::i32(1).into(),
-                EuType::i32(2).into(),
+                EuType::ibig(1).into(),
+                EuType::ibig(2).into(),
                 EuType::word("+").into()
             ])
             .into(),
