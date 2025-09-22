@@ -12,6 +12,10 @@ use std::{
     slice,
 };
 
+use ecow::{
+    EcoVec,
+    eco_vec,
+};
 use itertools::Itertools;
 
 use super::{
@@ -103,11 +107,11 @@ impl<'eu> EuType<'eu> {
                         _ => unreachable!(),
                     }
                 } else {
-                    match self {
-                        Self::Vec(ts) => Ok(Self::vec(&ts[..cmp::min(a, ts.len())])),
-                        Self::Seq(it) => Ok(Self::seq(it.take(a))),
+                    Ok(match self {
+                        Self::Vec(ts) => Self::vec(&ts[..cmp::min(a, ts.len())]),
+                        Self::Seq(it) => Self::seq(it.take(a)),
                         _ => unreachable!(),
-                    }
+                    })
                 }
             }
             _ => Self::Vec(self.to_vec()?).take(n),
@@ -127,14 +131,54 @@ impl<'eu> EuType<'eu> {
                         _ => unreachable!(),
                     }
                 } else {
-                    match self {
-                        Self::Vec(ts) => Ok(Self::vec(&ts[cmp::min(a, ts.len())..])),
-                        Self::Seq(it) => Ok(Self::seq(it.skip(a))),
+                    Ok(match self {
+                        Self::Vec(ts) => Self::vec(&ts[cmp::min(a, ts.len())..]),
+                        Self::Seq(it) => Self::seq(it.skip(a)),
                         _ => unreachable!(),
-                    }
+                    })
                 }
             }
             _ => Self::Vec(self.to_vec()?).take(n),
+        }
+    }
+
+    pub fn chunk(self, n: isize) -> EuRes<Self> {
+        if n == 0 {
+            return Ok(Self::Seq(Self::vec([]).repeat()));
+        }
+        match self {
+            Self::Opt(_) => Ok(Self::opt((n == 0).then_some(self))),
+            Self::Res(r) => Self::Opt(r.ok()).chunk(n),
+            _ if self.is_vecz() => {
+                let a = n.unsigned_abs();
+                if n < 0 {
+                    match self {
+                        Self::Vec(ts) => {
+                            let (ls, rs) = ts
+                                .split_at_checked(ts.len() % a)
+                                .unwrap_or_else(|| (&ts, &[]));
+                            let mut ls = eco_vec![Self::vec(ls)];
+                            ls.extend(rs.chunks_exact(a).map(Self::vec));
+                            Ok(Self::vec(ls))
+                        }
+                        Self::Seq(_) => Self::vec(self.to_vec()?).chunk(n),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    Ok(match self {
+                        Self::Vec(ts) => Self::Vec(ts.chunks(a).map(Self::vec).collect()),
+                        Self::Seq(mut it) => Self::seq(iter::from_fn(move || {
+                            it.by_ref()
+                                .take(a)
+                                .try_collect()
+                                .map(|ts: EcoVec<Self>| (!ts.is_empty()).then(|| Self::Vec(ts)))
+                                .transpose()
+                        })),
+                        _ => unreachable!(),
+                    })
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).chunk(n),
         }
     }
 

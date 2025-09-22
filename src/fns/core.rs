@@ -132,6 +132,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     ":" => GET,
     "tk" => TAKE,
     "dp" => DROP,
+    "chunk" => CHUNK,
     "flat" => FLAT,
     "rflat" => FLAT_REC,
     "sort" => SORT,
@@ -709,6 +710,18 @@ const DROP: EuDef = |env| {
         a1.map(move |n| a0.clone().drop(n.try_isize()?))
     } else {
         a1.map_once(|n| a0.drop(n.try_isize()?))
+    }?);
+    Ok(())
+};
+
+const CHUNK: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(if a1.is_many() {
+        a1.map(move |n| a0.clone().chunk(n.try_isize()?))
+    } else {
+        a1.map_once(|n| a0.chunk(n.try_isize()?))
     }?);
     Ok(())
 };
