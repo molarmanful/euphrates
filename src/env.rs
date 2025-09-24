@@ -37,7 +37,6 @@ pub struct EuEnv<'eu> {
 pub type EuScope<'eu> = imbl::HashMap<HipStr<'eu>, EuType<'eu>>;
 
 impl<'eu> EuEnv<'eu> {
-    #[inline]
     pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
@@ -89,14 +88,12 @@ impl<'eu> EuEnv<'eu> {
         })
     }
 
-    #[inline]
     pub fn run_str(input: &str) -> EuRes<Self> {
         let mut env = Self::str(input)?;
         env.eval()?;
         Ok(env)
     }
 
-    #[inline]
     pub fn str(input: &str) -> EuRes<Self> {
         Ok(Self::new(
             euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
@@ -154,7 +151,6 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    #[inline]
     pub fn eval_iter<T>(&mut self, ts: T) -> EuRes<()>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
@@ -170,7 +166,6 @@ impl<'eu> EuEnv<'eu> {
         Ok(())
     }
 
-    #[inline]
     pub fn load_iter<T>(&mut self, ts: T)
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
@@ -184,7 +179,6 @@ impl<'eu> EuEnv<'eu> {
         self.queue = it.peekable();
     }
 
-    #[inline]
     pub fn frame<T>(&self, ts: T) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,

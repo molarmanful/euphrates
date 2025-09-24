@@ -52,16 +52,19 @@ impl<'eu> EuType<'eu> {
         })
     }
 
+    #[inline]
     pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<impl EuSeqImpl<'eu>> {
         f.to_expr().map(|f| {
             self.unfold(move |acc| EuEnv::apply_n_2(f.clone(), slice::from_ref(acc), scope.clone()))
         })
     }
 
+    #[inline]
     pub fn repeat(self) -> EuSeq<'eu> {
         Box::new(iter::repeat(Ok(self)))
     }
 
+    #[inline]
     pub fn cycle(self) -> EuSeq<'eu> {
         match self {
             Self::Seq(it) => Box::new(it.cycle()),
@@ -245,6 +248,23 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
+        ts.into_iter()
+            .map(Self::to_seq)
+            .multi_cartesian_product()
+            .map(|rs| rs.into_iter().try_collect().map(Self::Vec))
+    }
+
+    pub fn multi_zip(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
+        let mut it = ts.into_iter().map(Self::to_seq).collect_vec();
+        iter::from_fn(move || {
+            it.iter_mut()
+                .map(|it1| it1.next())
+                .collect::<Option<Result<_, _>>>()
+                .map(|r| r.map(Self::Vec))
+        })
+    }
+
     pub fn map<F>(self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self) -> EuRes<Self> + Clone + 'eu,
@@ -327,12 +347,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    #[inline]
     pub fn flatten(self) -> EuRes<Self> {
         self.flat_map(Ok)
     }
 
-    #[inline]
     pub fn flatten_rec(self) -> EuRes<Self> {
         if self.is_vecz() {
             self.flat_map(|t| t.flatten_rec())
@@ -504,16 +522,6 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn multi_zip(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
-        let mut it = ts.into_iter().map(Self::to_seq).collect_vec();
-        iter::from_fn(move || {
-            it.iter_mut()
-                .map(|it1| it1.next())
-                .collect::<Option<Result<_, _>>>()
-                .map(|r| r.map(Self::Vec))
-        })
-    }
-
     pub fn fold<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self, Self) -> EuRes<Self> + 'eu,
@@ -557,6 +565,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    #[inline]
     pub fn fold1_once(self) -> EuRes<Option<Self>> {
         Ok(self.to_opt())
     }
@@ -782,12 +791,5 @@ impl<'eu> EuType<'eu> {
         } else {
             self.all_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
         }
-    }
-
-    pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
-        ts.into_iter()
-            .map(Self::to_seq)
-            .multi_cartesian_product()
-            .map(|rs| rs.into_iter().try_collect().map(Self::Vec))
     }
 }
