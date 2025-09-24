@@ -133,6 +133,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "tk" => TAKE,
     "dp" => DROP,
     "chunk" => CHUNK,
+    "window" => WINDOW,
+    "divvy" => DIVVY,
     "flat" => FLAT,
     "rflat" => FLAT_REC,
     "sort" => SORT,
@@ -722,6 +724,33 @@ const CHUNK: EuDef = |env| {
         a1.map(move |n| a0.clone().chunk(n.try_isize()?))
     } else {
         a1.map_once(|n| a0.chunk(n.try_isize()?))
+    }?);
+    Ok(())
+};
+
+const WINDOW: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(if a1.is_many() {
+        a1.map(move |n| a0.clone().window(n.try_isize()?))
+    } else {
+        a1.map_once(|n| a0.window(n.try_isize()?))
+    }?);
+    Ok(())
+};
+
+const DIVVY: EuDef = |env| {
+    env.check_nargs(3)?;
+    let a2 = env.stack.pop().unwrap();
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(if a1.is_many() || a2.is_many() {
+        a1.zip(a2, move |n, o| {
+            a0.clone().divvy(n.try_isize()?, o.try_usize()?)
+        })
+    } else {
+        a1.zip_once(a2, |n, o| a0.divvy(n.try_isize()?, o.try_usize()?))
     }?);
     Ok(())
 };

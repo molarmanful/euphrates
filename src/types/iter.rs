@@ -143,11 +143,12 @@ impl<'eu> EuType<'eu> {
     }
 
     pub fn chunk(self, n: isize) -> EuRes<Self> {
-        if n == 0 {
-            return Ok(Self::Seq(Self::vec([]).repeat()));
-        }
         match self {
-            Self::Opt(_) => Ok(Self::opt((n == 0).then_some(self))),
+            Self::Opt(o) => Ok(if n == 0 {
+                Self::seq(iter::repeat(Ok(Self::Opt(None))))
+            } else {
+                Self::seq(iter::once(Ok(Self::Opt(o))))
+            }),
             Self::Res(r) => Self::Opt(r.ok()).chunk(n),
             _ if self.is_vecz() => {
                 let a = n.unsigned_abs();
@@ -165,20 +166,82 @@ impl<'eu> EuType<'eu> {
                         _ => unreachable!(),
                     }
                 } else {
-                    Ok(match self {
-                        Self::Vec(ts) => Self::Vec(ts.chunks(a).map(Self::vec).collect()),
-                        Self::Seq(mut it) => Self::seq(iter::from_fn(move || {
+                    match self {
+                        Self::Seq(it) => Ok(Self::seq(it.batching(move |it| {
                             it.by_ref()
                                 .take(a)
                                 .try_collect()
-                                .map(|ts: EcoVec<Self>| (!ts.is_empty()).then(|| Self::Vec(ts)))
+                                .map(|ts: EcoVec<_>| {
+                                    (a == 0 || !ts.is_empty()).then(|| Self::Vec(ts))
+                                })
                                 .transpose()
-                        })),
+                        }))),
+                        Self::Vec(_) => Self::Seq(self.to_seq()).chunk(n),
                         _ => unreachable!(),
-                    })
+                    }
                 }
             }
             _ => Self::Vec(self.to_vec()?).chunk(n),
+        }
+    }
+
+    #[inline]
+    pub fn window(self, n: isize) -> EuRes<Self> {
+        self.divvy(n, 1)
+    }
+
+    pub fn divvy(self, n: isize, o: usize) -> EuRes<Self> {
+        if self.is_once() {
+            self.chunk(n)
+        } else if self.is_vecz() {
+            let a = n.unsigned_abs();
+            if n < 0 {
+                match self {
+                    Self::Vec(mut ts) => {
+                        let mut first = true;
+                        Ok(Self::seq(iter::from_fn(move || {
+                            if first {
+                                first = false;
+                            } else {
+                                ts.truncate(ts.len().saturating_sub(o));
+                            }
+                            ts.len().checked_sub(a).map(|n| Ok(Self::vec(&ts[n..])))
+                        })))
+                    }
+                    Self::Seq(_) => Self::vec(self.to_vec()?).divvy(n, o),
+                    _ => unreachable!(),
+                }
+            } else {
+                match self {
+                    Self::Seq(it) => {
+                        let rem_empty = EcoVec::with_capacity(a.saturating_sub(o));
+                        let mut rem = rem_empty.clone();
+                        let mut first = true;
+                        Ok(Self::seq(it.batching(move |it| {
+                            if first {
+                                first = false;
+                            } else {
+                                it.dropping(o.saturating_sub(a));
+                            }
+                            let n_ts = a - rem.len();
+                            let r: Result<EcoVec<_>, _> = it.take(n_ts).try_collect();
+                            match r {
+                                Err(e) => Some(Err(e)),
+                                Ok(ts) => (ts.len() >= n_ts).then(|| {
+                                    rem.extend(ts);
+                                    let res = mem::replace(&mut rem, rem_empty.clone());
+                                    rem.extend_from_slice(&res[cmp::min(o, a)..]);
+                                    Ok(Self::Vec(res))
+                                }),
+                            }
+                        })))
+                    }
+                    Self::Vec(_) => Self::Seq(self.to_seq()).divvy(n, o),
+                    _ => unreachable!(),
+                }
+            }
+        } else {
+            Self::Vec(self.to_vec()?).chunk(n)
         }
     }
 
