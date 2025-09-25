@@ -733,9 +733,9 @@ const WINDOW: EuDef = |env| {
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().window(n.try_isize()?))
+        a1.map(move |n| a0.clone().window(n.try_usize()?))
     } else {
-        a1.map_once(|n| a0.window(n.try_isize()?))
+        a1.map_once(|n| a0.window(n.try_usize()?))
     }?);
     Ok(())
 };
@@ -747,10 +747,10 @@ const DIVVY: EuDef = |env| {
     let a0 = env.stack.pop().unwrap();
     env.push(if a1.is_many() || a2.is_many() {
         a1.zip(a2, move |n, o| {
-            a0.clone().divvy(n.try_isize()?, o.try_usize()?)
+            a0.clone().divvy(n.try_usize()?, o.try_isize()?)
         })
     } else {
-        a1.zip_once(a2, |n, o| a0.divvy(n.try_isize()?, o.try_usize()?))
+        a1.zip_once(a2, |n, o| a0.divvy(n.try_usize()?, o.try_isize()?))
     }?);
     Ok(())
 };

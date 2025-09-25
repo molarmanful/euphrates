@@ -12,10 +12,7 @@ use std::{
     slice,
 };
 
-use ecow::{
-    EcoVec,
-    eco_vec,
-};
+use ecow::EcoVec;
 use itertools::Itertools;
 
 use super::{
@@ -98,23 +95,20 @@ impl<'eu> EuType<'eu> {
     }
 
     pub fn take(self, n: isize) -> EuRes<Self> {
+        let a = n.unsigned_abs();
         match self {
             Self::Opt(o) => Ok(Self::Opt((n != 0).then_some(o).flatten())),
             Self::Res(r) => Self::Opt(r.ok()).take(n),
-            _ if self.is_vecz() => {
-                let a = n.unsigned_abs();
+            Self::Vec(ts) => Ok(if n < 0 {
+                Self::vec(&ts[ts.len().saturating_sub(a)..])
+            } else {
+                Self::vec(&ts[..cmp::min(a, ts.len())])
+            }),
+            Self::Seq(it) => {
                 if n < 0 {
-                    match self {
-                        Self::Vec(ts) => Ok(Self::vec(&ts[ts.len().saturating_sub(a)..])),
-                        Self::Seq(_) => Self::vec(self.to_vec()?).take(n),
-                        _ => unreachable!(),
-                    }
+                    Self::vec(Self::Seq(it).to_vec()?).take(n)
                 } else {
-                    Ok(match self {
-                        Self::Vec(ts) => Self::vec(&ts[..cmp::min(a, ts.len())]),
-                        Self::Seq(it) => Self::seq(it.take(a)),
-                        _ => unreachable!(),
-                    })
+                    Ok(Self::seq(it.take(a)))
                 }
             }
             _ => Self::Vec(self.to_vec()?).take(n),
@@ -122,23 +116,20 @@ impl<'eu> EuType<'eu> {
     }
 
     pub fn drop(self, n: isize) -> EuRes<Self> {
+        let a = n.unsigned_abs();
         match self {
             Self::Opt(o) => Ok(Self::Opt(if n != 0 { None } else { o })),
             Self::Res(r) => Self::Opt(r.ok()).drop(n),
-            _ if self.is_vecz() => {
-                let a = n.unsigned_abs();
+            Self::Vec(ts) => Ok(if n < 0 {
+                Self::vec(&ts[..ts.len().saturating_sub(a)])
+            } else {
+                Self::vec(&ts[cmp::min(a, ts.len())..])
+            }),
+            Self::Seq(it) => {
                 if n < 0 {
-                    match self {
-                        Self::Vec(ts) => Ok(Self::vec(&ts[..ts.len().saturating_sub(a)])),
-                        Self::Seq(_) => Self::vec(self.to_vec()?).drop(n),
-                        _ => unreachable!(),
-                    }
+                    Self::vec(Self::Seq(it).to_vec()?).drop(n)
                 } else {
-                    Ok(match self {
-                        Self::Vec(ts) => Self::vec(&ts[cmp::min(a, ts.len())..]),
-                        Self::Seq(it) => Self::seq(it.skip(a)),
-                        _ => unreachable!(),
-                    })
+                    Ok(Self::seq(it.skip(a)))
                 }
             }
             _ => Self::Vec(self.to_vec()?).take(n),
@@ -146,42 +137,47 @@ impl<'eu> EuType<'eu> {
     }
 
     pub fn chunk(self, n: isize) -> EuRes<Self> {
+        let a = n.unsigned_abs();
         match self {
-            Self::Opt(o) => Ok(if n == 0 {
-                Self::seq(iter::repeat(Ok(Self::Opt(None))))
-            } else {
-                Self::seq(iter::once(Ok(Self::Opt(o))))
-            }),
+            Self::Opt(_) => Self::Vec(self.to_vec()?)
+                .chunk(n)?
+                .map(|t| t.get_take(0).map(Self::opt)),
             Self::Res(r) => Self::Opt(r.ok()).chunk(n),
-            _ if self.is_vecz() => {
-                let a = n.unsigned_abs();
+            Self::Vec(ts) => {
                 if n < 0 {
-                    match self {
-                        Self::Vec(ts) => {
-                            let (ls, rs) = ts
-                                .split_at_checked(ts.len() % a)
-                                .unwrap_or_else(|| (&ts, &[]));
-                            let mut ls = eco_vec![Self::vec(ls)];
-                            ls.extend(rs.chunks_exact(a).map(Self::vec));
-                            Ok(Self::vec(ls))
-                        }
-                        Self::Seq(_) => Self::vec(self.to_vec()?).chunk(n),
-                        _ => unreachable!(),
-                    }
+                    let l = ts.len() / a;
+                    let mut r = ts.len() % a;
+                    let mut c = a;
+                    Ok(Self::Vec(
+                        ts.into_iter()
+                            .batching(move |it| {
+                                if c == 0 {
+                                    return None;
+                                }
+                                c -= 1;
+                                let mut l = l;
+                                if r > 0 {
+                                    l += 1;
+                                    r -= 1;
+                                }
+                                Some(Self::Vec(it.take(l).collect()))
+                            })
+                            .collect(),
+                    ))
                 } else {
-                    match self {
-                        Self::Seq(it) => Ok(Self::seq(it.batching(move |it| {
-                            it.by_ref()
-                                .take(a)
-                                .try_collect()
-                                .map(|ts: EcoVec<_>| {
-                                    (a == 0 || !ts.is_empty()).then(|| Self::Vec(ts))
-                                })
-                                .transpose()
-                        }))),
-                        Self::Vec(_) => Self::Seq(self.to_seq()).chunk(n),
-                        _ => unreachable!(),
-                    }
+                    Self::Seq(Self::Vec(ts).to_seq()).chunk(n)
+                }
+            }
+            Self::Seq(it) => {
+                if n < 0 {
+                    Self::vec(Self::Seq(it).to_vec()?).chunk(n)
+                } else {
+                    Ok(Self::seq(it.batching(move |it| {
+                        it.take(a)
+                            .try_collect()
+                            .map(|ts: EcoVec<_>| (a == 0 || !ts.is_empty()).then(|| Self::Vec(ts)))
+                            .transpose()
+                    })))
                 }
             }
             _ => Self::Vec(self.to_vec()?).chunk(n),
@@ -189,62 +185,55 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn window(self, n: isize) -> EuRes<Self> {
+    pub fn window(self, n: usize) -> EuRes<Self> {
         self.divvy(n, 1)
     }
 
-    pub fn divvy(self, n: isize, o: usize) -> EuRes<Self> {
-        if self.is_once() {
-            self.chunk(n)
-        } else if self.is_vecz() {
-            let a = n.unsigned_abs();
-            if n < 0 {
-                match self {
-                    Self::Vec(mut ts) => {
-                        let mut first = true;
-                        Ok(Self::seq(iter::from_fn(move || {
-                            if first {
-                                first = false;
-                            } else {
-                                ts.truncate(ts.len().saturating_sub(o));
-                            }
-                            ts.len().checked_sub(a).map(|n| Ok(Self::vec(&ts[n..])))
-                        })))
-                    }
-                    Self::Seq(_) => Self::vec(self.to_vec()?).divvy(n, o),
-                    _ => unreachable!(),
-                }
-            } else {
-                match self {
-                    Self::Seq(it) => {
-                        let rem_empty = EcoVec::with_capacity(a.saturating_sub(o));
-                        let mut rem = rem_empty.clone();
-                        let mut first = true;
-                        Ok(Self::seq(it.batching(move |it| {
-                            if first {
-                                first = false;
-                            } else {
-                                it.dropping(o.saturating_sub(a));
-                            }
-                            let n_ts = a - rem.len();
-                            let r: Result<EcoVec<_>, _> = it.take(n_ts).try_collect();
-                            match r {
-                                Err(e) => Some(Err(e)),
-                                Ok(ts) => (ts.len() >= n_ts).then(|| {
-                                    rem.extend(ts);
-                                    let res = mem::replace(&mut rem, rem_empty.clone());
-                                    rem.extend_from_slice(&res[cmp::min(o, a)..]);
-                                    Ok(Self::Vec(res))
-                                }),
-                            }
-                        })))
-                    }
-                    Self::Vec(_) => Self::Seq(self.to_seq()).divvy(n, o),
-                    _ => unreachable!(),
+    pub fn divvy(self, n: usize, m: isize) -> EuRes<Self> {
+        let a = m.unsigned_abs();
+        match self {
+            Self::Opt(_) => Self::Vec(self.to_vec()?)
+                .divvy(n, m)?
+                .map(|t| t.get_take(0).map(Self::opt)),
+            Self::Res(r) => Self::Opt(r.ok()).divvy(n, m),
+            Self::Vec(ref ts) => {
+                if m < 0 {
+                    let l = ts.len().saturating_sub(n).div_ceil(a);
+                    self.divvy(n, l.try_into().unwrap())?
+                        .to_vec()
+                        .map(Self::Vec)
+                } else {
+                    Self::Seq(self.to_seq()).divvy(n, m)
                 }
             }
-        } else {
-            Self::Vec(self.to_vec()?).chunk(n)
+            Self::Seq(it) => {
+                if m < 0 {
+                    Self::vec(Self::Seq(it).to_vec()?).divvy(n, m)
+                } else {
+                    let rem_empty = EcoVec::with_capacity(n.saturating_sub(a));
+                    let mut rem = rem_empty.clone();
+                    let mut first = true;
+                    Ok(Self::seq(it.batching(move |it| {
+                        if first {
+                            first = false;
+                        } else {
+                            it.dropping(a.saturating_sub(n));
+                        }
+                        let n_ts = n - rem.len();
+                        let r: Result<EcoVec<_>, _> = it.take(n_ts).try_collect();
+                        match r {
+                            Err(e) => Some(Err(e)),
+                            Ok(ts) => (ts.len() >= n_ts).then(|| {
+                                rem.extend(ts);
+                                let res = mem::replace(&mut rem, rem_empty.clone());
+                                rem.extend_from_slice(&res[cmp::min(a, n)..]);
+                                Ok(Self::Vec(res))
+                            }),
+                        }
+                    })))
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).divvy(n, m),
         }
     }
 

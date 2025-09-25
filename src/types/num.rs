@@ -144,7 +144,9 @@ fn gen_impl_neg() {
                     {{arms}}
                     Self::Bool(b) => -Self::I32(b.into()),
                     Self::Char(c) => -Self::I32(c as i32),
-                    Self::Str(s) => -Self::F64(s.parse().map_err(|_| anyhow!(concat!("failed to parse before neg")))?),
+                    Self::Str(ref s) => -Self::F64(s.parse().map_err(|_| {
+                        anyhow!("failed to parse `{self:?}` before neg")
+                    })?),
                     _ if self.is_vecz() => self.map(|t| -t),
                     _ => Err(anyhow!("cannot neg {self:?}").into()),
                 }

@@ -251,9 +251,13 @@ fn gen_type_to_num() {
         let arms = types
             .map(|t1| {
                 if t1 == t0 {
-                    if t0.chars().next() == Some('I') {
+                    if t0 == "IBig" {
                         crabtime::quote! {
-                            Self::{{t1}}(n) => Some(n),
+                            Self::{{t1}}(n) => Some(n.clone()),
+                        }
+                    } else if t0.chars().next() == Some('I') {
+                        crabtime::quote! {
+                            Self::{{t1}}(n) => Some(*n),
                         }
                     } else {
                         crabtime::quote! {
@@ -267,7 +271,7 @@ fn gen_type_to_num() {
                 } else if t0 == "IBig" {
                     if t1.chars().next() == Some('I') {
                         crabtime::quote! {
-                            Self::{{t1}}(n) => Some(n.into()),
+                            Self::{{t1}}(n) => Some((*n).into()),
                         }
                     } else {
                         crabtime::quote! {
@@ -285,15 +289,17 @@ fn gen_type_to_num() {
         crabtime::output! {
             impl EuType<'_> {
                 #[inline]
-                pub fn try_{{tl}}(self) -> EuRes<{{tlp}}> {
-                    self.to_{{tl}}().ok_or_else(|| anyhow!(concat!({{tlq}}, " conversion failed")).into())
+                pub fn try_{{tl}}(&self) -> EuRes<{{tlp}}> {
+                    self.to_{{tl}}().ok_or_else(move || {
+                        anyhow!("failed to convert `{self:?}` to {}", {{tlq}}).into()
+                    })
                 }
 
-                pub fn to_{{tl}}(self) -> Option<{{tlp}}> {
+                pub fn to_{{tl}}(&self) -> Option<{{tlp}}> {
                     match self {
                         {{arms}}
-                        Self::Bool(b) => Some(b.into()),
-                        Self::Char(c) => Self::I32(c as i32).to_{{tl}}(),
+                        Self::Bool(b) => Some((*b).into()),
+                        Self::Char(c) => Self::I32(*c as i32).to_{{tl}}(),
                         Self::Str(s) => s.parse().ok(),
                         _ => None,
                     }
@@ -321,15 +327,17 @@ fn gen_type_to_num_other() {
         crabtime::output! {
             impl EuType<'_> {
                 #[inline]
-                pub fn try_{{n}}(self) -> EuRes<{{n}}> {
-                    self.to_{{n}}().ok_or_else(|| anyhow!(concat!({{nq}}, " conversion failed")).into())
+                pub fn try_{{n}}(&self) -> EuRes<{{n}}> {
+                    self.to_{{n}}().ok_or_else(move || {
+                        anyhow!("failed to convert `{self:?}` to {}", {{nq}}).into()
+                    })
                 }
 
-                pub fn to_{{n}}(self) -> Option<{{n}}> {
+                pub fn to_{{n}}(&self) -> Option<{{n}}> {
                     match self {
                         {{arms}}
-                        Self::Bool(b) => Some(b.into()),
-                        Self::Char(c) => (c as u32).to_{{n}}(),
+                        Self::Bool(b) => Some((*b).into()),
+                        Self::Char(c) => (*c as u32).to_{{n}}(),
                         Self::Str(s) => s.parse().ok(),
                         _ => None
                     }
