@@ -1,4 +1,5 @@
 use std::{
+    io,
     iter,
     mem,
     ops::{
@@ -10,6 +11,7 @@ use std::{
     },
 };
 
+use anyhow::anyhow;
 use num_traits::Pow;
 use ordered_float::{
     FloatCore,
@@ -70,6 +72,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "sub" => SUB_STACK,
     "dip" => DIP,
 
+    "read" => READ,
+    "readln" => READLN,
     "print" => PRINT,
     "println" => PRINTLN,
 
@@ -417,6 +421,26 @@ const DIP: EuDef = |env| {
     let a0 = env.stack.pop().unwrap();
     env.stack = EuEnv::apply(a1, &env.stack, env.scope.clone())?.stack;
     env.push(a0);
+    Ok(())
+};
+
+const READ: EuDef = |env| {
+    env.push(EuType::res_str(
+        io::read_to_string(io::stdin())
+            .map(EuType::str)
+            .map_err(|e| anyhow!(e).into()),
+    ));
+    Ok(())
+};
+
+const READLN: EuDef = |env| {
+    let mut res = String::new();
+    env.push(EuType::res_str(
+        io::stdin()
+            .read_line(&mut res)
+            .map(|_| EuType::str(res))
+            .map_err(|e| anyhow!(e).into()),
+    ));
     Ok(())
 };
 
