@@ -48,16 +48,16 @@
     }
   }
 
-  const run = () => {
-    glue.run(
+  const run = async () => {
+    await glue.run(
       (['header', 'code', 'footer'] as const)
         .map(p => params[p].value)
         .join('\n'),
+      params.input.value,
     )
   }
 
   onMount(async () => {
-    await glue.init()
     await Promise.all(
       Object.keys(params).map(p => getParam(p as ParamKey)),
     )
@@ -65,8 +65,8 @@
 </script>
 
 <svelte:window
-  onkeydown={(e: KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'Enter') run()
+  onkeydown={async (e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'Enter') await run()
   }}
 />
 

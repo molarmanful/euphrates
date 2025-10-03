@@ -9,7 +9,8 @@ import { instantiate } from '$lib/wasm/euphrates'
 import { cli } from '@bytecodealliance/preview2-shim'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
-export const shim = async ({ writeStdout, writeStderr }: {
+export const shim = async ({ readStdin, writeStdout, writeStderr }: {
+  readStdin: (len: bigint) => Uint8Array
   writeStdout: (cs: Uint8Array) => void
   writeStderr: (cs: Uint8Array) => void
 }) =>
@@ -18,6 +19,13 @@ export const shim = async ({ writeStdout, writeStderr }: {
     new WASIShim({
       cli: {
         ...cli,
+        stdin: {
+          ...cli.stdin,
+          getStdin: () =>
+            new cli.stdin.InputStream({
+              blockingRead: readStdin,
+            }),
+        },
         stdout: {
           ...cli.stdout,
           getStdout: () =>
