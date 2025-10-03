@@ -12,9 +12,12 @@ use euphrates::env::EuEnv;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[arg(group = "input")]
+    /// Evaluate code from the given file
     file: Option<path::PathBuf>,
+    /// Evaluate the given string
     #[arg(short, long, group = "input")]
     string: Option<String>,
+    /// Evaluate code passed from STDIN
     #[arg(short = 'i', long, group = "input")]
     stdin: bool,
 }
