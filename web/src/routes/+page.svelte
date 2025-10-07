@@ -130,7 +130,12 @@
     </div>
   {/snippet}
 
-  <main class='grid size-full grid-cols-2 gap-4'>
+  <main
+    class='
+      grid size-full grid-cols-2 gap-4
+      portrait:grid-cols-1 portrait:gap-1
+    '
+  >
     <div class='flex flex-col gap-1'>
       <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
       {@render paramBox('header')}
