@@ -2,7 +2,7 @@
   import { replaceState } from '$app/navigation'
   import { page } from '$app/state'
   import { Glue } from '$lib/svelte/glue.svelte'
-  import { clsx, compress, decompress } from '$lib/ts/utils'
+  import { compress, decompress } from '$lib/ts/utils'
   import { onMount } from 'svelte'
   import { fade } from 'svelte/transition'
 
@@ -89,11 +89,11 @@
 
   {#snippet paramBox(p: ParamKey)}
     <div
-      class={clsx(
+      class={[
         'box',
         params[p].open
-          && (p === 'code' ? 'flex-1' : 'h-1/5'),
-      )}
+        && (p === 'code' ? 'flex-1' : 'h-1/5'),
+      ]}
     >
       <button
         class='text-left'
@@ -103,10 +103,10 @@
       >
         <svg
           viewBox='0 0 100 100'
-          class={clsx(
+          class={[
             'inline-block h-2 fill-current transition-transform',
             params[p].open && 'rotate-90',
-          )}
+          ]}
         >
           <polygon points='0 0, 0 100, 100 50' />
         </svg>
