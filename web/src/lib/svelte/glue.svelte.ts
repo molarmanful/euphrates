@@ -1,7 +1,7 @@
 import { shim } from '$lib/ts/shim'
 import { instantiate } from '$lib/wasm/euphrates'
 
-import 'core-js/actual/iterator'
+import 'proposals/iterator-helpers-stage-3-2'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
