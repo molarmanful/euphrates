@@ -1,8 +1,5 @@
 import { compress as fflCompress, decompress as fflDecompress, strFromU8, strToU8 } from 'fflate'
 
-import 'core-js/actual/typed-array/from-base64'
-import 'core-js/actual/typed-array/to-base64'
-
 export const compress = async (a: string) =>
   await new Promise<string>((resolve, reject) => {
     fflCompress(strToU8(a), { level: 9, mem: 12 }, (err, res) => {
