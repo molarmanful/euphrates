@@ -97,6 +97,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "*vec" => ALL_VEC,
     "#vec" => EVAL_VEC,
 
+    ">map" => TO_MAP,
+
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
 
@@ -131,7 +133,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "%" => REM,
     "^" => POW,
 
-    "++" => CONCAT,
+    "++" => APPEND,
 
     ":" => GET,
     "tk" => TAKE,
@@ -539,6 +541,12 @@ const EVAL_VEC: EuDef = |env| {
     Ok(())
 };
 
+const TO_MAP: EuDef = |env| {
+    let a0 = env.pop()?.to_map()?;
+    env.push(EuType::Map(a0));
+    Ok(())
+};
+
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
     env.push(EuType::res_str(a0.map(EuType::expr)));
@@ -696,11 +704,11 @@ fn gen_fn_math_binops() {
 
 gen_fn_math_binops!();
 
-const CONCAT: EuDef = |env| {
+const APPEND: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a0.concat(a1)?);
+    env.push(a0.append(a1)?);
     Ok(())
 };
 

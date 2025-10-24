@@ -1,6 +1,10 @@
 use std::{
     cmp::Ordering,
     error,
+    hash::{
+        Hash,
+        Hasher,
+    },
     sync::Arc,
 };
 
@@ -38,5 +42,11 @@ impl PartialOrd for EuErr {
 impl Ord for EuErr {
     fn cmp(&self, other: &Self) -> Ordering {
         self.to_string().cmp(&other.to_string())
+    }
+}
+
+impl Hash for EuErr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_string().hash(state);
     }
 }

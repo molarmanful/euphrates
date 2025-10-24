@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use super::EuType;
 
-#[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Clone, IsVariant)]
+#[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, IsVariant)]
 #[display("{_0}")]
 pub enum EuSyn<'eu> {
     #[debug("({})#vec", _0.iter().map(|t| format!("{t:?}")).join(" "))]

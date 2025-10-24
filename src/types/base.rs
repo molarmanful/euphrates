@@ -1,4 +1,7 @@
-use std::iter;
+use std::{
+    hash::Hash,
+    iter,
+};
 
 use anyhow::anyhow;
 use dashu_int::IBig;
@@ -19,6 +22,7 @@ use num_traits::{
     Zero,
 };
 use ordered_float::OrderedFloat;
+use ordermap::OrderMap;
 use winnow::Parser;
 
 use super::{
@@ -28,7 +32,7 @@ use super::{
 };
 use crate::parser::euphrates;
 
-#[derive(Debug, Display, Clone, IsVariant)]
+#[derive(Debug, Display, Hash, Clone, IsVariant)]
 #[display("{_0}")]
 pub enum EuType<'eu> {
     #[debug("{}", if *_0 { "True" } else { "False" })]
@@ -61,6 +65,9 @@ pub enum EuType<'eu> {
     #[debug("[{}]", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
     Vec(EcoVec<Self>),
+    #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} => {v:?}")).join(", "))]
+    #[display("{}", _0.iter().map(|(k, v)| format!("{k:?}{v:?}")).join(" "))]
+    Map(OrderMap<Self, Self>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuSyn<'eu>>),
@@ -160,12 +167,32 @@ impl<'eu> EuType<'eu> {
     pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
         match self {
             Self::Vec(ts) => Ok(ts),
+            Self::Map(kvs) => kvs
+                .into_iter()
+                .map(|(k, v)| Ok(Self::vec([k, v])))
+                .collect(),
             Self::Expr(ts) => Ok(ts.into_iter().map(EuSyn::into).collect()),
             Self::Str(s) => s.chars().map(|t| Ok(Self::Char(t))).collect(),
             Self::Opt(o) => o.into_iter().map(|t| Ok(*t)).collect(),
             Self::Res(r) => r.into_iter().map(|t| Ok(*t)).collect(),
             Self::Seq(it) => it.collect(),
             _ => Ok(eco_vec![self]),
+        }
+    }
+
+    pub fn to_map(self) -> EuRes<OrderMap<Self, Self>> {
+        match self {
+            Self::Map(kvs) => Ok(kvs),
+            Self::Vec(ts) => ts.into_iter().map(Self::to_pair).collect(),
+            _ => Self::Vec(self.to_vec()?).to_map(),
+        }
+    }
+
+    pub fn to_pair(self) -> EuRes<(Self, Self)> {
+        let mut seq = self.to_seq();
+        match (seq.next().transpose()?, seq.next().transpose()?) {
+            (Some(k), Some(v)) => Ok((k, v)),
+            _ => Err(anyhow!("failed to convert to pair").into()),
         }
     }
 
@@ -191,6 +218,7 @@ impl<'eu> EuType<'eu> {
             Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
             Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
             Self::Vec(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(Ok)),
+            Self::Map(kvs) => Box::new(kvs.into_iter().map(|(k, v)| Ok(Self::vec([k, v])))),
             Self::Expr(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(|t| Ok(t.into()))),
             _ => Box::new(iter::once(Ok(self))),
         }
@@ -228,17 +256,26 @@ impl<'eu> EuType<'eu> {
 
     #[inline]
     pub fn is_many(&self) -> bool {
-        self.is_vec() || self.is_seq()
+        self.is_vec() || self.is_seq() || self.is_map()
     }
 
-    pub fn concat(self, other: Self) -> EuRes<Self> {
+    pub fn append(self, other: Self) -> EuRes<Self> {
         match (self, other) {
             (a, b) if a.is_seq() || b.is_seq() => Ok(Self::seq(a.to_seq().chain(b.to_seq()))),
             (a, b) if a.is_vec() || b.is_vec() => {
-                Ok(Self::vec([a.to_vec()?, b.to_vec()?].concat()))
+                let mut a = a.to_vec()?;
+                a.extend(b.to_vec()?);
+                Ok(Self::Vec(a))
+            }
+            (a, b) if a.is_map() || b.is_map() => {
+                let mut a = a.to_map()?;
+                a.extend(b.to_map()?);
+                Ok(Self::Map(a))
             }
             (a, b) if a.is_expr() || b.is_expr() => {
-                Ok(Self::expr([a.to_expr()?, b.to_expr()?].concat()))
+                let mut a = a.to_expr()?;
+                a.extend(b.to_expr()?);
+                Ok(Self::Expr(a))
             }
             (a, b) if a.is_str() || b.is_str() => Ok(Self::str(format!("{a}{b}"))),
             (Self::Char(a), Self::Char(b)) => Ok(Self::str(format!("{a}{b}"))),
@@ -379,6 +416,7 @@ fn gen_type_to_bool() {
                     EuType::Opt(o) => o.is_some(),
                     EuType::Res(r) => r.is_ok(),
                     EuType::Vec(ts) => !ts.is_empty(),
+                    EuType::Map(ts) => !ts.is_empty(),
                     EuType::Expr(ts) => !ts.is_empty(),
                     EuType::Seq(it) => Iterator::peekable(it).peek().is_some(),
                 }

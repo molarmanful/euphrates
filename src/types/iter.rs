@@ -14,6 +14,7 @@ use std::{
 
 use ecow::EcoVec;
 use itertools::Itertools;
+use ordermap::OrderMap;
 
 use super::{
     EuErr,
@@ -79,6 +80,15 @@ impl<'eu> EuType<'eu> {
                 Some(i as usize)
             }
             .and_then(|i| ts.make_mut().get_mut(i).map(mem::take))),
+            Self::Map(mut kvs) => Ok(if i < 0 {
+                kvs.len().checked_add_signed(i)
+            } else {
+                Some(i as usize)
+            }
+            .and_then(|i| {
+                kvs.get_index_mut(i)
+                    .map(|(k, v)| Self::vec([k.clone(), mem::take(v)]))
+            })),
             Self::Seq(mut it) => {
                 if i < 0 {
                     Self::Vec(Self::Seq(it).to_vec()?).get_take(i)
@@ -99,6 +109,11 @@ impl<'eu> EuType<'eu> {
                 Self::vec(&ts[ts.len().saturating_sub(a)..])
             } else {
                 Self::vec(&ts[..cmp::min(a, ts.len())])
+            }),
+            Self::Map(kvs) => Ok(if n < 0 {
+                Self::Map(kvs.into_iter().rev().take(a).rev().collect())
+            } else {
+                Self::Map(kvs.into_iter().take(a).collect())
             }),
             Self::Seq(it) => {
                 if n < 0 {
@@ -121,6 +136,11 @@ impl<'eu> EuType<'eu> {
             } else {
                 Self::vec(&ts[cmp::min(a, ts.len())..])
             }),
+            Self::Map(kvs) => Ok(if n < 0 {
+                Self::Map(kvs.into_iter().rev().skip(a).rev().collect())
+            } else {
+                Self::Map(kvs.into_iter().skip(a).collect())
+            }),
             Self::Seq(it) => {
                 if n < 0 {
                     Self::vec(Self::Seq(it).to_vec()?).drop(n)
@@ -134,6 +154,36 @@ impl<'eu> EuType<'eu> {
 
     pub fn chunk(self, n: isize) -> EuRes<Self> {
         let a = n.unsigned_abs();
+
+        fn split<T, U, V, W>(
+            ts: impl IntoIterator<Item = T>,
+            len: usize,
+            a: usize,
+            inner: impl Fn(U) -> V,
+        ) -> W
+        where
+            U: FromIterator<T>,
+            W: FromIterator<V>,
+        {
+            let l = len / a;
+            let mut r = len % a;
+            let mut c = a;
+            ts.into_iter()
+                .batching(move |it| {
+                    if c == 0 {
+                        return None;
+                    }
+                    c -= 1;
+                    let mut l = l;
+                    if r > 0 {
+                        l += 1;
+                        r -= 1;
+                    }
+                    Some(inner(it.take(l).collect()))
+                })
+                .collect()
+        }
+
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
                 .chunk(n)?
@@ -141,29 +191,21 @@ impl<'eu> EuType<'eu> {
             Self::Res(r) => Self::Opt(r.ok()).chunk(n),
             Self::Vec(ts) => {
                 if n < 0 {
-                    let l = ts.len() / a;
-                    let mut r = ts.len() % a;
-                    let mut c = a;
-                    Ok(Self::Vec(
-                        ts.into_iter()
-                            .batching(move |it| {
-                                if c == 0 {
-                                    return None;
-                                }
-                                c -= 1;
-                                let mut l = l;
-                                if r > 0 {
-                                    l += 1;
-                                    r -= 1;
-                                }
-                                Some(Self::Vec(it.take(l).collect()))
-                            })
-                            .collect(),
-                    ))
+                    let len = ts.len();
+                    Ok(Self::Vec(split(ts, len, a, Self::Vec)))
                 } else {
                     Self::Seq(Self::Vec(ts).to_seq()).chunk(n)
                 }
             }
+            Self::Map(kvs) => Ok(if n < 0 {
+                let len = kvs.len();
+                Self::Vec(split(kvs, len, a, Self::Map))
+            } else {
+                Self::seq(kvs.into_iter().batching(move |it| {
+                    let kvs: OrderMap<_, _> = it.take(a).collect();
+                    (a == 0 || !kvs.is_empty()).then_some(Ok(Self::Map(kvs)))
+                }))
+            }),
             Self::Seq(it) => {
                 if n < 0 {
                     Self::vec(Self::Seq(it).to_vec()?).chunk(n)
@@ -171,7 +213,9 @@ impl<'eu> EuType<'eu> {
                     Ok(Self::seq(it.batching(move |it| {
                         it.take(a)
                             .try_collect()
-                            .map(|ts: EcoVec<_>| (a == 0 || !ts.is_empty()).then(|| Self::Vec(ts)))
+                            .map(|ts: EcoVec<_>| {
+                                (a == 0 || !ts.is_empty()).then_some(Self::Vec(ts))
+                            })
                             .transpose()
                     })))
                 }
@@ -202,6 +246,34 @@ impl<'eu> EuType<'eu> {
                     Self::Seq(self.to_seq()).divvy(n, m)
                 }
             }
+            Self::Map(kvs) => {
+                if m < 0 {
+                    let l = kvs.len().saturating_sub(n).div_ceil(a);
+                    Self::Map(kvs)
+                        .divvy(n, l.try_into().unwrap())?
+                        .to_vec()
+                        .map(Self::Vec)
+                } else {
+                    let rem_empty = OrderMap::with_capacity(n.saturating_sub(a));
+                    let mut rem = rem_empty.clone();
+                    let mut first = true;
+                    Ok(Self::seq(kvs.into_iter().batching(move |it| {
+                        if first {
+                            first = false;
+                        } else {
+                            it.dropping(a.saturating_sub(n));
+                        }
+                        let n_kvs = n - rem.len();
+                        let kvs = it.take(n_kvs).collect::<OrderMap<_, _>>();
+                        (kvs.len() >= n_kvs).then(|| {
+                            rem.extend(kvs);
+                            let res = mem::replace(&mut rem, rem_empty.clone());
+                            rem.extend(res.iter().map(|(k, v)| (k.clone(), v.clone())).skip(a));
+                            Ok(Self::Map(res))
+                        })
+                    })))
+                }
+            }
             Self::Seq(it) => {
                 if m < 0 {
                     Self::vec(Self::Seq(it).to_vec()?).divvy(n, m)
@@ -216,16 +288,17 @@ impl<'eu> EuType<'eu> {
                             it.dropping(a.saturating_sub(n));
                         }
                         let n_ts = n - rem.len();
-                        let r: Result<EcoVec<_>, _> = it.take(n_ts).try_collect();
-                        match r {
-                            Err(e) => Some(Err(e)),
-                            Ok(ts) => (ts.len() >= n_ts).then(|| {
-                                rem.extend(ts);
-                                let res = mem::replace(&mut rem, rem_empty.clone());
-                                rem.extend_from_slice(&res[cmp::min(a, n)..]);
-                                Ok(Self::Vec(res))
-                            }),
-                        }
+                        it.take(n_ts)
+                            .try_collect::<_, EcoVec<_>, _>()
+                            .map(|ts| {
+                                (ts.len() >= n_ts).then(|| {
+                                    rem.extend(ts);
+                                    let res = mem::replace(&mut rem, rem_empty.clone());
+                                    rem.extend(res.iter().skip(a).cloned());
+                                    Self::Vec(res)
+                                })
+                            })
+                            .transpose()
                     })))
                 }
             }
@@ -256,6 +329,11 @@ impl<'eu> EuType<'eu> {
     {
         match self {
             Self::Vec(ts) => ts.into_iter().map(f).try_collect().map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_iter()
+                .map(|(k, v)| f(v).map(|v| (k, v)))
+                .try_collect()
+                .map(Self::Map),
             Self::Seq(it) => Ok(Self::seq(it.map(move |t| f(t?)))),
             _ => self.map_once(f),
         }
@@ -290,7 +368,15 @@ impl<'eu> EuType<'eu> {
                 .into_iter()
                 .flat_map(|t| match f(t) {
                     Ok(t) => t.to_seq(),
-                    e @ Err(_) => Box::new(iter::once(e)),
+                    e => Box::new(iter::once(e)),
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_values()
+                .flat_map(|t| match f(t) {
+                    Ok(t) => t.to_seq(),
+                    e => Box::new(iter::once(e)),
                 })
                 .try_collect()
                 .map(Self::Vec),
@@ -354,6 +440,11 @@ impl<'eu> EuType<'eu> {
                 .filter_map(|t| f(&t).map(|b| b.then_some(t)).transpose())
                 .try_collect()
                 .map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_iter()
+                .filter_map(|kv| f(&kv.1).map(|b| b.then_some(kv)).transpose())
+                .try_collect()
+                .map(Self::Map),
             Self::Seq(it) => Ok(Self::seq(it.filter_map(move |r| {
                 r.and_then(|t| f(&t).map(|b| b.then_some(t))).transpose()
             }))),
@@ -399,6 +490,11 @@ impl<'eu> EuType<'eu> {
                 .map_while(|t| f(&t).map(|b| b.then_some(t)).transpose())
                 .try_collect()
                 .map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_iter()
+                .map_while(|kv| f(&kv.1).map(|b| b.then_some(kv)).transpose())
+                .try_collect()
+                .map(Self::Map),
             Self::Seq(it) => Ok(Self::seq(it.map_while(move |r| {
                 r.and_then(|t| f(&t).map(|b| b.then_some(t))).transpose()
             }))),
@@ -424,7 +520,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn drop_while<F>(self, f: F) -> EuRes<Self>
+    pub fn drop_while<F>(self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(&Self) -> EuRes<bool> + Clone + 'eu,
     {
@@ -435,6 +531,12 @@ impl<'eu> EuType<'eu> {
                 .skip_while_ok(f)
                 .try_collect()
                 .map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_iter()
+                .map(Ok)
+                .skip_while_ok(|(_, v)| f(v))
+                .try_collect()
+                .map(Self::Map),
             Self::Seq(it) => Ok(Self::seq(it.skip_while_ok(f))),
             _ => self.drop_while_once(f),
         }
@@ -469,13 +571,28 @@ impl<'eu> EuType<'eu> {
                 .map(|(a, b)| f(a, b))
                 .try_collect()
                 .map(Self::Vec),
+            (Self::Map(a), Self::Map(b)) => a
+                .into_values()
+                .zip(b.into_values())
+                .map(|(a, b)| f(a, b))
+                .try_collect()
+                .map(Self::Vec),
             (Self::Seq(a), Self::Seq(b)) => {
                 Ok(Self::seq(a.zip(b).map(move |(a, b)| {
                     a.and_then(|a| b.and_then(|b| f(a, b)))
                 })))
             }
-            (a, b) if a.is_vecz() => a.map(move |t| f(t, b.clone())),
-            (a, b) if b.is_vecz() => b.map(move |t| f(a.clone(), t)),
+            (a, b) if a.is_many() && b.is_many() => {
+                if a.is_seq() || b.is_seq() {
+                    Self::Seq(a.to_seq()).zip(Self::Seq(b.to_seq()), f)
+                } else if a.is_map() || b.is_map() {
+                    Self::Map(a.to_map()?).zip(Self::Map(b.to_map()?), f)
+                } else {
+                    Self::Vec(a.to_vec()?).zip(Self::Vec(b.to_vec()?), f)
+                }
+            }
+            (a, b) if a.is_many() => a.map(move |t| f(t, b.clone())),
+            (a, b) if b.is_many() => b.map(move |t| f(a.clone(), t)),
             (a, b) => a.zip_once(b, f),
         }
     }
@@ -498,7 +615,7 @@ impl<'eu> EuType<'eu> {
 
     pub fn zip_env(self, t: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
         let f = f.to_expr()?;
-        if self.is_many() {
+        if self.is_many() || t.is_many() {
             self.zip(t, move |a, b| {
                 EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone())
             })
@@ -513,6 +630,7 @@ impl<'eu> EuType<'eu> {
     {
         match self {
             Self::Vec(ts) => ts.into_iter().try_fold(init, f),
+            Self::Map(kvs) => kvs.into_values().try_fold(init, f),
             Self::Seq(mut it) => it.try_fold(init, |acc, t| f(acc, t?)),
             _ => self.fold_once(init, f),
         }
@@ -545,6 +663,7 @@ impl<'eu> EuType<'eu> {
     {
         match self {
             Self::Vec(ts) => ts.into_iter().try_reduce(f),
+            Self::Map(kvs) => kvs.into_values().try_reduce(f),
             Self::Seq(it) => it.reduce(|a, b| f(a?, b?)).transpose(),
             _ => self.fold1_once(),
         }
@@ -571,6 +690,18 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Vec(ts) => ts
                 .into_iter()
+                .scan(init, |acc, t| {
+                    f(acc, t)
+                        .map(|(st, t)| {
+                            *acc = st;
+                            t.to_opt()
+                        })
+                        .transpose()
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Map(kvs) => kvs
+                .into_values()
                 .scan(init, |acc, t| {
                     f(acc, t)
                         .map(|(st, t)| {
@@ -629,6 +760,10 @@ impl<'eu> EuType<'eu> {
                 ts.make_mut().sort();
                 Ok(self)
             }
+            Self::Map(ref mut kvs) => {
+                kvs.sort_unstable_keys();
+                Ok(self)
+            }
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
     }
@@ -642,6 +777,19 @@ impl<'eu> EuType<'eu> {
                 let res = unpanic(AssertUnwindSafe(|| {
                     ts.make_mut()
                         .sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)))
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
+            Self::Map(ref mut kvs) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    kvs.sort_by(|k0, v0, k1, v1| {
+                        f(
+                            &Self::vec([k0.clone(), v0.clone()]),
+                            &Self::vec([k1.clone(), v1.clone()]),
+                        )
+                        .unwrap_or_else(|e| panic::panic_any(e))
+                    })
                 }));
                 res.map(|()| self)
                     .map_err(|e| *e.downcast::<EuErr>().unwrap())
@@ -671,6 +819,16 @@ impl<'eu> EuType<'eu> {
                 res.map(|()| self)
                     .map_err(|e| *e.downcast::<EuErr>().unwrap())
             }
+            Self::Map(ref mut kvs) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    kvs.sort_by_key(|k, v| {
+                        f(&Self::vec([k.clone(), v.clone()]))
+                            .unwrap_or_else(|e| panic::panic_any(e))
+                    })
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
     }
@@ -686,6 +844,7 @@ impl<'eu> EuType<'eu> {
     {
         match self {
             Self::Vec(ts) => ts.into_iter().try_find(f),
+            Self::Map(kvs) => kvs.into_values().try_find(f),
             Self::Seq(mut it) => it
                 .try_find(|r| r.as_ref().map_err(|e| e.clone()).and_then(&mut f))
                 .and_then(Option::transpose),

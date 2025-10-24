@@ -5,6 +5,11 @@ mod num;
 mod ord;
 mod syn;
 
+pub use std::hash::{
+    Hash,
+    Hasher,
+};
+
 pub use base::*;
 use dyn_clone::DynClone;
 pub use err::*;
@@ -26,5 +31,16 @@ where
 impl<'t, T: 't, I> CloneIter<'t, T> for I where Self: Iterator<Item = T> + DynClone {}
 
 dyn_clone::clone_trait_object!(<T> CloneIter<'_, T>);
+
+impl<T: Hash> Hash for dyn CloneIter<'_, T> + '_ {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut n: usize = 0;
+        for t in dyn_clone::clone_box(self) {
+            t.hash(state);
+            n += 1;
+        }
+        n.hash(state);
+    }
+}
 
 pub type EuRes<T> = anyhow::Result<T, EuErr>;
