@@ -69,6 +69,12 @@ pub enum EuType<'eu> {
     Seq(EuSeq<'eu>),
 }
 
+impl Default for EuType<'_> {
+    fn default() -> Self {
+        Self::Opt(None)
+    }
+}
+
 impl<'eu> EuType<'eu> {
     #[inline]
     pub fn i32(n: impl Into<i32>) -> Self {

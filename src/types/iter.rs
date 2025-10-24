@@ -37,10 +37,10 @@ use crate::{
 impl<'eu> EuType<'eu> {
     pub fn unfold<F>(mut self, mut f: F) -> impl EuSeqImpl<'eu>
     where
-        F: FnMut(&Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+        F: FnMut(&mut Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
         iter::from_fn(move || {
-            f(&self)
+            f(&mut self)
                 .map(|(st, t)| {
                     self = st;
                     t.to_opt()
@@ -52,7 +52,7 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<impl EuSeqImpl<'eu>> {
         f.to_expr().map(|f| {
-            self.unfold(move |acc| EuEnv::apply_n_2(f.clone(), slice::from_ref(acc), scope.clone()))
+            self.unfold(move |acc| EuEnv::apply_n_2(f.clone(), slice::from_mut(acc), scope.clone()))
         })
     }
 
@@ -78,11 +78,7 @@ impl<'eu> EuType<'eu> {
             } else {
                 Some(i as usize)
             }
-            .and_then(|i| {
-                ts.make_mut()
-                    .get_mut(i)
-                    .map(|t| mem::replace(t, Self::Opt(None)))
-            })),
+            .and_then(|i| ts.make_mut().get_mut(i).map(mem::take))),
             Self::Seq(mut it) => {
                 if i < 0 {
                     Self::Vec(Self::Seq(it).to_vec()?).get_take(i)
@@ -570,7 +566,7 @@ impl<'eu> EuType<'eu> {
 
     pub fn scan<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
-        F: FnMut(&Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+        F: FnMut(&mut Self, Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
         match self {
             Self::Vec(ts) => ts
@@ -597,13 +593,13 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn scan_once<F>(self, init: Self, f: F) -> EuRes<Self>
+    pub fn scan_once<F>(self, mut init: Self, f: F) -> EuRes<Self>
     where
-        F: FnOnce(&Self, Self) -> EuRes<(Self, Self)> + 'eu,
+        F: FnOnce(&mut Self, Self) -> EuRes<(Self, Self)> + 'eu,
     {
         match self {
-            Self::Opt(Some(t)) => Ok(Self::opt(f(&init, *t)?.1.to_opt())),
-            Self::Res(Ok(t)) => Ok(Self::res(match f(&init, *t)?.1 {
+            Self::Opt(Some(t)) => Ok(Self::opt(f(&mut init, *t)?.1.to_opt())),
+            Self::Res(Ok(t)) => Ok(Self::res(match f(&mut init, *t)?.1 {
                 Self::Opt(Some(t)) | Self::Res(Ok(t)) => Ok(*t),
                 Self::Res(Err(e)) => Err(*e),
                 e @ Self::Opt(None) => Err(e),
@@ -618,15 +614,11 @@ impl<'eu> EuType<'eu> {
         let f = f.to_expr()?;
         if self.is_many() {
             self.scan(init, move |acc, t| {
-                EuEnv::apply_n_2(
-                    f.clone(),
-                    &[slice::from_ref(acc), &[t]].concat(),
-                    scope.clone(),
-                )
+                EuEnv::apply_n_2(f.clone(), &[mem::take(acc), t], scope.clone())
             })
         } else {
             self.scan_once(init, move |acc, t| {
-                EuEnv::apply_n_2(f, &[slice::from_ref(acc), &[t]].concat(), scope)
+                EuEnv::apply_n_2(f, &[mem::take(acc), t], scope)
             })
         }
     }
@@ -661,12 +653,8 @@ impl<'eu> EuType<'eu> {
     pub fn sorted_by_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
         let f = f.to_expr()?;
         self.sorted_by(|a, b| {
-            EuEnv::apply_n_1(
-                f.clone(),
-                &[slice::from_ref(a), slice::from_ref(b)].concat(),
-                scope.clone(),
-            )
-            .map(|t| t.cmp(&Self::ibig(0)))
+            EuEnv::apply_n_1(f.clone(), &[a.clone(), b.clone()], scope.clone())
+                .map(|t| t.cmp(&Self::ibig(0)))
         })
     }
 
