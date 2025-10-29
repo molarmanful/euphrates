@@ -1,5 +1,5 @@
 use ecow::EcoVec;
-use hipstr::HipStr;
+use hipstr::LocalHipStr;
 use winnow::{
     ascii::digit1,
     combinator::{
@@ -61,7 +61,7 @@ fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 
 fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
-        .output_into::<HipStr>()
+        .output_into::<LocalHipStr>()
         .map(EuType::str)
         .map(EuSyn::Raw)
         .parse_next(input)
@@ -71,7 +71,7 @@ fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited(
         '"',
         repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
-            HipStr::new,
+            LocalHipStr::new,
             |mut s, co| {
                 if let Some(c) = co {
                     s.push(c);
@@ -228,7 +228,7 @@ fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     take_while(0.., |c: char| {
         !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']') && !c.is_whitespace()
     })
-    .output_into::<HipStr>()
+    .output_into::<LocalHipStr>()
     .map(EuType::word)
     .map(EuSyn::Raw)
     .parse_next(input)

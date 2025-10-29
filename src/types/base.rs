@@ -1,6 +1,7 @@
 use std::{
     hash::Hash,
     iter,
+    rc::Rc,
 };
 
 use anyhow::anyhow;
@@ -14,7 +15,7 @@ use ecow::{
     EcoVec,
     eco_vec,
 };
-use hipstr::HipStr;
+use hipstr::LocalHipStr;
 use itertools::Itertools;
 use num_traits::{
     Signed,
@@ -51,9 +52,9 @@ pub enum EuType<'eu> {
     Char(char),
 
     #[debug("{_0:?}")]
-    Str(HipStr<'eu>),
+    Str(LocalHipStr<'eu>),
     #[debug("{_0}")]
-    Word(HipStr<'eu>),
+    Word(LocalHipStr<'eu>),
 
     #[debug("{}", if let Some(t) = _0 { format!("Some:{t:?}") } else { "None".into() })]
     #[display("{}", if let Some(t) = _0 { t.to_string() } else { "".to_string() })]
@@ -67,7 +68,7 @@ pub enum EuType<'eu> {
     Vec(EcoVec<Self>),
     #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} => {v:?}")).join(", "))]
     #[display("{}", _0.iter().map(|(k, v)| format!("{k:?}{v:?}")).join(" "))]
-    Map(OrderMap<Self, Self>),
+    Map(Rc<OrderMap<Self, Self>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuSyn<'eu>>),
@@ -114,12 +115,12 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn str(s: impl Into<HipStr<'eu>>) -> Self {
+    pub fn str(s: impl Into<LocalHipStr<'eu>>) -> Self {
         Self::Str(s.into())
     }
 
     #[inline]
-    pub fn word(s: impl Into<HipStr<'eu>>) -> Self {
+    pub fn word(s: impl Into<LocalHipStr<'eu>>) -> Self {
         Self::Word(s.into())
     }
 
@@ -141,6 +142,11 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn vec(ts: impl Into<EcoVec<Self>>) -> Self {
         Self::Vec(ts.into())
+    }
+
+    #[inline]
+    pub fn map_(ts: impl Into<OrderMap<Self, Self>>) -> Self {
+        Self::Map(Rc::new(ts.into()))
     }
 
     #[inline]
@@ -167,7 +173,7 @@ impl<'eu> EuType<'eu> {
     pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
         match self {
             Self::Vec(ts) => Ok(ts),
-            Self::Map(kvs) => kvs
+            Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
                 .into_iter()
                 .map(|(k, v)| Ok(Self::vec([k, v])))
                 .collect(),
@@ -180,10 +186,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn to_map(self) -> EuRes<OrderMap<Self, Self>> {
+    pub fn to_map(self) -> EuRes<Rc<OrderMap<Self, Self>>> {
         match self {
             Self::Map(kvs) => Ok(kvs),
-            Self::Vec(ts) => ts.into_iter().map(Self::to_pair).collect(),
+            Self::Vec(ts) => ts.into_iter().map(Self::to_pair).try_collect().map(Rc::new),
             _ => Self::Vec(self.to_vec()?).to_map(),
         }
     }
@@ -218,7 +224,11 @@ impl<'eu> EuType<'eu> {
             Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
             Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
             Self::Vec(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(Ok)),
-            Self::Map(kvs) => Box::new(kvs.into_iter().map(|(k, v)| Ok(Self::vec([k, v])))),
+            Self::Map(kvs) => Box::new(
+                Rc::unwrap_or_clone(kvs)
+                    .into_iter()
+                    .map(|(k, v)| Ok(Self::vec([k, v]))),
+            ),
             Self::Expr(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(|t| Ok(t.into()))),
             _ => Box::new(iter::once(Ok(self))),
         }
@@ -268,9 +278,9 @@ impl<'eu> EuType<'eu> {
                 Ok(Self::Vec(a))
             }
             (a, b) if a.is_map() || b.is_map() => {
-                let mut a = a.to_map()?;
-                a.extend(b.to_map()?);
-                Ok(Self::Map(a))
+                let mut a = Rc::unwrap_or_clone(a.to_map()?);
+                a.extend(Rc::unwrap_or_clone(b.to_map()?));
+                Ok(Self::map_(a))
             }
             (a, b) if a.is_expr() || b.is_expr() => {
                 let mut a = a.to_expr()?;

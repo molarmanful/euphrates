@@ -12,7 +12,7 @@ use anyhow::{
 };
 use derive_more::Display;
 use ecow::EcoVec;
-use hipstr::HipStr;
+use hipstr::LocalHipStr;
 use winnow::Parser;
 
 use crate::{
@@ -34,7 +34,7 @@ pub struct EuEnv<'eu> {
     pub scope: EuScope<'eu>,
 }
 
-pub type EuScope<'eu> = imbl::HashMap<HipStr<'eu>, EuType<'eu>>;
+pub type EuScope<'eu> = imbl::HashMap<LocalHipStr<'eu>, EuType<'eu>>;
 
 impl<'eu> EuEnv<'eu> {
     pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
