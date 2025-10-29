@@ -1,4 +1,5 @@
 use std::{
+    hash,
     iter::{
         self,
         Peekable,
@@ -34,7 +35,8 @@ pub struct EuEnv<'eu> {
     pub scope: EuScope<'eu>,
 }
 
-pub type EuScope<'eu> = imbl::HashMap<LocalHipStr<'eu>, EuType<'eu>>;
+pub type EuScope<'eu> =
+    imbl::GenericHashMap<LocalHipStr<'eu>, EuType<'eu>, hash::RandomState, imbl::shared_ptr::RcK>;
 
 impl<'eu> EuEnv<'eu> {
     pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
@@ -98,7 +100,7 @@ impl<'eu> EuEnv<'eu> {
         Ok(Self::new(
             euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
             &[],
-            imbl::HashMap::new(),
+            imbl::GenericHashMap::new(),
         ))
     }
 
