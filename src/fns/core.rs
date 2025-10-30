@@ -133,6 +133,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "%" => REM,
     "^" => POW,
 
+    ":+" => PUSH,
+    "+:" => PUSH_FRONT,
+    "ins" => INSERT,
     "++" => APPEND,
 
     ":" => GET,
@@ -703,6 +706,35 @@ fn gen_fn_math_binops() {
 }
 
 gen_fn_math_binops!();
+
+const PUSH: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.push(a1)?);
+    Ok(())
+};
+
+const PUSH_FRONT: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.push_front(a1)?);
+    Ok(())
+};
+
+const INSERT: EuDef = |env| {
+    env.check_nargs(3)?;
+    let a2 = env.stack.pop().unwrap();
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(if a2.is_many() {
+        a2.map(move |n| a0.clone().insert(n.try_isize()?, a1.clone()))
+    } else {
+        a2.map_once(move |n| a0.insert(n.try_isize()?, a1))
+    }?);
+    Ok(())
+};
 
 const APPEND: EuDef = |env| {
     env.check_nargs(2)?;

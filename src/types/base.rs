@@ -1,6 +1,7 @@
 use std::{
     hash::Hash,
     iter,
+    mem,
     rc::Rc,
 };
 
@@ -269,18 +270,118 @@ impl<'eu> EuType<'eu> {
         self.is_vec() || self.is_seq() || self.is_map()
     }
 
+    pub fn push(mut self, other: Self) -> EuRes<Self> {
+        match self {
+            Self::Vec(ref mut ts) => {
+                ts.push(other);
+                Ok(self)
+            }
+            Self::Map(ref mut kvs) => {
+                let (k, v) = other.to_pair()?;
+                Rc::make_mut(kvs).insert(k, v);
+                Ok(self)
+            }
+            Self::Seq(it) => Ok(Self::seq(it.chain(iter::once(Ok(other))))),
+            Self::Expr(ref mut ts) => {
+                ts.push(EuSyn::Raw(other));
+                Ok(self)
+            }
+            Self::Str(ref mut s) => {
+                if let Self::Char(c) = other {
+                    s.push(c);
+                } else {
+                    s.push_str(&other.to_string());
+                };
+                Ok(self)
+            }
+            _ => Ok(Self::vec([self, other])),
+        }
+    }
+
+    #[inline]
+    pub fn push_front(self, other: Self) -> EuRes<Self> {
+        self.insert(0, other)
+    }
+
+    pub fn insert(mut self, index: isize, mut other: Self) -> EuRes<Self> {
+        let a = index.unsigned_abs();
+        let check = |len: usize| {
+            let hi = len as isize;
+            let low = -hi - 1;
+            (low <= index && index <= hi)
+                .ok_or_else(|| anyhow!("{index} out of bounds [{low}, {hi}]"))
+                .map(|()| if index < 0 { len + 1 - a } else { a })
+        };
+
+        match self {
+            Self::Vec(ref mut ts) => {
+                ts.insert(check(ts.len())?, other);
+                Ok(self)
+            }
+            Self::Map(ref mut kvs) => {
+                let a = check(kvs.len())?;
+                let (k, v) = other.to_pair()?;
+                let kvs = Rc::make_mut(kvs);
+                kvs.insert_before(a, k, v);
+                Ok(self)
+            }
+            Self::Seq(it) => {
+                if index < 0 {
+                    Self::Vec(it.try_collect()?).insert(index, other)
+                } else {
+                    let mut i = 0;
+                    let mut ins = false;
+                    Ok(Self::seq(it.batching(move |it| {
+                        if !ins && i == index {
+                            ins = true;
+                            Some(Ok(mem::take(&mut other)))
+                        } else {
+                            let t = it.next();
+                            if t.is_some() {
+                                i += 1;
+                            }
+                            t
+                        }
+                    })))
+                }
+            }
+            Self::Expr(ref mut ts) => {
+                ts.insert(check(ts.len())?, EuSyn::Raw(other));
+                Ok(self)
+            }
+            Self::Str(s) => {
+                let a = check(s.len())?;
+                let mut res = s.slice(0..a);
+                if let Self::Char(c) = other {
+                    res.push(c);
+                } else {
+                    res.push_str(&other.to_string());
+                };
+                res.push_str(&s.slice(a..));
+                Ok(Self::Str(res))
+            }
+            _ => Self::vec([self]).insert(index, other),
+        }
+    }
+
     pub fn append(self, other: Self) -> EuRes<Self> {
         match (self, other) {
+            (Self::Map(a), Self::Map(b)) => {
+                let mut a = Rc::unwrap_or_clone(a);
+                a.extend(Rc::unwrap_or_clone(b));
+                Ok(Self::map_(a))
+            }
+            (Self::Char(a), Self::Char(b)) => {
+                let mut s = LocalHipStr::with_capacity(2);
+                s.push(a);
+                s.push(b);
+                Ok(Self::Str(s))
+            }
             (a, b) if a.is_seq() || b.is_seq() => Ok(Self::seq(a.to_seq().chain(b.to_seq()))),
             (a, b) if a.is_vec() || b.is_vec() => {
                 let mut a = a.to_vec()?;
                 a.extend(b.to_vec()?);
                 Ok(Self::Vec(a))
-            }
-            (a, b) if a.is_map() || b.is_map() => {
-                let mut a = Rc::unwrap_or_clone(a.to_map()?);
-                a.extend(Rc::unwrap_or_clone(b.to_map()?));
-                Ok(Self::map_(a))
             }
             (a, b) if a.is_expr() || b.is_expr() => {
                 let mut a = a.to_expr()?;
@@ -288,7 +389,6 @@ impl<'eu> EuType<'eu> {
                 Ok(Self::Expr(a))
             }
             (a, b) if a.is_str() || b.is_str() => Ok(Self::str(format!("{a}{b}"))),
-            (Self::Char(a), Self::Char(b)) => Ok(Self::str(format!("{a}{b}"))),
             (a, b) => Ok(Self::vec([a, b])),
         }
     }
