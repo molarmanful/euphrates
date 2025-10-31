@@ -720,6 +720,13 @@ impl<'eu> EuType<'eu> {
         })
     }
 
+    pub fn zip_atom_env(self, t: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        f.vecz1(|f| {
+            let f = f.to_expr()?;
+            self.vecz2(t, |a, b| EuEnv::apply_n_1(f, &[a, b], scope))
+        })
+    }
+
     pub fn fold<F>(self, init: Self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self, Self) -> EuRes<Self> + 'eu,

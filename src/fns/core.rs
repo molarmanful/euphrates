@@ -158,6 +158,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "?tk" => TAKE_WHILE,
     "?dp" => DROP_WHILE,
     "zip" => ZIP,
+    "@zip" => ZIP_ATOM,
     "fold" => FOLD,
     "fold1" => FOLD1,
     "scan" => SCAN,
@@ -882,6 +883,15 @@ const ZIP: EuDef = |env| {
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     env.push(a0.zip_env(a1, a2, env.scope.clone())?);
+    Ok(())
+};
+
+const ZIP_ATOM: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a2 = env.stack.pop().unwrap();
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.zip_atom_env(a1, a2, env.scope.clone())?);
     Ok(())
 };
 
