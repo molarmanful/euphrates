@@ -98,6 +98,10 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "#vec" => EVAL_VEC,
 
     ">map" => TO_MAP,
+    "Map" => WRAP_MAP,
+
+    ">set" => TO_SET,
+    "Set" => WRAP_SET,
 
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
@@ -553,6 +557,24 @@ const TO_MAP: EuDef = |env| {
     Ok(())
 };
 
+const WRAP_MAP: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::map_([(EuType::I64(0), a0)]));
+    Ok(())
+};
+
+const TO_SET: EuDef = |env| {
+    let a0 = env.pop()?.to_set()?;
+    env.push(EuType::Set(a0));
+    Ok(())
+};
+
+const WRAP_SET: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::set([a0]));
+    Ok(())
+};
+
 const TO_EXPR: EuDef = |env| {
     let a0 = env.pop()?.to_expr();
     env.push(EuType::res_str(a0.map(EuType::expr)));
@@ -753,7 +775,7 @@ const GET_N: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a1.vecz1(|n| a0.get_take(n.try_isize()?).map(EuType::opt))?);
+    env.push(a1.vecz1(|n| a0.get_n_take(n.try_isize()?).map(EuType::opt))?);
     Ok(())
 };
 

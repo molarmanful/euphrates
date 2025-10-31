@@ -24,7 +24,10 @@ use num_traits::{
     Zero,
 };
 use ordered_float::OrderedFloat;
-use ordermap::OrderMap;
+use ordermap::{
+    OrderMap,
+    OrderSet,
+};
 use winnow::Parser;
 
 use super::{
@@ -70,6 +73,9 @@ pub enum EuType<'eu> {
     #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} => {v:?}")).join(", "))]
     #[display("{}", _0.iter().map(|(k, v)| format!("{k:?}{v:?}")).join(" "))]
     Map(Rc<OrderMap<Self, Self>>),
+    #[debug("Set:({})", _0.iter().map(|t| format!("{t:?}")).join(", "))]
+    #[display("{}", _0.iter().join(""))]
+    Set(Rc<OrderSet<Self>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuSyn<'eu>>),
@@ -151,6 +157,11 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
+    pub fn set(ts: impl Into<OrderSet<Self>>) -> Self {
+        Self::Set(Rc::new(ts.into()))
+    }
+
+    #[inline]
     pub fn expr(ts: impl Into<EcoVec<EuSyn<'eu>>>) -> Self {
         Self::Expr(ts.into())
     }
@@ -163,43 +174,19 @@ impl<'eu> EuType<'eu> {
         Self::Seq(Box::new(it))
     }
 
-    pub fn to_opt(self) -> Option<Self> {
-        match self {
-            Self::Opt(o) => o.map(|t| *t),
-            Self::Res(r) => r.ok().map(|t| *t),
-            _ => Some(self),
-        }
-    }
-
-    pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
-        match self {
-            Self::Vec(ts) => Ok(ts),
-            Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
-                .into_iter()
-                .map(|(k, v)| Ok(Self::vec([k, v])))
-                .collect(),
-            Self::Expr(ts) => Ok(ts.into_iter().map(EuSyn::into).collect()),
-            Self::Str(s) => s.chars().map(|t| Ok(Self::Char(t))).collect(),
-            Self::Opt(o) => o.into_iter().map(|t| Ok(*t)).collect(),
-            Self::Res(r) => r.into_iter().map(|t| Ok(*t)).collect(),
-            Self::Seq(it) => it.collect(),
-            _ => Ok(eco_vec![self]),
-        }
-    }
-
-    pub fn to_map(self) -> EuRes<Rc<OrderMap<Self, Self>>> {
-        match self {
-            Self::Map(kvs) => Ok(kvs),
-            Self::Vec(ts) => ts.into_iter().map(Self::to_pair).try_collect().map(Rc::new),
-            _ => Self::Vec(self.to_vec()?).to_map(),
-        }
-    }
-
     pub fn to_pair(self) -> EuRes<(Self, Self)> {
         let mut seq = self.to_seq();
         match (seq.next().transpose()?, seq.next().transpose()?) {
             (Some(k), Some(v)) => Ok((k, v)),
             _ => Err(anyhow!("failed to convert to pair").into()),
+        }
+    }
+
+    pub fn to_opt(self) -> Option<Self> {
+        match self {
+            Self::Opt(o) => o.map(|t| *t),
+            Self::Res(r) => r.ok().map(|t| *t),
+            _ => Some(self),
         }
     }
 
@@ -213,25 +200,105 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn to_vec(self) -> EuRes<EcoVec<Self>> {
+        match self {
+            Self::Vec(ts) => Ok(ts),
+            Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
+                .into_iter()
+                .map(|(k, v)| Ok(Self::vec([k, v])))
+                .collect(),
+            Self::Set(ts) => Ok(Rc::unwrap_or_clone(ts).into_iter().collect()),
+            Self::Seq(it) => it.collect(),
+            Self::Opt(o) => o.into_iter().map(|t| Ok(*t)).collect(),
+            Self::Res(r) => r.into_iter().map(|t| Ok(*t)).collect(),
+            Self::Expr(ts) => Ok(ts.into_iter().map(EuSyn::into).collect()),
+            Self::Str(s) => s.chars().map(|c| Ok(Self::Char(c))).collect(),
+            _ => Ok(eco_vec![self]),
+        }
+    }
+
     pub fn to_seq(self) -> EuSeq<'eu> {
         match self {
             Self::Seq(it) => it,
-            Self::Str(s) => Box::new(
-                s.chars()
-                    .collect_vec()
-                    .into_iter()
-                    .map(|t| Ok(Self::Char(t))),
-            ),
-            Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
-            Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
             Self::Vec(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(Ok)),
             Self::Map(kvs) => Box::new(
                 Rc::unwrap_or_clone(kvs)
                     .into_iter()
                     .map(|(k, v)| Ok(Self::vec([k, v]))),
             ),
+            Self::Set(ts) => Box::new(Rc::unwrap_or_clone(ts).into_iter().map(Ok)),
+            Self::Opt(o) => Box::new(o.into_iter().map(|t| Ok(*t))),
+            Self::Res(r) => Box::new(r.into_iter().map(|t| Ok(*t))),
             Self::Expr(ts) => Box::new(ts.as_slice().to_vec().into_iter().map(|t| Ok(t.into()))),
+            Self::Str(s) => Box::new(
+                s.chars()
+                    .collect_vec()
+                    .into_iter()
+                    .map(|c| Ok(Self::Char(c))),
+            ),
             _ => Box::new(iter::once(Ok(self))),
+        }
+    }
+
+    pub fn to_map(self) -> EuRes<Rc<OrderMap<Self, Self>>> {
+        match self {
+            Self::Map(kvs) => Ok(kvs),
+            Self::Vec(ts) => Ok(Rc::new(
+                ts.into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (Self::I64(i as i64), t))
+                    .collect(),
+            )),
+            Self::Set(ts) => Ok(Rc::new(
+                Rc::unwrap_or_clone(ts)
+                    .into_iter()
+                    .map(|k| (k, Self::Bool(true)))
+                    .collect(),
+            )),
+            Self::Seq(it) => it
+                .enumerate()
+                .map(|(i, r)| r.map(|t| (Self::I64(i as i64), t)))
+                .try_collect()
+                .map(Rc::new),
+            Self::Opt(o) => Ok(Rc::new(
+                o.into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (Self::I64(i as i64), *t))
+                    .collect(),
+            )),
+            Self::Res(r) => Ok(Rc::new(
+                r.into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (Self::I64(i as i64), *t))
+                    .collect(),
+            )),
+            Self::Expr(ts) => Ok(Rc::new(
+                ts.into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (Self::I64(i as i64), t.into()))
+                    .collect(),
+            )),
+            Self::Str(s) => Ok(Rc::new(
+                s.chars()
+                    .enumerate()
+                    .map(|(i, c)| (Self::I64(i as i64), Self::Char(c)))
+                    .collect(),
+            )),
+            _ => Ok(Rc::new([(Self::I64(0), self)].into())),
+        }
+    }
+
+    pub fn to_set(self) -> EuRes<Rc<OrderSet<Self>>> {
+        match self {
+            Self::Set(ts) => Ok(ts),
+            Self::Vec(ts) => Ok(Rc::new(ts.into_iter().collect())),
+            Self::Map(kvs) => Ok(Rc::new(Rc::unwrap_or_clone(kvs).into_keys().collect())),
+            Self::Seq(it) => it.try_collect().map(Rc::new),
+            Self::Opt(o) => Ok(Rc::new(o.into_iter().map(|t| *t).collect())),
+            Self::Res(r) => Ok(Rc::new(r.into_iter().map(|t| *t).collect())),
+            Self::Expr(ts) => Ok(Rc::new(ts.into_iter().map(EuSyn::into).collect())),
+            Self::Str(s) => Ok(Rc::new(s.chars().map(Self::Char).collect())),
+            _ => Ok(Rc::new([self].into())),
         }
     }
 
@@ -267,7 +334,7 @@ impl<'eu> EuType<'eu> {
 
     #[inline]
     pub fn is_many(&self) -> bool {
-        self.is_vec() || self.is_seq() || self.is_map()
+        self.is_vec() || self.is_seq() || self.is_map() || self.is_set()
     }
 
     pub fn push(mut self, other: Self) -> EuRes<Self> {
@@ -279,6 +346,10 @@ impl<'eu> EuType<'eu> {
             Self::Map(ref mut kvs) => {
                 let (k, v) = other.to_pair()?;
                 Rc::make_mut(kvs).insert(k, v);
+                Ok(self)
+            }
+            Self::Set(ref mut ts) => {
+                Rc::make_mut(ts).insert(other);
                 Ok(self)
             }
             Self::Seq(it) => Ok(Self::seq(it.chain(iter::once(Ok(other))))),
@@ -321,8 +392,12 @@ impl<'eu> EuType<'eu> {
             Self::Map(ref mut kvs) => {
                 let a = check(kvs.len())?;
                 let (k, v) = other.to_pair()?;
-                let kvs = Rc::make_mut(kvs);
-                kvs.insert_before(a, k, v);
+                Rc::make_mut(kvs).insert_before(a, k, v);
+                Ok(self)
+            }
+            Self::Set(ref mut ts) => {
+                let a = check(ts.len())?;
+                Rc::make_mut(ts).insert_before(a, other);
                 Ok(self)
             }
             Self::Seq(it) => {
@@ -370,6 +445,11 @@ impl<'eu> EuType<'eu> {
                 let mut a = Rc::unwrap_or_clone(a);
                 a.extend(Rc::unwrap_or_clone(b));
                 Ok(Self::map_(a))
+            }
+            (Self::Set(a), Self::Set(b)) => {
+                let mut a = Rc::unwrap_or_clone(a);
+                a.extend(Rc::unwrap_or_clone(b));
+                Ok(Self::set(a))
             }
             (Self::Char(a), Self::Char(b)) => {
                 let mut s = LocalHipStr::with_capacity(2);
@@ -526,7 +606,8 @@ fn gen_type_to_bool() {
                     EuType::Opt(o) => o.is_some(),
                     EuType::Res(r) => r.is_ok(),
                     EuType::Vec(ts) => !ts.is_empty(),
-                    EuType::Map(ts) => !ts.is_empty(),
+                    EuType::Map(kvs) => !kvs.is_empty(),
+                    EuType::Set(ts) => !ts.is_empty(),
                     EuType::Expr(ts) => !ts.is_empty(),
                     EuType::Seq(it) => Iterator::peekable(it).peek().is_some(),
                 }

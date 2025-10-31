@@ -14,7 +14,7 @@ fn gen_eqv_ord() {
 
     let types = [
         "Bool", "Char", "I32", "I64", "IBig", "F32", "F64", "Word", "Str", "Opt", "Res", "Expr",
-        "Vec", "Map", "Seq",
+        "Vec", "Map", "Set", "Seq",
     ];
 
     let arms = itertools::repeat_n(types, 2)
@@ -53,7 +53,7 @@ gen_eqv_ord!();
 fn gen_partial_eq() {
     let types = [
         "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
-        "Map", "Expr",
+        "Map", "Set", "Expr",
     ];
     let arms = types
         .map(|t| {
@@ -96,7 +96,7 @@ fn gen_ord() {
 
     let types = [
         "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
-        "Map", "Expr",
+        "Map", "Set", "Expr",
     ];
     let arms = types
         .map(|t| {

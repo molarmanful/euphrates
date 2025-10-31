@@ -15,7 +15,10 @@ use std::{
 
 use ecow::EcoVec;
 use itertools::Itertools;
-use ordermap::OrderMap;
+use ordermap::{
+    OrderMap,
+    OrderSet,
+};
 
 use super::{
     EuErr,
@@ -55,11 +58,10 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
         f.vecz1(|f| {
-            f.to_expr().map(|f| {
-                Self::seq(self.unfold(move |acc| {
-                    EuEnv::apply_n_2(f.clone(), slice::from_mut(acc), scope.clone())
-                }))
-            })
+            let f = f.to_expr()?;
+            Ok(Self::seq(self.unfold(move |acc| {
+                EuEnv::apply_n_2(f.clone(), slice::from_mut(acc), scope.clone())
+            })))
         })
     }
 
@@ -76,10 +78,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn get_take(self, i: isize) -> EuRes<Option<Self>> {
+    pub fn get_n_take(self, i: isize) -> EuRes<Option<Self>> {
         match self {
             Self::Opt(o) => Ok((i == 0).then(|| o.map(|t| *t)).flatten()),
-            Self::Res(r) => Self::Opt(r.ok()).get_take(i),
+            Self::Res(r) => Self::Opt(r.ok()).get_n_take(i),
             Self::Vec(mut ts) => Ok(if i < 0 {
                 ts.len().checked_add_signed(i)
             } else {
@@ -96,14 +98,20 @@ impl<'eu> EuType<'eu> {
                     .get_index_mut(i)
                     .map(|(k, v)| Self::vec([k.clone(), mem::take(v)]))
             })),
+            Self::Set(mut ts) => Ok(if i < 0 {
+                ts.len().checked_add_signed(i)
+            } else {
+                Some(i as usize)
+            }
+            .and_then(|i| Rc::make_mut(&mut ts).get_index(i).cloned())),
             Self::Seq(mut it) => {
                 if i < 0 {
-                    Self::Vec(Self::Seq(it).to_vec()?).get_take(i)
+                    Self::Vec(Self::Seq(it).to_vec()?).get_n_take(i)
                 } else {
                     it.nth(i as usize).transpose()
                 }
             }
-            _ => Self::Vec(self.to_vec()?).get_take(i),
+            _ => Self::Vec(self.to_vec()?).get_n_take(i),
         }
     }
 
@@ -117,20 +125,22 @@ impl<'eu> EuType<'eu> {
             } else {
                 Self::vec(&ts[..cmp::min(a, ts.len())])
             }),
-            Self::Map(kvs) => Ok(if n < 0 {
-                Self::Map(Rc::new(
-                    Rc::unwrap_or_clone(kvs)
-                        .into_iter()
-                        .rev()
-                        .take(a)
-                        .rev()
-                        .collect(),
-                ))
-            } else {
-                Self::Map(Rc::new(
-                    Rc::unwrap_or_clone(kvs).into_iter().take(a).collect(),
-                ))
-            }),
+            Self::Map(kvs) => Ok(Self::Map(Rc::new({
+                let it = Rc::unwrap_or_clone(kvs).into_iter();
+                if n < 0 {
+                    it.rev().take(a).rev().collect()
+                } else {
+                    it.take(a).collect()
+                }
+            }))),
+            Self::Set(ts) => Ok(Self::Set(Rc::new({
+                let it = Rc::unwrap_or_clone(ts).into_iter();
+                if n < 0 {
+                    it.rev().take(a).rev().collect()
+                } else {
+                    it.take(a).collect()
+                }
+            }))),
             Self::Seq(it) => {
                 if n < 0 {
                     Self::vec(Self::Seq(it).to_vec()?).take(n)
@@ -152,20 +162,22 @@ impl<'eu> EuType<'eu> {
             } else {
                 Self::vec(&ts[cmp::min(a, ts.len())..])
             }),
-            Self::Map(kvs) => Ok(if n < 0 {
-                Self::Map(Rc::new(
-                    Rc::unwrap_or_clone(kvs)
-                        .into_iter()
-                        .rev()
-                        .skip(a)
-                        .rev()
-                        .collect(),
-                ))
-            } else {
-                Self::Map(Rc::new(
-                    Rc::unwrap_or_clone(kvs).into_iter().skip(a).collect(),
-                ))
-            }),
+            Self::Map(kvs) => Ok(Self::Map(Rc::new({
+                let it = Rc::unwrap_or_clone(kvs).into_iter();
+                if n < 0 {
+                    it.rev().skip(a).rev().collect()
+                } else {
+                    it.skip(a).collect()
+                }
+            }))),
+            Self::Set(ts) => Ok(Self::Set(Rc::new({
+                let it = Rc::unwrap_or_clone(ts).into_iter();
+                if n < 0 {
+                    it.rev().skip(a).rev().collect()
+                } else {
+                    it.skip(a).collect()
+                }
+            }))),
             Self::Seq(it) => {
                 if n < 0 {
                     Self::vec(Self::Seq(it).to_vec()?).drop(n)
@@ -212,7 +224,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
                 .chunk(n)?
-                .map(|t| t.get_take(0).map(Self::opt)),
+                .map(|t| t.get_n_take(0).map(Self::opt)),
             Self::Res(r) => Self::Opt(r.ok()).chunk(n),
             Self::Vec(ts) => {
                 if n < 0 {
@@ -231,6 +243,17 @@ impl<'eu> EuType<'eu> {
                 Self::seq(Rc::unwrap_or_clone(kvs).into_iter().batching(move |it| {
                     let kvs: OrderMap<_, _> = it.take(a).collect();
                     (a == 0 || !kvs.is_empty()).then_some(Ok(Self::map_(kvs)))
+                }))
+            }),
+            Self::Set(ts) => Ok(if n < 0 {
+                let len = ts.len();
+                Self::Vec(split(Rc::unwrap_or_clone(ts), len, a, |ts| {
+                    Self::Set(Rc::new(ts))
+                }))
+            } else {
+                Self::seq(Rc::unwrap_or_clone(ts).into_iter().batching(move |it| {
+                    let ts: OrderSet<_, _> = it.take(a).collect();
+                    (a == 0 || !ts.is_empty()).then_some(Ok(Self::set(ts)))
                 }))
             }),
             Self::Seq(it) => {
@@ -261,7 +284,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
                 .divvy(n, m)?
-                .map(|t| t.get_take(0).map(Self::opt)),
+                .map(|t| t.get_n_take(0).map(Self::opt)),
             Self::Res(r) => Self::Opt(r.ok()).divvy(n, m),
             Self::Vec(ref ts) => {
                 if m < 0 {
@@ -292,12 +315,42 @@ impl<'eu> EuType<'eu> {
                                 it.dropping(a.saturating_sub(n));
                             }
                             let n_kvs = n - rem.len();
-                            let kvs = it.take(n_kvs).collect::<OrderMap<_, _>>();
+                            let kvs: OrderMap<_, _> = it.take(n_kvs).collect();
                             (kvs.len() >= n_kvs).then(|| {
                                 rem.extend(kvs);
                                 let res = mem::replace(&mut rem, rem_empty.clone());
-                                rem.extend(res.iter().map(|(k, v)| (k.clone(), v.clone())).skip(a));
+                                rem.extend(res.iter().skip(a).map(|(k, v)| (k.clone(), v.clone())));
                                 Ok(Self::map_(res))
+                            })
+                        },
+                    )))
+                }
+            }
+            Self::Set(ts) => {
+                if m < 0 {
+                    let l = ts.len().saturating_sub(n).div_ceil(a);
+                    Self::Set(ts)
+                        .divvy(n, l.try_into().unwrap())?
+                        .to_vec()
+                        .map(Self::Vec)
+                } else {
+                    let rem_empty = OrderSet::with_capacity(n.saturating_sub(a));
+                    let mut rem = rem_empty.clone();
+                    let mut first = true;
+                    Ok(Self::seq(Rc::unwrap_or_clone(ts).into_iter().batching(
+                        move |it| {
+                            if first {
+                                first = false;
+                            } else {
+                                it.dropping(a.saturating_sub(n));
+                            }
+                            let n_ts = n - rem.len();
+                            let ts: OrderSet<_> = it.take(n_ts).collect();
+                            (ts.len() >= n_ts).then(|| {
+                                rem.extend(ts);
+                                let res = mem::replace(&mut rem, rem_empty.clone());
+                                rem.extend(res.iter().skip(a).cloned());
+                                Ok(Self::set(res))
                             })
                         },
                     )))
@@ -402,8 +455,12 @@ impl<'eu> EuType<'eu> {
                 .into_iter()
                 .map(|(k, v)| f(v).map(|v| (k, v)))
                 .try_collect()
-                .map(Rc::new)
-                .map(Self::Map),
+                .map(|kvs| Self::Map(Rc::new(kvs))),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .map(f)
+                .try_collect()
+                .map(|ts| Self::Set(Rc::new(ts))),
             Self::Seq(it) => Ok(Self::seq(it.map(move |t| f(t?)))),
             _ => self.map_once(f),
         }
@@ -453,6 +510,14 @@ impl<'eu> EuType<'eu> {
                 .map(Self::Vec),
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
                 .into_values()
+                .flat_map(|t| match f(t) {
+                    Ok(t) => t.to_seq(),
+                    e => Box::new(iter::once(e)),
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
                 .flat_map(|t| match f(t) {
                     Ok(t) => t.to_seq(),
                     e => Box::new(iter::once(e)),
@@ -525,8 +590,12 @@ impl<'eu> EuType<'eu> {
                 .into_iter()
                 .filter_map(|kv| f(&kv.1).map(|b| b.then_some(kv)).transpose())
                 .try_collect()
-                .map(Rc::new)
-                .map(Self::Map),
+                .map(|kvs| Self::Map(Rc::new(kvs))),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .filter_map(|t| f(&t).map(|b| b.then_some(t)).transpose())
+                .try_collect()
+                .map(|ts| Self::Set(Rc::new(ts))),
             Self::Seq(it) => Ok(Self::seq(it.filter_map(move |r| {
                 r.and_then(|t| f(&t).map(|b| b.then_some(t))).transpose()
             }))),
@@ -578,8 +647,12 @@ impl<'eu> EuType<'eu> {
                 .into_iter()
                 .map_while(|kv| f(&kv.1).map(|b| b.then_some(kv)).transpose())
                 .try_collect()
-                .map(Rc::new)
-                .map(Self::Map),
+                .map(|kvs| Self::Map(Rc::new(kvs))),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .map_while(|t| f(&t).map(|b| b.then_some(t)).transpose())
+                .try_collect()
+                .map(|kvs| Self::Set(Rc::new(kvs))),
             Self::Seq(it) => Ok(Self::seq(it.map_while(move |r| {
                 r.and_then(|t| f(&t).map(|b| b.then_some(t))).transpose()
             }))),
@@ -625,8 +698,13 @@ impl<'eu> EuType<'eu> {
                 .map(Ok)
                 .skip_while_ok(|(_, v)| f(v))
                 .try_collect()
-                .map(Rc::new)
-                .map(Self::Map),
+                .map(|kvs| Self::Map(Rc::new(kvs))),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .map(Ok)
+                .skip_while_ok(f)
+                .try_collect()
+                .map(|kvs| Self::Set(Rc::new(kvs))),
             Self::Seq(it) => Ok(Self::seq(it.skip_while_ok(f))),
             _ => self.drop_while_once(f),
         }
@@ -668,6 +746,12 @@ impl<'eu> EuType<'eu> {
             (Self::Map(a), Self::Map(b)) => Rc::unwrap_or_clone(a)
                 .into_values()
                 .zip(Rc::unwrap_or_clone(b).into_values())
+                .map(|(a, b)| f(a, b))
+                .try_collect()
+                .map(Self::Vec),
+            (Self::Set(a), Self::Set(b)) => Rc::unwrap_or_clone(a)
+                .into_iter()
+                .zip(Rc::unwrap_or_clone(b))
                 .map(|(a, b)| f(a, b))
                 .try_collect()
                 .map(Self::Vec),
@@ -734,6 +818,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Vec(ts) => ts.into_iter().try_fold(init, f),
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs).into_values().try_fold(init, f),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts).into_iter().try_fold(init, f),
             Self::Seq(mut it) => it.try_fold(init, |acc, t| f(acc, t?)),
             _ => self.fold_once(init, f),
         }
@@ -769,6 +854,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Vec(ts) => ts.into_iter().try_reduce(f),
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs).into_values().try_reduce(f),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts).into_iter().try_reduce(f),
             Self::Seq(it) => it.reduce(|a, b| f(a?, b?)).transpose(),
             _ => self.fold1_once(),
         }
@@ -810,6 +896,18 @@ impl<'eu> EuType<'eu> {
                 .map(Self::Vec),
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
                 .into_values()
+                .scan(init, |acc, t| {
+                    f(acc, t)
+                        .map(|(st, t)| {
+                            *acc = st;
+                            t.to_opt()
+                        })
+                        .transpose()
+                })
+                .try_collect()
+                .map(Self::Vec),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
                 .scan(init, |acc, t| {
                     f(acc, t)
                         .map(|(st, t)| {
@@ -874,6 +972,11 @@ impl<'eu> EuType<'eu> {
                 Rc::make_mut(kvs).sort_unstable_keys();
                 Ok(self)
             }
+            Self::Set(ref mut ts) => {
+                Rc::make_mut(ts).sort_unstable();
+                Ok(self)
+            }
+            Self::Seq(it) => it.sorted().try_collect().map(Self::Vec),
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
     }
@@ -904,6 +1007,26 @@ impl<'eu> EuType<'eu> {
                 res.map(|()| self)
                     .map_err(|e| *e.downcast::<EuErr>().unwrap())
             }
+            Self::Set(ref mut ts) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    Rc::make_mut(ts).sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)))
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
+            Self::Seq(it) => unpanic(AssertUnwindSafe(|| {
+                it.sorted_by(|a, b| {
+                    f(
+                        a.as_ref().unwrap_or_else(|e| panic::panic_any(e.clone())),
+                        b.as_ref().unwrap_or_else(|e| panic::panic_any(e.clone())),
+                    )
+                    .unwrap_or_else(|e| panic::panic_any(e))
+                })
+                .try_collect()
+                .map(Self::Vec)
+                .unwrap_or_else(|e| panic::panic_any(e))
+            }))
+            .map_err(|e| *e.downcast::<EuErr>().unwrap()),
             _ => Self::Vec(self.to_vec()?).sorted_by(f),
         }
     }
@@ -941,6 +1064,23 @@ impl<'eu> EuType<'eu> {
                 res.map(|()| self)
                     .map_err(|e| *e.downcast::<EuErr>().unwrap())
             }
+            Self::Set(ref mut ts) => {
+                let res = unpanic(AssertUnwindSafe(|| {
+                    Rc::make_mut(ts).sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)))
+                }));
+                res.map(|()| self)
+                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+            }
+            Self::Seq(it) => unpanic(AssertUnwindSafe(|| {
+                it.sorted_by_key(|t| {
+                    f(t.as_ref().unwrap_or_else(|e| panic::panic_any(e.clone())))
+                        .unwrap_or_else(|e| panic::panic_any(e))
+                })
+                .try_collect()
+                .map(Self::Vec)
+                .unwrap_or_else(|e| panic::panic_any(e))
+            }))
+            .map_err(|e| *e.downcast::<EuErr>().unwrap()),
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
     }
@@ -959,6 +1099,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Vec(ts) => ts.into_iter().try_find(f),
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs).into_values().try_find(f),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts).into_iter().try_find(f),
             Self::Seq(mut it) => it
                 .try_find(|r| r.as_ref().map_err(|e| e.clone()).and_then(&mut f))
                 .and_then(Option::transpose),
