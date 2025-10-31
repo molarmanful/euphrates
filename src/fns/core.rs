@@ -109,6 +109,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "cyc" => CYC,
 
     "#" => EVAL,
+    "tap" => TAP,
     "&#" => AND_EVAL,
     "|#" => OR_EVAL,
     "&|#" => IF_EVAL,
@@ -151,6 +152,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "*cprod" => MULTI_CPROD,
 
     "map" => MAP,
+    "@map" => MAP_ATOM,
     "mapf" => MAPF,
     "fltr" => FILTER,
     "?tk" => TAKE_WHILE,
@@ -600,31 +602,43 @@ const CYC: EuDef = |env| {
     Ok(())
 };
 
-const EVAL: EuDef = |env| {
-    let a0 = env.pop()?.to_expr()?;
-    env.eval_iter(a0)
+const EVAL: EuDef = |env| env.pop()?.for_rec(&mut |f| env.eval_iter(f));
+
+const TAP: EuDef = |env| {
+    env.pop()?.for_rec(&mut |f| {
+        EuEnv::apply(f, &env.stack, env.scope.clone())?;
+        Ok(())
+    })
 };
 
 const AND_EVAL: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap().into();
-    if a0 { env.eval_iter(a1) } else { Ok(()) }
+    if a0 {
+        a1.for_rec(&mut |f| env.eval_iter(f))
+    } else {
+        Ok(())
+    }
 };
 
 const OR_EVAL: EuDef = |env| {
     env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap().into();
-    if a0 { Ok(()) } else { env.eval_iter(a1) }
+    if a0 {
+        Ok(())
+    } else {
+        a1.for_rec(&mut |f| env.eval_iter(f))
+    }
 };
 
 const IF_EVAL: EuDef = |env| {
     env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap().to_expr()?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
+    let a2 = env.stack.pop().unwrap();
+    let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap().into();
-    env.eval_iter(if a0 { a1 } else { a2 })
+    if a0 { a1 } else { a2 }.for_rec(&mut |f| env.eval_iter(f))
 };
 
 const BIND_ARGS: EuDef = |env| {
@@ -859,6 +873,19 @@ const MAP: EuDef = |env| {
         a1.map(move |f| a0.clone().map_env(f, scope.clone()))
     } else {
         a1.map_once(|f| a0.map_env(f, scope))
+    }?);
+    Ok(())
+};
+
+const MAP_ATOM: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let scope = env.scope.clone();
+    env.push(if a1.is_many() {
+        a1.map(move |f| a0.clone().map_atom_env(f, scope.clone()))
+    } else {
+        a1.map_once(|f| a0.map_atom_env(f, scope))
     }?);
     Ok(())
 };

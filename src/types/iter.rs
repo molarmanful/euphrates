@@ -21,6 +21,8 @@ use super::{
     EuErr,
     EuRes,
     EuSeq,
+    EuSeqImpl,
+    EuSyn,
     EuType,
 };
 use crate::{
@@ -28,7 +30,6 @@ use crate::{
         EuEnv,
         EuScope,
     },
-    types::EuSeqImpl,
     utils::{
         IterExt,
         swap_errors,
@@ -347,6 +348,20 @@ impl<'eu> EuType<'eu> {
         })
     }
 
+    pub fn for_rec<F>(self, f: &mut F) -> EuRes<()>
+    where
+        F: FnMut(EcoVec<EuSyn<'eu>>) -> EuRes<()>,
+    {
+        if self.is_vecz() {
+            for t in self.to_seq() {
+                t?.for_rec(f)?;
+            }
+            Ok(())
+        } else {
+            f(self.to_expr()?)
+        }
+    }
+
     pub fn map<F>(self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(Self) -> EuRes<Self> + Clone + 'eu,
@@ -381,6 +396,20 @@ impl<'eu> EuType<'eu> {
             self.map(move |t| EuEnv::apply_n_1(f.clone(), &[t], scope.clone()))
         } else {
             self.map_once(|t| EuEnv::apply_n_1(f, &[t], scope))
+        }
+    }
+
+    pub fn map_atom_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+        self.map_atom_env_(f.to_expr()?, scope)
+    }
+
+    fn map_atom_env_(self, f: EcoVec<EuSyn<'eu>>, scope: EuScope<'eu>) -> EuRes<Self> {
+        if self.is_many() {
+            self.map(move |t| t.map_atom_env_(f.clone(), scope.clone()))
+        } else if self.is_once() {
+            self.map_once(|t| t.map_atom_env_(f, scope))
+        } else {
+            EuEnv::apply_n_1(f, &[self], scope)
         }
     }
 
