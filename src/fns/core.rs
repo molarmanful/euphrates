@@ -139,7 +139,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "ins" => INSERT,
     "++" => APPEND,
 
-    ":" => GET,
+    ":" => GET_N,
     "tk" => TAKE,
     "dp" => DROP,
     "chunk" => CHUNK,
@@ -580,13 +580,7 @@ const FOLD_: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().unfold_env(f, scope.clone()).map(EuType::seq))
-    } else {
-        a1.map_once(|f| a0.unfold_env(f, scope).map(EuType::seq))
-    }?);
+    env.push(a0.unfold_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -742,11 +736,7 @@ const INSERT: EuDef = |env| {
     let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a2.is_many() {
-        a2.map(move |n| a0.clone().insert(n.try_isize()?, a1.clone()))
-    } else {
-        a2.map_once(move |n| a0.insert(n.try_isize()?, a1))
-    }?);
+    env.push(a2.vecz1(|n| a0.insert(n.try_isize()?, a1))?);
     Ok(())
 };
 
@@ -758,15 +748,11 @@ const APPEND: EuDef = |env| {
     Ok(())
 };
 
-const GET: EuDef = |env| {
+const GET_N: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().get_take(n.try_isize()?).map(EuType::opt))
-    } else {
-        a1.map_once(|n| a0.get_take(n.try_isize()?).map(EuType::opt))
-    }?);
+    env.push(a1.vecz1(|n| a0.get_take(n.try_isize()?).map(EuType::opt))?);
     Ok(())
 };
 
@@ -774,11 +760,7 @@ const TAKE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().take(n.try_isize()?))
-    } else {
-        a1.map_once(|n| a0.take(n.try_isize()?))
-    }?);
+    env.push(a1.vecz1(|n| a0.take(n.try_isize()?))?);
     Ok(())
 };
 
@@ -786,11 +768,7 @@ const DROP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().drop(n.try_isize()?))
-    } else {
-        a1.map_once(|n| a0.drop(n.try_isize()?))
-    }?);
+    env.push(a1.vecz1(|n| a0.drop(n.try_isize()?))?);
     Ok(())
 };
 
@@ -798,11 +776,7 @@ const CHUNK: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().chunk(n.try_isize()?))
-    } else {
-        a1.map_once(|n| a0.chunk(n.try_isize()?))
-    }?);
+    env.push(a1.vecz1(|n| a0.chunk(n.try_isize()?))?);
     Ok(())
 };
 
@@ -810,11 +784,7 @@ const WINDOW: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() {
-        a1.map(move |n| a0.clone().window(n.try_usize()?))
-    } else {
-        a1.map_once(|n| a0.window(n.try_usize()?))
-    }?);
+    env.push(a1.vecz1(|n| a0.window(n.try_usize()?))?);
     Ok(())
 };
 
@@ -823,13 +793,7 @@ const DIVVY: EuDef = |env| {
     let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(if a1.is_many() || a2.is_many() {
-        a1.zip(a2, move |n, o| {
-            a0.clone().divvy(n.try_usize()?, o.try_isize()?)
-        })
-    } else {
-        a1.zip_once(a2, |n, o| a0.divvy(n.try_usize()?, o.try_isize()?))
-    }?);
+    env.push(a1.vecz2(a2, |n, o| a0.divvy(n.try_usize()?, o.try_isize()?))?);
     Ok(())
 };
 
@@ -868,12 +832,7 @@ const MAP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().map_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.map_env(f, scope))
-    }?);
+    env.push(a0.map_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -881,12 +840,7 @@ const MAP_ATOM: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().map_atom_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.map_atom_env(f, scope))
-    }?);
+    env.push(a0.map_atom_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -894,12 +848,7 @@ const MAPF: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().flat_map_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.flat_map_env(f, scope))
-    }?);
+    env.push(a0.flat_map_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -907,12 +856,7 @@ const FILTER: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().filter_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.filter_env(f, scope))
-    }?);
+    env.push(a0.filter_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -920,12 +864,7 @@ const TAKE_WHILE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().take_while_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.take_while_env(f, scope))
-    }?);
+    env.push(a0.take_while_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -933,12 +872,7 @@ const DROP_WHILE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().drop_while_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.drop_while_env(f, scope))
-    }?);
+    env.push(a0.drop_while_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -947,12 +881,7 @@ const ZIP: EuDef = |env| {
     let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a2.is_many() {
-        a2.map(move |f| a0.clone().zip_env(a1.clone(), f, scope.clone()))
-    } else {
-        a2.map_once(|f| a0.zip_env(a1, f, scope))
-    }?);
+    env.push(a0.zip_env(a1, a2, env.scope.clone())?);
     Ok(())
 };
 
@@ -961,12 +890,7 @@ const FOLD: EuDef = |env| {
     let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a2.is_many() {
-        a2.map(move |f| a0.clone().fold_env(a1.clone(), f, scope.clone()))
-    } else {
-        a2.map_once(|f| a0.fold_env(a1, f, scope))
-    }?);
+    env.push(a0.fold_env(a1, a2, env.scope.clone())?);
     Ok(())
 };
 
@@ -974,12 +898,7 @@ const FOLD1: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().fold1_env(f, scope.clone()).map(EuType::opt))
-    } else {
-        a1.map_once(|f| a0.fold1_env(f, scope).map(EuType::opt))
-    }?);
+    env.push(a0.fold1_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -988,12 +907,7 @@ const SCAN: EuDef = |env| {
     let a2 = env.stack.pop().unwrap();
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a2.is_many() {
-        a2.map(move |f| a0.clone().scan_env(a1.clone(), f, scope.clone()))
-    } else {
-        a2.map_once(|f| a0.scan_env(a1, f, scope))
-    }?);
+    env.push(a0.scan_env(a1, a2, env.scope.clone())?);
     Ok(())
 };
 
@@ -1001,12 +915,7 @@ const SORT_BY: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().sorted_by_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.sorted_by_env(f, scope))
-    }?);
+    env.push(a0.sorted_by_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -1014,12 +923,7 @@ const SORT_BY_KEY: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().sorted_by_key_env(f, scope.clone()))
-    } else {
-        a1.map_once(|f| a0.sorted_by_key_env(f, scope))
-    }?);
+    env.push(a0.sorted_by_key_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -1027,12 +931,7 @@ const FIND: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().find_env(f, scope.clone()).map(EuType::opt))
-    } else {
-        a1.map_once(|f| a0.find_env(f, scope).map(EuType::opt))
-    }?);
+    env.push(a0.find_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -1040,12 +939,7 @@ const ANY: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().any_env(f, scope.clone()).map(EuType::Bool))
-    } else {
-        a1.map_once(|f| a0.any_env(f, scope).map(EuType::Bool))
-    }?);
+    env.push(a0.any_env(a1, env.scope.clone())?);
     Ok(())
 };
 
@@ -1053,11 +947,6 @@ const ALL: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    let scope = env.scope.clone();
-    env.push(if a1.is_many() {
-        a1.map(move |f| a0.clone().all_env(f, scope.clone()).map(EuType::Bool))
-    } else {
-        a1.map_once(|f| a0.all_env(f, scope).map(EuType::Bool))
-    }?);
+    env.push(a0.all_env(a1, env.scope.clone())?);
     Ok(())
 };
