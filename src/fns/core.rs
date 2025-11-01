@@ -152,6 +152,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "flat" => FLAT,
     "rflat" => FLAT_REC,
     "sort" => SORT,
+    "enum" => ENUM,
+    "pairs" => PAIRS,
     "*zip" => MULTI_ZIP,
     "*cprod" => MULTI_CPROD,
 
@@ -835,6 +837,18 @@ const FLAT: EuDef = |env| {
 const FLAT_REC: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(a0.flatten_rec()?);
+    Ok(())
+};
+
+const ENUM: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.enumerate());
+    Ok(())
+};
+
+const PAIRS: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.pairs());
     Ok(())
 };
 

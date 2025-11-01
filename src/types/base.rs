@@ -243,48 +243,29 @@ impl<'eu> EuType<'eu> {
     pub fn to_map(self) -> EuRes<Rc<OrderMap<Self, Self>>> {
         match self {
             Self::Map(kvs) => Ok(kvs),
-            Self::Vec(ts) => Ok(Rc::new(
-                ts.into_iter()
-                    .enumerate()
-                    .map(|(i, t)| (Self::I64(i as i64), t))
-                    .collect(),
-            )),
-            Self::Set(ts) => Ok(Rc::new(
-                Rc::unwrap_or_clone(ts)
-                    .into_iter()
-                    .map(|k| (k, Self::Bool(true)))
-                    .collect(),
-            )),
-            Self::Seq(it) => it
-                .enumerate()
-                .map(|(i, r)| r.map(|t| (Self::I64(i as i64), t)))
+            Self::Vec(ts) => ts.into_iter().map(Self::to_pair).try_collect().map(Rc::new),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .map(Self::to_pair)
                 .try_collect()
                 .map(Rc::new),
-            Self::Opt(o) => Ok(Rc::new(
-                o.into_iter()
-                    .enumerate()
-                    .map(|(i, t)| (Self::I64(i as i64), *t))
-                    .collect(),
-            )),
-            Self::Res(r) => Ok(Rc::new(
-                r.into_iter()
-                    .enumerate()
-                    .map(|(i, t)| (Self::I64(i as i64), *t))
-                    .collect(),
-            )),
-            Self::Expr(ts) => Ok(Rc::new(
-                ts.into_iter()
-                    .enumerate()
-                    .map(|(i, t)| (Self::I64(i as i64), t.into()))
-                    .collect(),
-            )),
-            Self::Str(s) => Ok(Rc::new(
-                s.chars()
-                    .enumerate()
-                    .map(|(i, c)| (Self::I64(i as i64), Self::Char(c)))
-                    .collect(),
-            )),
-            _ => Ok(Rc::new([(Self::I64(0), self)].into())),
+            Self::Seq(it) => it.map(|r| r?.to_pair()).try_collect().map(Rc::new),
+            Self::Opt(o) => o
+                .into_iter()
+                .map(|t| (*t).to_pair())
+                .try_collect()
+                .map(Rc::new),
+            Self::Res(r) => r
+                .into_iter()
+                .map(|t| (*t).to_pair())
+                .try_collect()
+                .map(Rc::new),
+            Self::Expr(ts) => ts
+                .into_iter()
+                .map(|t| Self::from(t).to_pair())
+                .try_collect()
+                .map(Rc::new),
+            _ => Self::Vec(self.to_vec()?).to_map(),
         }
     }
 

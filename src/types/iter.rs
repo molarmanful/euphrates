@@ -388,6 +388,24 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn enumerate(self) -> Self {
+        match self {
+            Self::Seq(it) => Self::seq(it.enumerate().map(Self::enum_to_pair)),
+            _ => Self::seq(self.to_seq()).enumerate(),
+        }
+    }
+
+    fn enum_to_pair((i, r): (usize, EuRes<Self>)) -> EuRes<Self> {
+        r.map(|t| Self::vec([Self::I64(i as i64), t]))
+    }
+
+    pub fn pairs(self) -> Self {
+        match self {
+            Self::Seq(it) => Self::seq(it.map(|r| r?.to_pair().map(|(a, b)| Self::vec([a, b])))),
+            _ => Self::seq(self.to_seq()).pairs(),
+        }
+    }
+
     pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
         ts.into_iter()
             .map(Self::to_seq)
