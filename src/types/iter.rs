@@ -450,16 +450,16 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn vecz2<F>(self, t: Self, f_env: F) -> EuRes<Self>
+    pub fn vecz2<F>(self, t: Self, f: F) -> EuRes<Self>
     where
         F: FnOnce(Self, Self) -> EuRes<Self> + Clone + 'eu,
     {
         if self.is_many() || t.is_many() {
-            self.zip(t, move |a, b| a.vecz2(b, f_env.clone()))
+            self.zip(t, move |a, b| a.vecz2(b, f.clone()))
         } else if self.is_once() {
-            self.zip_once(t, |a, b| a.vecz2(b, f_env))
+            self.zip_once(t, |a, b| a.vecz2(b, f))
         } else {
-            f_env(self, t)
+            f(self, t)
         }
     }
 
