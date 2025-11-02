@@ -35,7 +35,13 @@ use super::{
     EuSeq,
     EuSyn,
 };
-use crate::parser::euphrates;
+use crate::{
+    env::{
+        EuEnv,
+        EuScope,
+    },
+    parser::euphrates,
+};
 
 #[derive(Debug, Display, Hash, Clone, IsVariant)]
 #[display("{_0}")]
@@ -70,10 +76,10 @@ pub enum EuType<'eu> {
     #[debug("[{}]", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
     Vec(EcoVec<Self>),
-    #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} => {v:?}")).join(", "))]
+    #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} {v:?}")).join(", "))]
     #[display("{}", _0.iter().map(|(k, v)| format!("{k:?}{v:?}")).join(" "))]
     Map(Rc<OrderMap<Self, Self>>),
-    #[debug("Set:({})", _0.iter().map(|t| format!("{t:?}")).join(", "))]
+    #[debug("Set:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
     Set(Rc<OrderSet<Self>>),
     #[debug("({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
@@ -217,6 +223,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn eval_to_vec(self, scope: EuScope<'eu>) -> EuRes<Self> {
+        self.vecz1(|f| EuEnv::apply(f.to_expr()?, &[], scope).map(|env| Self::Vec(env.stack)))
+    }
+
     pub fn to_seq(self) -> EuSeq<'eu> {
         match self {
             Self::Seq(it) => it,
@@ -269,6 +279,17 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn eval_to_map(self, scope: EuScope<'eu>) -> EuRes<Self> {
+        self.vecz1(|f| {
+            EuEnv::apply(f.to_expr()?, &[], scope)?
+                .stack
+                .into_iter()
+                .map(EuType::to_pair)
+                .try_collect()
+                .map(|kvs| EuType::Map(Rc::new(kvs)))
+        })
+    }
+
     pub fn to_set(self) -> EuRes<Rc<OrderSet<Self>>> {
         match self {
             Self::Set(ts) => Ok(ts),
@@ -281,6 +302,13 @@ impl<'eu> EuType<'eu> {
             Self::Str(s) => Ok(Rc::new(s.chars().map(Self::Char).collect())),
             _ => Ok(Rc::new([self].into())),
         }
+    }
+
+    pub fn eval_to_set(self, scope: EuScope<'eu>) -> EuRes<Self> {
+        self.vecz1(|f| {
+            EuEnv::apply(f.to_expr()?, &[], scope)
+                .map(|env| EuType::Set(Rc::new(env.stack.into_iter().collect())))
+        })
     }
 
     #[inline]

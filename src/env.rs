@@ -5,6 +5,7 @@ use std::{
         Peekable,
     },
     mem,
+    rc::Rc,
 };
 
 use anyhow::{
@@ -14,6 +15,7 @@ use anyhow::{
 use derive_more::Display;
 use ecow::EcoVec;
 use hipstr::LocalHipStr;
+use itertools::Itertools;
 use winnow::Parser;
 
 use crate::{
@@ -119,6 +121,16 @@ impl<'eu> EuEnv<'eu> {
                 self.push(EuType::vec(
                     EuEnv::apply(ts, &[], self.scope.clone())?.stack,
                 ));
+                Ok(())
+            }
+            EuSyn::Map(ts) => {
+                self.push(EuType::Map(Rc::new(
+                    EuEnv::apply(ts, &[], self.scope.clone())?
+                        .stack
+                        .into_iter()
+                        .map(EuType::to_pair)
+                        .try_collect()?,
+                )));
                 Ok(())
             }
             EuSyn::Raw(t) => self.eval_type(t),

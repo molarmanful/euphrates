@@ -53,6 +53,8 @@ fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         ')' => fail,
         '[' => eu_vec,
         ']' => fail,
+        '{' => eu_map,
+        '}' => fail,
         '0'..='9' => eu_num,
         _ => eu_word,
     )
@@ -155,6 +157,10 @@ fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited('[', euphrates.map(EuSyn::Vec), opt(']')).parse_next(input)
 }
 
+fn eu_map<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+    delimited('{', euphrates.map(EuSyn::Map), opt('}')).parse_next(input)
+}
+
 fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     let ((_, dec, exp), ns) = (
         digit1,
@@ -226,7 +232,7 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 
 fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     take_while(0.., |c: char| {
-        !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']') && !c.is_whitespace()
+        !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}') && !c.is_whitespace()
     })
     .output_into::<LocalHipStr>()
     .map(EuType::word)

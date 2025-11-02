@@ -11,11 +11,14 @@ use super::EuType;
 #[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, IsVariant)]
 #[display("{_0}")]
 pub enum EuSyn<'eu> {
+    #[debug("{_0:?}")]
+    Raw(EuType<'eu>),
     #[debug("({})#vec", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),
-    #[debug("{_0:?}")]
-    Raw(EuType<'eu>),
+    #[debug("({})#map", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[display("{}", _0.iter().join(" "))]
+    Map(EcoVec<Self>),
 }
 
 impl<'eu> From<EuType<'eu>> for EuSyn<'eu> {
@@ -27,7 +30,7 @@ impl<'eu> From<EuType<'eu>> for EuSyn<'eu> {
 impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
     fn from(value: EuSyn<'eu>) -> Self {
         match value {
-            EuSyn::Vec(ts) => EuType::Vec(ts.into_iter().map(Self::from).collect()),
+            EuSyn::Vec(ts) | EuSyn::Map(ts) => EuType::Expr(ts),
             EuSyn::Raw(t) => t,
         }
     }

@@ -99,9 +99,13 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ">map" => TO_MAP,
     "Map" => WRAP_MAP,
+    "*map" => ALL_MAP,
+    "#map" => EVAL_MAP,
 
     ">set" => TO_SET,
     "Set" => WRAP_SET,
+    "*set" => ALL_SET,
+    "#set" => EVAL_SET,
 
     ">expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
@@ -253,7 +257,7 @@ const SEQ_N0: EuDef = |env| {
 };
 
 const STACK: EuDef = |env| {
-    env.push(EuType::vec(env.stack.clone()));
+    env.push(EuType::Vec(env.stack.clone()));
     Ok(())
 };
 
@@ -542,14 +546,14 @@ const WRAP_VEC: EuDef = |env| {
 };
 
 const ALL_VEC: EuDef = |env| {
-    let ts = EuType::vec(mem::take(&mut env.stack));
+    let ts = EuType::Vec(mem::take(&mut env.stack));
     env.push(ts);
     Ok(())
 };
 
 const EVAL_VEC: EuDef = |env| {
-    let a0 = env.pop()?.to_expr()?;
-    env.push(EuType::vec(EuEnv::apply(a0, &[], env.scope.clone())?.stack));
+    let a0 = env.pop()?;
+    env.push(a0.eval_to_vec(env.scope.clone())?);
     Ok(())
 };
 
@@ -565,6 +569,18 @@ const WRAP_MAP: EuDef = |env| {
     Ok(())
 };
 
+const ALL_MAP: EuDef = |env| {
+    let kvs = EuType::Vec(mem::take(&mut env.stack)).to_map()?;
+    env.push(EuType::Map(kvs));
+    Ok(())
+};
+
+const EVAL_MAP: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.eval_to_map(env.scope.clone())?);
+    Ok(())
+};
+
 const TO_SET: EuDef = |env| {
     let a0 = env.pop()?.to_set()?;
     env.push(EuType::Set(a0));
@@ -574,6 +590,18 @@ const TO_SET: EuDef = |env| {
 const WRAP_SET: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(EuType::set([a0]));
+    Ok(())
+};
+
+const ALL_SET: EuDef = |env| {
+    let ts = EuType::Vec(mem::take(&mut env.stack)).to_set()?;
+    env.push(EuType::Set(ts));
+    Ok(())
+};
+
+const EVAL_SET: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.eval_to_set(env.scope.clone())?);
     Ok(())
 };
 
