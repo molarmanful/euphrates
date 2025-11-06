@@ -78,10 +78,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn get_n_take(self, i: isize) -> EuRes<Option<Self>> {
+    pub fn at(self, i: isize) -> EuRes<Option<Self>> {
         match self {
             Self::Opt(o) => Ok((i == 0).then(|| o.map(|t| *t)).flatten()),
-            Self::Res(r) => Self::Opt(r.ok()).get_n_take(i),
+            Self::Res(r) => Self::Opt(r.ok()).at(i),
             Self::Vec(mut ts) => Ok(if i < 0 {
                 ts.len().checked_add_signed(i)
             } else {
@@ -106,12 +106,12 @@ impl<'eu> EuType<'eu> {
             .and_then(|i| Rc::make_mut(&mut ts).get_index(i).cloned())),
             Self::Seq(mut it) => {
                 if i < 0 {
-                    Self::Vec(Self::Seq(it).to_vec()?).get_n_take(i)
+                    Self::Vec(Self::Seq(it).to_vec()?).at(i)
                 } else {
                     it.nth(i as usize).transpose()
                 }
             }
-            _ => Self::Vec(self.to_vec()?).get_n_take(i),
+            _ => Self::Vec(self.to_vec()?).at(i),
         }
     }
 
@@ -224,7 +224,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
                 .chunk(n)?
-                .map(|t| t.get_n_take(0).map(Self::opt)),
+                .map(|t| t.at(0).map(Self::opt)),
             Self::Res(r) => Self::Opt(r.ok()).chunk(n),
             Self::Vec(ts) => {
                 if n < 0 {
@@ -284,7 +284,7 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
                 .divvy(n, m)?
-                .map(|t| t.get_n_take(0).map(Self::opt)),
+                .map(|t| t.at(0).map(Self::opt)),
             Self::Res(r) => Self::Opt(r.ok()).divvy(n, m),
             Self::Vec(ref ts) => {
                 if m < 0 {

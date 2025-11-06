@@ -4,6 +4,7 @@ mod iter;
 mod num;
 mod ord;
 mod syn;
+mod vecz;
 
 pub use std::hash::{
     Hash,

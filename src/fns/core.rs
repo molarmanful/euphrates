@@ -142,12 +142,14 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "%" => REM,
     "^" => POW,
 
+    ":" => GET,
+    "has" => HAS,
     ":+" => PUSH,
     "+:" => PUSH_FRONT,
     "ins" => INSERT,
     "++" => APPEND,
 
-    ":" => GET_N,
+    "at" => AT,
     "tk" => TAKE,
     "dp" => DROP,
     "chunk" => CHUNK,
@@ -768,6 +770,22 @@ fn gen_fn_math_binops() {
 
 gen_fn_math_binops!();
 
+const GET: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(EuType::opt(a0.get(a1)?));
+    Ok(())
+};
+
+const HAS: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(EuType::Bool(a0.has(&a1)));
+    Ok(())
+};
+
 const PUSH: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
@@ -801,11 +819,11 @@ const APPEND: EuDef = |env| {
     Ok(())
 };
 
-const GET_N: EuDef = |env| {
+const AT: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a1.vecz1(|n| a0.get_n_take(n.try_isize()?).map(EuType::opt))?);
+    env.push(a1.vecz1(|n| a0.at(n.try_isize()?).map(EuType::opt))?);
     Ok(())
 };
 
