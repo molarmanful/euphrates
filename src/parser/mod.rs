@@ -57,6 +57,7 @@ fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         '}' => fail,
         '0'..='9' => eu_num,
         '$' => eu_var,
+        '\\' => eu_move,
         _ => eu_word,
     )
     .parse_next(input)
@@ -234,6 +235,14 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 fn eu_var<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     alt((
         preceded('$', eu_word_inner).output_into().map(EuSyn::Var),
+        eu_word,
+    ))
+    .parse_next(input)
+}
+
+fn eu_move<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+    alt((
+        preceded('\\', eu_word_inner).output_into().map(EuSyn::Move),
         eu_word,
     ))
     .parse_next(input)

@@ -16,6 +16,8 @@ pub enum EuSyn<'eu> {
     Raw(EuType<'eu>),
     #[debug("${_0}")]
     Var(LocalHipStr<'eu>),
+    #[debug("\\{_0}")]
+    Move(LocalHipStr<'eu>),
     #[debug("@Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),
@@ -34,7 +36,7 @@ impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
     fn from(value: EuSyn<'eu>) -> Self {
         match value {
             EuSyn::Vec(ts) | EuSyn::Map(ts) => Self::Expr(ts),
-            EuSyn::Var(s) => Self::word(s),
+            EuSyn::Var(w) | EuSyn::Move(w) => Self::word(w),
             EuSyn::Raw(t) => t,
         }
     }

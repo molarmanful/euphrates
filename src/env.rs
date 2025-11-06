@@ -117,7 +117,9 @@ impl<'eu> EuEnv<'eu> {
 
     fn eval_syn(&mut self, t: EuSyn<'eu>) -> EuRes<()> {
         match t {
+            EuSyn::Raw(t) => self.eval_type(t),
             EuSyn::Var(s) => self.eval_var(&s),
+            EuSyn::Move(s) => self.eval_move(&s),
             EuSyn::Vec(ts) => {
                 self.push(EuType::vec(
                     EuEnv::apply(ts, &[], self.scope.clone())?.stack,
@@ -134,7 +136,6 @@ impl<'eu> EuEnv<'eu> {
                 )));
                 Ok(())
             }
-            EuSyn::Raw(t) => self.eval_type(t),
         }
     }
 
@@ -169,6 +170,15 @@ impl<'eu> EuEnv<'eu> {
     fn eval_var(&mut self, w: &str) -> EuRes<()> {
         if let Some(v) = self.scope.get(w) {
             self.push(v.clone());
+            Ok(())
+        } else {
+            Err(anyhow!("unknown var `{w}`").into())
+        }
+    }
+
+    fn eval_move(&mut self, w: &str) -> EuRes<()> {
+        if let Some(v) = self.scope.remove(w) {
+            self.push(v);
             Ok(())
         } else {
             Err(anyhow!("unknown var `{w}`").into())
