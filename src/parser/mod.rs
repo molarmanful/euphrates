@@ -56,6 +56,7 @@ fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         '{' => eu_map,
         '}' => fail,
         '0'..='9' => eu_num,
+        '$' => eu_var,
         _ => eu_word,
     )
     .parse_next(input)
@@ -63,8 +64,8 @@ fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 
 fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
-        .output_into::<LocalHipStr>()
-        .map(EuType::str)
+        .output_into()
+        .map(EuType::Str)
         .map(EuSyn::Raw)
         .parse_next(input)
 }
@@ -230,13 +231,26 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
     .parse_next(input)
 }
 
+fn eu_var<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+    alt((
+        preceded('$', eu_word_inner).output_into().map(EuSyn::Var),
+        eu_word,
+    ))
+    .parse_next(input)
+}
+
 fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    take_while(0.., |c: char| {
+    eu_word_inner
+        .map(EuType::Word)
+        .map(EuSyn::Raw)
+        .parse_next(input)
+}
+
+fn eu_word_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
+    take_while(1.., |c: char| {
         !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}') && !c.is_whitespace()
     })
-    .output_into::<LocalHipStr>()
-    .map(EuType::word)
-    .map(EuSyn::Raw)
+    .output_into()
     .parse_next(input)
 }
 

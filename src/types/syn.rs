@@ -4,6 +4,7 @@ use derive_more::{
     IsVariant,
 };
 use ecow::EcoVec;
+use hipstr::LocalHipStr;
 use itertools::Itertools;
 
 use super::EuType;
@@ -13,10 +14,12 @@ use super::EuType;
 pub enum EuSyn<'eu> {
     #[debug("{_0:?}")]
     Raw(EuType<'eu>),
-    #[debug("({})#vec", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("${_0}")]
+    Var(LocalHipStr<'eu>),
+    #[debug("@Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),
-    #[debug("({})#map", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("@Map({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Map(EcoVec<Self>),
 }
@@ -30,7 +33,8 @@ impl<'eu> From<EuType<'eu>> for EuSyn<'eu> {
 impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
     fn from(value: EuSyn<'eu>) -> Self {
         match value {
-            EuSyn::Vec(ts) | EuSyn::Map(ts) => EuType::Expr(ts),
+            EuSyn::Vec(ts) | EuSyn::Map(ts) => Self::Expr(ts),
+            EuSyn::Var(s) => Self::word(s),
             EuSyn::Raw(t) => t,
         }
     }

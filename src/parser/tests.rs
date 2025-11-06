@@ -48,6 +48,12 @@ fn test_word() {
 }
 
 #[test]
+fn test_var() {
+    assert_eq!(parse("$asdf"), Ok(eco_vec![EuSyn::Var("asdf".into())]));
+    assert_eq!(parse("$"), Ok(eco_vec![EuType::word("$").into()]));
+}
+
+#[test]
 fn test_dec() {
     assert_eq!(parse(".1234"), Ok(eco_vec![EuType::word(".1234").into()]));
     assert_eq!(
