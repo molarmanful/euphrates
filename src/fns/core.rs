@@ -887,8 +887,7 @@ const MULTI_ZIP: EuDef = |env| {
 };
 
 const MULTI_CPROD: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a0 = env.stack.pop().unwrap().to_vec()?;
+    let a0 = env.pop()?.to_vec()?;
     env.push(EuType::seq(EuType::multi_cartesian_product(a0)));
     Ok(())
 };
