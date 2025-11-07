@@ -154,6 +154,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     ":~" => MOVE_BACK,
     "~:" => MOVE_FRONT,
     "mov" => MOVE_INDEX,
+    "del" => DELETE,
 
     "@" => AT,
     "tk" => TAKE,
@@ -869,6 +870,14 @@ const MOVE_INDEX: EuDef = |env| {
     })?;
     env.push(ts);
     env.push(t);
+    Ok(())
+};
+
+const DELETE: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.delete(a1));
     Ok(())
 };
 

@@ -35,6 +35,21 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn delete(mut self, t: Self) -> Self {
+        match self {
+            Self::Set(ref mut ts) => {
+                Rc::make_mut(ts).remove(&t);
+                self
+            }
+            Self::Map(ref mut kvs) => {
+                Rc::make_mut(kvs).remove(&t);
+                self
+            }
+            _ if self.is_many() => self.filter(move |x| Ok(x == &t)).unwrap(),
+            _ => self.filter_once(move |x| Ok(x == &t)).unwrap(),
+        }
+    }
+
     pub fn push_back(mut self, t: Self) -> EuRes<Self> {
         match self {
             Self::Vec(ref mut ts) => {
