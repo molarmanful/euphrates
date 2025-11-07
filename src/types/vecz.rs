@@ -68,7 +68,7 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn push_front(self, t: Self) -> EuRes<Self> {
+    pub fn unshift(self, t: Self) -> EuRes<Self> {
         self.insert(0, t)
     }
 
@@ -100,12 +100,12 @@ impl<'eu> EuType<'eu> {
             }
             Self::Seq(it) => {
                 if index < 0 {
-                    Self::Vec(it.try_collect()?).insert(index, t)
+                    Self::Vec(Self::Seq(it).to_vec()?).insert(index, t)
                 } else {
                     let mut i = 0;
                     let mut ins = false;
                     Ok(Self::seq(it.batching(move |it| {
-                        if !ins && i == index {
+                        if !ins && i == a {
                             ins = true;
                             Some(Ok(mem::take(&mut t)))
                         } else {
@@ -141,12 +141,12 @@ impl<'eu> EuType<'eu> {
         match (self, other) {
             (Self::Map(a), Self::Map(b)) => {
                 let mut a = Rc::unwrap_or_clone(a);
-                a.extend(Rc::unwrap_or_clone(b));
+                a.append(&mut Rc::unwrap_or_clone(b));
                 Ok(Self::map_(a))
             }
             (Self::Set(a), Self::Set(b)) => {
                 let mut a = Rc::unwrap_or_clone(a);
-                a.extend(Rc::unwrap_or_clone(b));
+                a.append(&mut Rc::unwrap_or_clone(b));
                 Ok(Self::set(a))
             }
             (Self::Char(a), Self::Char(b)) => {
@@ -163,11 +163,73 @@ impl<'eu> EuType<'eu> {
             }
             (a, b) if a.is_expr() || b.is_expr() => {
                 let mut a = a.to_expr()?;
-                a.extend(b.to_expr()?);
+                a.extend((b).to_expr()?);
                 Ok(Self::Expr(a))
             }
             (a, b) if a.is_str() || b.is_str() => Ok(Self::str(format!("{a}{b}"))),
-            (a, b) => Ok(Self::vec([a, b])),
+            (a, b) => Self::Vec(a.to_vec()?).append(b),
+        }
+    }
+
+    pub fn pop(mut self) -> EuRes<(Option<Self>, Self)> {
+        match self {
+            Self::Vec(ref mut ts) => Ok((ts.pop(), self)),
+            Self::Map(ref mut kvs) => Ok((
+                Rc::make_mut(kvs).pop().map(|(k, v)| Self::vec([k, v])),
+                self,
+            )),
+            Self::Set(ref mut ts) => Ok((Rc::make_mut(ts).pop(), self)),
+            Self::Opt(ref mut o) => Ok((o.take().map(|t| *t), self)),
+            Self::Res(_) => Self::opt(self.to_opt()).pop(),
+            Self::Expr(ref mut ts) => Ok((ts.pop().map(EuSyn::into), self)),
+            Self::Str(ref mut s) => Ok((s.pop().map(Self::Char), self)),
+            _ => Self::Vec(self.to_vec()?).pop(),
+        }
+    }
+
+    pub fn shift(self) -> EuRes<(Option<Self>, Self)> {
+        self.remove(0)
+    }
+
+    pub fn remove(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
+        let a = index.unsigned_abs();
+        let check = |len: usize| {
+            let hi = len as isize;
+            let low = -hi - 1;
+            (low <= index && index <= hi).then(|| if index < 0 { len + 1 - a } else { a })
+        };
+
+        match self {
+            Self::Vec(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i)), self)),
+            Self::Map(ref mut kvs) => Ok((
+                check(kvs.len()).map(|i| {
+                    Rc::make_mut(kvs)
+                        .remove_index(i)
+                        .map(|(k, v)| Self::vec([k, v]))
+                        .unwrap()
+                }),
+                self,
+            )),
+            Self::Set(ref mut ts) => Ok((
+                check(ts.len()).map(|i| Rc::make_mut(ts).remove_index(i).unwrap()),
+                self,
+            )),
+            Self::Opt(ref mut o) => Ok((
+                (index == 0 || index == -1)
+                    .then(|| o.take().map(|t| *t))
+                    .flatten(),
+                self,
+            )),
+            Self::Res(_) => Self::opt(self.to_opt()).pop(),
+            Self::Expr(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i).into()), self)),
+            Self::Str(ref mut s) => Ok((
+                check(s.len()).map(|i| {
+                    let mut r = s.mutate();
+                    Self::Char(r.remove(i))
+                }),
+                self,
+            )),
+            _ => Self::Vec(self.to_vec()?).remove(index),
         }
     }
 }

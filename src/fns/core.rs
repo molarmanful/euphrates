@@ -145,11 +145,14 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     ":" => GET,
     "has" => HAS,
     ":+" => PUSH,
-    "+:" => PUSH_FRONT,
+    "+:" => UNSHIFT,
     "ins" => INSERT,
     "++" => APPEND,
+    ":-" => POP_VECZ,
+    "-:" => SHIFT,
+    "rmv" => REMOVE,
 
-    "at" => AT,
+    "@" => AT,
     "tk" => TAKE,
     "dp" => DROP,
     "chunk" => CHUNK,
@@ -794,11 +797,11 @@ const PUSH: EuDef = |env| {
     Ok(())
 };
 
-const PUSH_FRONT: EuDef = |env| {
+const UNSHIFT: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a0.push_front(a1)?);
+    env.push(a0.unshift(a1)?);
     Ok(())
 };
 
@@ -816,6 +819,33 @@ const APPEND: EuDef = |env| {
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
     env.push(a0.append(a1)?);
+    Ok(())
+};
+
+const POP_VECZ: EuDef = |env| {
+    let (t, ts) = env.pop()?.pop()?;
+    env.push(ts);
+    env.push(EuType::opt(t));
+    Ok(())
+};
+
+const SHIFT: EuDef = |env| {
+    let (t, ts) = env.pop()?.shift()?;
+    env.push(ts);
+    env.push(EuType::opt(t));
+    Ok(())
+};
+
+const REMOVE: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    let (t, ts) = a1.vecz1_2(|n| {
+        a0.remove(n.try_isize()?)
+            .map(|(t, ts)| (EuType::opt(t), ts))
+    })?;
+    env.push(ts);
+    env.push(t);
     Ok(())
 };
 

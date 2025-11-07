@@ -18,10 +18,10 @@ pub enum EuSyn<'eu> {
     Var(LocalHipStr<'eu>),
     #[debug("\\{_0}")]
     Move(LocalHipStr<'eu>),
-    #[debug("@Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("$Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),
-    #[debug("@Map({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("$Map({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Map(EcoVec<Self>),
 }

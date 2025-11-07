@@ -450,6 +450,19 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    pub fn vecz1_2<F>(self, f: F) -> EuRes<(Self, Self)>
+    where
+        F: FnOnce(Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+    {
+        if self.is_many() {
+            self.map_2(move |t| t.vecz1_2(f.clone()))
+        } else if self.is_once() {
+            self.map_2_once(|t| t.vecz1_2(f))
+        } else {
+            f(self)
+        }
+    }
+
     pub fn vecz2<F>(self, t: Self, f: F) -> EuRes<Self>
     where
         F: FnOnce(Self, Self) -> EuRes<Self> + Clone + 'eu,
@@ -504,6 +517,54 @@ impl<'eu> EuType<'eu> {
                 self.map_once(|t| EuEnv::apply_n_1(f, &[t], scope))
             }
         })
+    }
+
+    pub fn map_2<F>(self, mut f: F) -> EuRes<(Self, Self)>
+    where
+        F: FnMut(Self) -> EuRes<(Self, Self)> + Clone + 'eu,
+    {
+        match self {
+            Self::Vec(ts) => ts
+                .into_iter()
+                .map(f)
+                .try_collect()
+                .map(|(a, b)| (Self::Vec(a), Self::Vec(b))),
+            Self::Map(kvs) => Rc::unwrap_or_clone(kvs)
+                .into_iter()
+                .map(|(k, v)| f(v).map(|(v0, v1)| ((k.clone(), v0), (k, v1))))
+                .try_collect()
+                .map(|(a, b)| (Self::Map(Rc::new(a)), Self::Map(Rc::new(b)))),
+            Self::Set(ts) => Rc::unwrap_or_clone(ts)
+                .into_iter()
+                .map(f)
+                .try_collect()
+                .map(|(a, b)| (Self::Set(Rc::new(a)), Self::Set(Rc::new(b)))),
+            Self::Seq(_) => Self::vec(self.to_vec()?).map_2(f),
+            _ => self.map_2_once(f),
+        }
+    }
+
+    pub fn map_2_once<F>(self, f: F) -> EuRes<(Self, Self)>
+    where
+        F: FnOnce(Self) -> EuRes<(Self, Self)> + 'eu,
+    {
+        match self {
+            Self::Opt(o) => {
+                let (a, b) = o
+                    .map(|t| f(*t))
+                    .transpose()?
+                    .map(|(a, b)| (Some(a), Some(b)))
+                    .unwrap_or((None, None));
+                Ok((Self::opt(a), Self::opt(b)))
+            }
+            Self::Res(r) => {
+                let (a, b) = swap_errors(r.map(|t| f(*t)))?
+                    .map(|(a, b)| (Ok(Box::new(a)), Ok(Box::new(b))))
+                    .unwrap_or_else(|e| (Err(e.clone()), Err(e)));
+                Ok((Self::Res(a), Self::Res(b)))
+            }
+            _ => f(self),
+        }
     }
 
     pub fn map_atom_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
