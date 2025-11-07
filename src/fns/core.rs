@@ -144,13 +144,16 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ":" => GET,
     "has" => HAS,
-    ":+" => PUSH,
-    "+:" => UNSHIFT,
+    ":+" => PUSH_BACK,
+    "+:" => PUSH_FRONT,
     "ins" => INSERT,
     "++" => APPEND,
-    ":-" => POP_VECZ,
-    "-:" => SHIFT,
-    "rmv" => REMOVE,
+    ":-" => POP_BACK,
+    "-:" => POP_FRONT,
+    "rmv" => REMOVE_INDEX,
+    ":~" => MOVE_BACK,
+    "~:" => MOVE_FRONT,
+    "mov" => MOVE_INDEX,
 
     "@" => AT,
     "tk" => TAKE,
@@ -789,19 +792,19 @@ const HAS: EuDef = |env| {
     Ok(())
 };
 
-const PUSH: EuDef = |env| {
+const PUSH_BACK: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a0.push(a1)?);
+    env.push(a0.push_back(a1)?);
     Ok(())
 };
 
-const UNSHIFT: EuDef = |env| {
+const PUSH_FRONT: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a0.unshift(a1)?);
+    env.push(a0.push_front(a1)?);
     Ok(())
 };
 
@@ -822,21 +825,41 @@ const APPEND: EuDef = |env| {
     Ok(())
 };
 
-const POP_VECZ: EuDef = |env| {
-    let (t, ts) = env.pop()?.pop()?;
+const POP_BACK: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.pop_back()?.1);
+    Ok(())
+};
+
+const POP_FRONT: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(a0.pop_front()?.1);
+    Ok(())
+};
+
+const REMOVE_INDEX: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a1.vecz1(|n| a0.remove(n.try_isize()?).map(|(_, ts)| ts))?);
+    Ok(())
+};
+
+const MOVE_BACK: EuDef = |env| {
+    let (t, ts) = env.pop()?.pop_back()?;
     env.push(ts);
     env.push(EuType::opt(t));
     Ok(())
 };
 
-const SHIFT: EuDef = |env| {
-    let (t, ts) = env.pop()?.shift()?;
+const MOVE_FRONT: EuDef = |env| {
+    let (t, ts) = env.pop()?.pop_front()?;
     env.push(ts);
     env.push(EuType::opt(t));
     Ok(())
 };
 
-const REMOVE: EuDef = |env| {
+const MOVE_INDEX: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
