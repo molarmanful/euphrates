@@ -62,11 +62,11 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "tuck" => TUCK,
     "trade" => TRADE,
     "rot" => ROT,
-    "unrot" => ROT_,
+    "unrot" => UNROT,
     "roll" => ROLL,
-    "unroll" => ROLL_,
+    "unroll" => UNROLL,
     "wrap" => WRAP,
-    "unwrap" => WRAP_,
+    "unwrap" => UNWRAP,
     "usurp" => USURP,
     "sub" => SUB_STACK,
     "dip" => DIP,
@@ -112,10 +112,10 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     ">seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
-    "unfold" => FOLD_,
-    "rpt" => RPT,
-    "rptN" => RPT_N,
-    "cyc" => CYC,
+    "unfold" => UNFOLD,
+    "rpt" => REPEAT,
+    "rptN" => REPEAT_N,
+    "cyc" => CYCLE,
 
     "#" => EVAL,
     "tap" => TAP,
@@ -173,7 +173,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
 
     "map" => MAP,
     "mapR" => MAP_ATOM,
-    "mapF" => MAPF,
+    "mapF" => FLATMAP,
     "fltr" => FILTER,
     "tk?" => TAKE_WHILE,
     "dp?" => DROP_WHILE,
@@ -387,7 +387,7 @@ const ROT: EuDef = |env| {
     Ok(())
 };
 
-const ROT_: EuDef = |env| {
+const UNROT: EuDef = |env| {
     env.check_nargs(3)?;
     let a0 = env.stack.pop().unwrap();
     env.stack.insert(env.iflip(1).unwrap(), a0);
@@ -401,7 +401,7 @@ const ROLL: EuDef = |env| {
     Ok(())
 };
 
-const ROLL_: EuDef = |env| {
+const UNROLL: EuDef = |env| {
     env.check_nargs(2)?;
     let a0 = env.stack.pop().unwrap().try_isize()?;
     let i = env.iflip(a0)?;
@@ -424,7 +424,7 @@ const WRAP: EuDef = |env| {
     Ok(())
 };
 
-const WRAP_: EuDef = |env| {
+const UNWRAP: EuDef = |env| {
     let a0 = env.pop()?.to_vec()?;
     env.stack.extend(a0);
     Ok(())
@@ -639,7 +639,7 @@ const WRAP_SEQ: EuDef = |env| {
     Ok(())
 };
 
-const FOLD_: EuDef = |env| {
+const UNFOLD: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
@@ -647,13 +647,13 @@ const FOLD_: EuDef = |env| {
     Ok(())
 };
 
-const RPT: EuDef = |env| {
+const REPEAT: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(EuType::seq(a0.repeat()));
     Ok(())
 };
 
-const RPT_N: EuDef = |env| {
+const REPEAT_N: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
@@ -661,7 +661,7 @@ const RPT_N: EuDef = |env| {
     Ok(())
 };
 
-const CYC: EuDef = |env| {
+const CYCLE: EuDef = |env| {
     let a0 = env.pop()?;
     env.push(EuType::seq(a0.cycle()));
     Ok(())
@@ -997,7 +997,7 @@ const MAP_ATOM: EuDef = |env| {
     Ok(())
 };
 
-const MAPF: EuDef = |env| {
+const FLATMAP: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
