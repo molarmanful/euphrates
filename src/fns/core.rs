@@ -114,6 +114,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf_map! {
     "Seq" => WRAP_SEQ,
     "fold_" => FOLD_,
     "rpt" => RPT,
+    "rptN" => RPT,
     "cyc" => CYC,
 
     "#" => EVAL,
@@ -648,13 +649,21 @@ const FOLD_: EuDef = |env| {
 
 const RPT: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Seq(a0.repeat()));
+    env.push(EuType::seq(a0.repeat()));
+    Ok(())
+};
+
+const RPT_N: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a1.vecz1(|n| a0.repeat_n(n.try_usize()?).map(EuType::Vec))?);
     Ok(())
 };
 
 const CYC: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(EuType::Seq(a0.cycle()));
+    env.push(EuType::seq(a0.cycle()));
     Ok(())
 };
 

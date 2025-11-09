@@ -23,7 +23,6 @@ use ordermap::{
 use super::{
     EuErr,
     EuRes,
-    EuSeq,
     EuSeqImpl,
     EuSyn,
     EuType,
@@ -66,15 +65,20 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn repeat(self) -> EuSeq<'eu> {
-        Box::new(iter::repeat(Ok(self)))
+    pub fn repeat(self) -> impl EuSeqImpl<'eu> {
+        iter::repeat(Ok(self))
     }
 
     #[inline]
-    pub fn cycle(self) -> EuSeq<'eu> {
+    pub fn repeat_n(self, n: usize) -> EuRes<EcoVec<Self>> {
+        self.repeat().take(n).try_collect()
+    }
+
+    #[inline]
+    pub fn cycle(self) -> impl EuSeqImpl<'eu> {
         match self {
-            Self::Seq(it) => Box::new(it.cycle()),
-            _ => Box::new(self.to_seq().cycle()),
+            Self::Seq(it) => it.cycle(),
+            _ => self.to_seq().cycle(),
         }
     }
 
