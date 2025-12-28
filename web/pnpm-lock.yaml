@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.4
         version: 1.15.4
       '@bytecodealliance/preview2-shim':
-        specifier: github:bytecodealliance/jco#path:packages/preview2-shim
-        version: https://codeload.github.com/bytecodealliance/jco/tar.gz/b16c1953355f6ae105acd217d71e8fb66fab78d8#path:packages/preview2-shim
+        specifier: ^0.17.5
+        version: 0.17.5
       '@molarmanful/fe-tools':
         specifier: ^0.3.5
         version: 0.3.5(@eslint/js@9.39.2)(@stylistic/eslint-plugin@5.3.1(eslint@9.39.2(jiti@2.6.1)))(eslint-config-flat-gitignore@2.1.0(eslint@9.39.2(jiti@2.6.1)))(eslint-flat-config-utils@2.1.1)(eslint-plugin-better-tailwindcss@3.8.0(eslint@9.39.2(jiti@2.6.1))(tailwindcss@4.1.18))(eslint-plugin-perfectionist@4.15.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-plugin-regexp@2.10.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-svelte@3.13.1(eslint@9.39.2(jiti@2.6.1))(svelte@5.46.1))(eslint-plugin-unicorn@61.0.2(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(typescript-eslint@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))
@@ -82,10 +82,6 @@ packages:
 
   '@bytecodealliance/preview2-shim@0.17.5':
     resolution: {integrity: sha512-F4WYVC6aHOiOXSsG3WDGFALrkpb952+9/EIX119qIzDtYgE5tvbOnKeBb0Y+NMzGEsu3334GdHIRXQ6wibY0MA==}
-
-  '@bytecodealliance/preview2-shim@https://codeload.github.com/bytecodealliance/jco/tar.gz/b16c1953355f6ae105acd217d71e8fb66fab78d8#path:packages/preview2-shim':
-    resolution: {path: packages/preview2-shim, tarball: https://codeload.github.com/bytecodealliance/jco/tar.gz/b16c1953355f6ae105acd217d71e8fb66fab78d8}
-    version: 0.17.5
 
   '@bytecodealliance/wizer-darwin-arm64@10.0.0':
     resolution: {integrity: sha512-dhZTWel+xccGTKSJtI9A7oM4yyP20FWflsT+AoqkOqkCY7kCNrj4tmMtZ6GXZFRDkrPY5+EnOh62sfShEibAMA==}
@@ -1708,8 +1704,8 @@ packages:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
     engines: {node: '>=6'}
 
-  ts-api-utils@2.2.0:
-    resolution: {integrity: sha512-L6f5oQRAoLU1RwXz0Ab9mxsE7LtxeVB6AIR1lpkZMsOyg/JXeaxBaXa/FVCBZyNr9S9I4wkHrlZTklX+im+WMw==}
+  ts-api-utils@2.3.0:
+    resolution: {integrity: sha512-6eg3Y9SF7SsAvGzRHQvvc1skDAhwI4YQ32ui1scxD1Ccr0G5qIIbUBT3pFTKX8kmWIQClHobtUdNuaBgwdfdWg==}
     engines: {node: '>=18.12'}
     peerDependencies:
       typescript: '>=4.8.4'
@@ -1843,8 +1839,6 @@ snapshots:
       terser: 5.44.1
 
   '@bytecodealliance/preview2-shim@0.17.5': {}
-
-  '@bytecodealliance/preview2-shim@https://codeload.github.com/bytecodealliance/jco/tar.gz/b16c1953355f6ae105acd217d71e8fb66fab78d8#path:packages/preview2-shim': {}
 
   '@bytecodealliance/wizer-darwin-arm64@10.0.0':
     optional: true
@@ -2359,7 +2353,7 @@ snapshots:
       eslint: 9.39.2(jiti@2.6.1)
       ignore: 7.0.5
       natural-compare: 1.4.0
-      ts-api-utils: 2.2.0(typescript@5.9.3)
+      ts-api-utils: 2.3.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -2401,7 +2395,7 @@ snapshots:
       '@typescript-eslint/utils': 8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       debug: 4.4.3
       eslint: 9.39.2(jiti@2.6.1)
-      ts-api-utils: 2.2.0(typescript@5.9.3)
+      ts-api-utils: 2.3.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -2418,7 +2412,7 @@ snapshots:
       minimatch: 9.0.5
       semver: 7.7.3
       tinyglobby: 0.2.15
-      ts-api-utils: 2.2.0(typescript@5.9.3)
+      ts-api-utils: 2.3.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -3290,7 +3284,7 @@ snapshots:
 
   totalist@3.0.1: {}
 
-  ts-api-utils@2.2.0(typescript@5.9.3):
+  ts-api-utils@2.3.0(typescript@5.9.3):
     dependencies:
       typescript: 5.9.3
 

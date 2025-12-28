@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@bytecodealliance/jco": "^1.15.4",
-    "@bytecodealliance/preview2-shim": "github:bytecodealliance/jco#path:packages/preview2-shim",
+    "@bytecodealliance/preview2-shim": "^0.17.5",
     "@molarmanful/fe-tools": "^0.3.5",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.49.2",
