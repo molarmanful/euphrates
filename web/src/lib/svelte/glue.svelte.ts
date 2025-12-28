@@ -7,7 +7,7 @@ const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
 export class Glue {
-  #mod: Awaited<ReturnType<typeof instantiate>> | undefined
+  #mod?: Awaited<ReturnType<typeof instantiate>>
   #in = new Uint8Array().values()
   #out = $state('')
 
@@ -20,10 +20,7 @@ export class Glue {
     this.#out = ''
 
     this.#mod = await shim({
-      readStdin: len => {
-        const x = new Uint8Array(this.#in.take(Number(len)))
-        return x
-      },
+      readStdin: len => new Uint8Array(this.#in.take(Number(len))),
       writeStdout: cs => {
         this.#out += textDecoder.decode(cs)
       },
