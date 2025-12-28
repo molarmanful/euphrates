@@ -1,0 +1,30 @@
+name: publish
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-[0-9]+'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/flakehub-cache-action@main
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: nix develop -c 'bash' -c 'cargo set-version ${{ github.ref_name }}'
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: Cargo.toml
+          commit_message: 'chore: bump version to ${{ github.ref_name }}'
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

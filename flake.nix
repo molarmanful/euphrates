@@ -86,7 +86,9 @@
             default = pkgs.mkShell {
               packages = with pkgs; [
                 taplo
+                yamlfmt
                 mold
+                cargo-edit
               ];
 
               inputsFrom = [ (craneLibDev.devShell { }) ];
