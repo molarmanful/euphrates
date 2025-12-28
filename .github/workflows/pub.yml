@@ -8,26 +8,55 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  pub:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: DeterminateSystems/determinate-nix-action@main
+      - uses: DeterminateSystems/flakehub-cache-action@main
+      - run: nix build
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - run: |
+          cargo install cargo-edit
+          cargo set-version ${GITHUB_REF_NAME#v}
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          branch: ${{ github.event.repository.default_branch }}
+          file_pattern: Cargo.toml Cargo.lock
+          commit_message: 'chore: bump version to ${{ github.ref_name }}'
+  crates:
+    needs: bump
     runs-on: ubuntu-latest
     environment: publish
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/flakehub-cache-action@main
+      - uses: actions/checkout@v5
       - id: auth
         uses: rust-lang/crates-io-auth-action@v1
-      - run: nix build
-      - run: |
-          cargo install cargo-edit
-          cargo set-version ${GITHUB_REF_NAME#v}
-      - uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          file_pattern: Cargo.toml Cargo.lock
-          commit_message: 'chore: bump version to ${{ github.ref_name }}'
       - run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+  flakehub:
+    needs: bump
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: DeterminateSystems/determinate-nix-action@main
+      - uses: DeterminateSystems/flakehub-push@main
+        with:
+          name: DeterminateSystems/flakehub-push
+          visibility: public
+          tag: "${{ github.ref_name }}"
+          include-output-paths: true
