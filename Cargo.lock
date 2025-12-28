@@ -163,16 +163,18 @@ dependencies = [
 
 [[package]]
 name = "crabtime"
-version = "1.1.3"
-source = "git+https://github.com/wdanilo/crabtime#2ed856f5f8b85a1e81598d64a36305a1d3f17d01"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81605e11aed454fb3838bc408f091d17f2f6d31613fb897f561a45bc8fb98378"
 dependencies = [
  "crabtime-internal",
 ]
 
 [[package]]
 name = "crabtime-internal"
-version = "1.1.3"
-source = "git+https://github.com/wdanilo/crabtime#2ed856f5f8b85a1e81598d64a36305a1d3f17d01"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49bfb43e6dfb9026c045fc1fd5cde79f4927ea6d1d89a2d346c55879e85900c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -572,9 +574,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.95"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
+checksum = "9695f8df41bb4f3d222c95a67532365f569318332d03d5f3f67f37b20e6ebdf0"
 dependencies = [
  "unicode-ident",
 ]
