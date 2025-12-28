@@ -2,6 +2,11 @@
 name = "euphrates"
 version = "0.0.0"
 edition = "2024"
+license = "MIT"
+description = "A functional stack-based programming language"
+repository = "https://github.com/molarmanful/euphrates"
+readme = "README.md"
+keywords = ["language", "stack", "functional", "euphrates"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
