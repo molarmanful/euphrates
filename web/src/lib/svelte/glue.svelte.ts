@@ -1,5 +1,5 @@
 import { shim } from '$lib/ts/shim'
-import { instantiate } from '$lib/wasm/euphrates'
+import { instantiate } from '$lib/wasm/euph'
 
 import 'core-js/proposals/iterator-helpers-stage-3-2'
 

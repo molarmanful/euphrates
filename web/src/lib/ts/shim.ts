@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
-import { instantiate } from '$lib/wasm/euphrates'
+import { instantiate } from '$lib/wasm/euph'
 import { cli } from '@bytecodealliance/preview2-shim'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
