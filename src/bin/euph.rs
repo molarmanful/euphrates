@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap::Parser;
-use euphrates::env::EuEnv;
+use euph::env::EuEnv;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

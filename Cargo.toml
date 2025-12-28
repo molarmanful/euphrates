@@ -1,5 +1,5 @@
 [package]
-name = "euphrates-lang"
+name = "euph"
 version = "0.0.0"
 edition = "2024"
 license = "MIT"
