@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
       - run: |
           cargo install cargo-edit
           cargo set-version ${GITHUB_REF_NAME#v}
