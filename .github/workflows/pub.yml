@@ -19,6 +19,7 @@ jobs:
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build
   bump:
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: write
