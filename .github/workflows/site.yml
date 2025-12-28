@@ -30,7 +30,7 @@ jobs:
           pnpm i --frozen-lockfile
           pnpm build
           touch build/.nojekyll
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: web/build
   deploy:
