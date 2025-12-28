@@ -21,7 +21,7 @@ derive_more = { version = "2.0.1", features = [
   "try_from",
   "try_unwrap",
 ] }
-phf = { version = "0.12.1", features = ["macros"] }
+phf = { version = "0.13.1", features = ["macros"] }
 num-traits = "0.2.19"
 crabtime = { git = "https://github.com/wdanilo/crabtime", version = "1.1.3" }
 hipstr = "0.8.0"
@@ -32,7 +32,7 @@ ecow = "0.2.6"
 dyn-clone = "1.0.20"
 ordered-float = "5.0.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
-wit-bindgen = "0.44.0"
+wit-bindgen = "0.50.0"
 clap = { version = "4.5.46", features = ["derive"] }
 ordermap = "1.0.0"
 
