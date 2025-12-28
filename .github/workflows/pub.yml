@@ -21,8 +21,9 @@ jobs:
       - id: auth
         uses: rust-lang/crates-io-auth-action@v1
       - run: nix develop -c 'bash' -c "cargo set-version ${GITHUB_REF_NAME#v}"
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v7
         with:
+          branch: github.event.repository.default_branch
           file_pattern: Cargo.toml
           commit_message: 'chore: bump version to ${{ github.ref_name }}'
       - run: cargo publish
