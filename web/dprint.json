@@ -1,5 +1,43 @@
 {
-  "extends": [
-    "https://cdn.jsdelivr.net/npm/@molarmanful/fe-tools/dprint.json"
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "typescript": {
+    "lineWidth": 80,
+    "semiColons": "asi",
+    "quoteStyle": "preferSingle",
+    "jsx.quoteStyle": "preferSingle",
+    "quoteProps": "consistent",
+    "useBraces": "preferNone",
+    "bracePosition": "sameLine",
+    "arrowFunction.useParentheses": "preferNone",
+    "module.sortImportDeclarations": "maintain",
+    "module.sortExportDeclarations": "maintain",
+    "exportDeclaration.sortNamedExports": "maintain",
+    "importDeclaration.sortNamedImports": "maintain"
+  },
+  "json": {
+  },
+  "markdown": {
+  },
+  "malva": {
+    "quotes": "preferSingle"
+  },
+  "markup": {
+    "quotes": "single",
+    "scriptIndent": true,
+    "styleIndent": true,
+    "component.selfClosing": true,
+    "svg.selfClosing": true,
+    "doctypeKeywordCase": "lower"
+  },
+  "excludes": [
+    "**/node_modules",
+    "**/*-lock.json"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/typescript-0.95.7.wasm",
+    "https://plugins.dprint.dev/json-0.20.0.wasm",
+    "https://plugins.dprint.dev/markdown-0.18.0.wasm",
+    "https://plugins.dprint.dev/g-plane/malva-v0.12.1.wasm",
+    "https://plugins.dprint.dev/g-plane/markup_fmt-v0.21.0.wasm"
   ]
 }

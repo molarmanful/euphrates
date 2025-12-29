@@ -87,49 +87,6 @@
     </div>
   </header>
 
-  {#snippet paramBox(p: ParamKey)}
-    <div
-      class={[
-        'box',
-        params[p].open
-        && (p === 'code' ? 'flex-1' : 'h-1/5'),
-      ]}
-    >
-      <button
-        class='text-left'
-        onclick={() => {
-          params[p].open = !params[p].open
-        }}
-      >
-        <svg
-          viewBox='0 0 100 100'
-          class={[
-            'inline-block h-2 fill-current transition-transform',
-            params[p].open && 'rotate-90',
-          ]}
-        >
-          <polygon points='0 0, 0 100, 100 50' />
-        </svg>
-        {p}
-        {#if p === 'code' && params[p].open}
-          <span transition:fade={{ duration: 150 }} class='float-right'>
-            <code>{params.code.value.length}</code> chars /
-            <code>{new TextEncoder().encode(params.code.value).length}</code>
-            bytes
-          </span>
-        {/if}
-      </button>
-      {#if params[p].open}
-        <textarea
-          class='whitespace-pre'
-          bind:value={params[p].value}
-          placeholder='{p} goes here...'
-          oninput={setParams}
-        ></textarea>
-      {/if}
-    </div>
-  {/snippet}
-
   <main
     class='
       grid size-full grid-cols-2 gap-4
@@ -137,17 +94,13 @@
     '
   >
     <div class='flex flex-col gap-1'>
-      <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
       {@render paramBox('header')}
       {@render paramBox('code')}
       {@render paramBox('footer')}
-      <!-- eslint-enable @typescript-eslint/no-confusing-void-expression -->
     </div>
 
     <div class='flex flex-col gap-1'>
-      <!-- eslint-disable @typescript-eslint/no-confusing-void-expression -->
       {@render paramBox('input')}
-      <!-- eslint-enable @typescript-eslint/no-confusing-void-expression -->
 
       <div class='box flex-1'>
         <label for='output'>output</label>
@@ -161,3 +114,46 @@
     </div>
   </main>
 </div>
+
+{#snippet paramBox(p: ParamKey)}
+  <div
+    class={[
+      'box',
+      params[p].open
+      && (p === 'code' ? 'flex-1' : 'h-1/5'),
+    ]}
+  >
+    <button
+      class='text-left'
+      onclick={() => {
+        params[p].open = !params[p].open
+      }}
+    >
+      <svg
+        viewBox='0 0 100 100'
+        class={[
+          'inline-block h-2 fill-current transition-transform',
+          params[p].open && 'rotate-90',
+        ]}
+      >
+        <polygon points='0 0, 0 100, 100 50' />
+      </svg>
+      {p}
+      {#if p === 'code' && params[p].open}
+        <span transition:fade={{ duration: 150 }} class='float-right'>
+          <code>{params.code.value.length}</code> chars /
+          <code>{new TextEncoder().encode(params.code.value).length}</code>
+          bytes
+        </span>
+      {/if}
+    </button>
+    {#if params[p].open}
+      <textarea
+        class='whitespace-pre'
+        bind:value={params[p].value}
+        placeholder='{p} goes here...'
+        oninput={setParams}
+      ></textarea>
+    {/if}
+  </div>
+{/snippet}

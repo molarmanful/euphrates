@@ -11,8 +11,12 @@ const wasms = import.meta.glob<string>('$lib/wasm/*.wasm', {
 
 const modules = new Map<string, WebAssembly.Module>()
 const loader = async (path: string) => {
-  if (!modules.has(path))
-    modules.set(path, await WebAssembly.compileStreaming(fetch(wasms[`/src/lib/wasm/${path}`])))
+  if (!modules.has(path)) {
+    modules.set(
+      path,
+      await WebAssembly.compileStreaming(fetch(wasms[`/src/lib/wasm/${path}`])),
+    )
+  }
   const res = modules.get(path)
   if (!res) throw new Error(`module ${path} not found`)
   return res
