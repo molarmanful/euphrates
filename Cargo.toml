@@ -12,7 +12,7 @@ keywords = ["language", "stack", "functional", "euphrates"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-winnow = "0.7.11"
+winnow = "0.7.14"
 derive_more = { version = "2.1.1", features = [
   "debug",
   "display",
