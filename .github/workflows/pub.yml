@@ -24,7 +24,7 @@ jobs:
           file_pattern: Cargo.toml Cargo.lock
           commit_message: "chore: bump version to ${{ github.ref_name }}"
   crates:
-    needs: bump
+    needs: validate
     runs-on: ubuntu-latest
     environment: publish
     permissions:
@@ -42,7 +42,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
   fh:
-    needs: bump
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
