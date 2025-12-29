@@ -1,5 +1,5 @@
 package euphrates:glue;
 
 world glue {
-    export run: func(code: string);
+    export run-euph: func(code: string);
 }

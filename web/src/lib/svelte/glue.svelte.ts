@@ -29,6 +29,6 @@ export class Glue {
       },
     })
 
-    this.#mod.run(code)
+    this.#mod.runEuph(code)
   }
 }
