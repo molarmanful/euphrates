@@ -27,7 +27,7 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: |
           cd web
-          pnpm i --frozen-lockfile
+          pnpm i
           pnpm build
           touch build/.nojekyll
       - uses: actions/upload-pages-artifact@v4
