@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 import { instantiate } from '$lib/wasm/euph'
-import { cli } from '@bytecodealliance/preview2-shim'
+import { cli, io } from '@bytecodealliance/preview2-shim'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
 const wasms = import.meta.glob('$lib/wasm/*.wasm', {
@@ -23,6 +23,20 @@ const loader = async (path: string) => {
   return res
 }
 
+// TODO: remove when p2-shim updates
+class InputStream extends io.streams.InputStream {
+  subscribe() {
+    return new io.poll.Pollable()
+  }
+}
+
+// TODO: remove when p2-shim updates
+class OutputStream extends io.streams.OutputStream {
+  subscribe() {
+    return new io.poll.Pollable()
+  }
+}
+
 export const shim = async ({ readStdin, writeStdout, writeStderr }: {
   readStdin: (len: bigint) => Uint8Array
   writeStdout: (cs: Uint8Array) => void
@@ -33,9 +47,9 @@ export const shim = async ({ readStdin, writeStdout, writeStderr }: {
     new WASIShim({
       cli: {
         ...cli,
-        stdin: { getStdin: () => new cli.stdin.InputStream({ blockingRead: readStdin }) },
-        stdout: { getStdout: () => new cli.stdout.OutputStream({ write: writeStdout }) },
-        stderr: { getStderr: () => new cli.stderr.OutputStream({ write: writeStderr }) },
+        stdin: { getStdin: () => new InputStream({ blockingRead: readStdin }) },
+        stdout: { getStdout: () => new OutputStream({ write: writeStdout }) },
+        stderr: { getStderr: () => new OutputStream({ write: writeStderr }) },
       },
     }).getImportObject(),
   )
