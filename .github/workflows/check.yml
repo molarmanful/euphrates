@@ -88,4 +88,5 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm i
       - run: pnpm build
+      - run: pnpm check
       - run: pnpm lint
