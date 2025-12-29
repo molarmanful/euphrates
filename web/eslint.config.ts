@@ -2,6 +2,12 @@ import { molarmanfulLint } from '@molarmanful/fe-tools'
 
 import svelteConfig from './svelte.config'
 
+declare global {
+  interface ImportMeta {
+    dirname: string
+  }
+}
+
 export default molarmanfulLint({
   ts: {
     parserOptions: {

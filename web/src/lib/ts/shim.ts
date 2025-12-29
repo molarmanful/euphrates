@@ -1,14 +1,9 @@
-// NOTE: These should be removed if/when the WASI shim types are fixed.
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 import { instantiate } from '$lib/wasm/euph'
+// @ts-expect-error p2-shim types are broken
 import { cli, io } from '@bytecodealliance/preview2-shim'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
-const wasms = import.meta.glob('$lib/wasm/*.wasm', {
+const wasms = import.meta.glob<string>('$lib/wasm/*.wasm', {
   query: '?url',
   import: 'default',
   eager: true,
@@ -24,15 +19,19 @@ const loader = async (path: string) => {
 }
 
 // TODO: remove when p2-shim updates
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 class InputStream extends io.streams.InputStream {
   subscribe() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return new io.poll.Pollable()
   }
 }
 
 // TODO: remove when p2-shim updates
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 class OutputStream extends io.streams.OutputStream {
   subscribe() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return new io.poll.Pollable()
   }
 }
@@ -44,12 +43,33 @@ export const shim = async ({ readStdin, writeStdout, writeStderr }: {
 }) =>
   await instantiate(
     loader,
+    // @ts-expect-error p2-shim types are broken
     new WASIShim({
+      // @ts-expect-error p2-shim types are broken
       cli: {
+        // @ts-expect-error p2-shim types are broken
         ...cli,
-        stdin: { getStdin: () => new InputStream({ blockingRead: readStdin }) },
-        stdout: { getStdout: () => new OutputStream({ write: writeStdout }) },
-        stderr: { getStderr: () => new OutputStream({ write: writeStderr }) },
+        stdin: {
+          getStdin: () =>
+            new InputStream(
+              // @ts-expect-error p2-shim types are broken
+              { blockingRead: readStdin },
+            ),
+        },
+        stdout: {
+          getStdout: () =>
+            new OutputStream(
+              // @ts-expect-error p2-shim types are broken
+              { write: writeStdout },
+            ),
+        },
+        stderr: {
+          getStderr: () =>
+            new OutputStream(
+              // @ts-expect-error p2-shim types are broken
+              { write: writeStderr },
+            ),
+        },
       },
     }).getImportObject(),
   )
