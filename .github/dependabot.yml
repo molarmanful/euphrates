@@ -4,11 +4,21 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: 12:00
+    groups:
+      all:
+        patterns:
+          - '*'
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: 12:00
   - package-ecosystem: pnpm
     directory: /web
     schedule:
       interval: weekly
+      day: monday
+      time: 12:00
