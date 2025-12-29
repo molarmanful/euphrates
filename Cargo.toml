@@ -25,7 +25,7 @@ phf = { version = "0.13.1", features = ["macros"] }
 num-traits = "0.2.19"
 crabtime = { version = "1.1.4" }
 hipstr = "0.8.0"
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 itertools = "0.14.0"
 imbl = "6.0.0"
 ecow = "0.2.6"
