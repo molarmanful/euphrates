@@ -65,7 +65,7 @@ jobs:
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: |
           cd web
-          nix develop -c 'bash' -c 'dprint check'
+          nix develop ..#web -c 'bash' -c 'dprint check'
   web-check:
     runs-on: ubuntu-latest
     needs: changes
