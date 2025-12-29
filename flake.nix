@@ -88,6 +88,7 @@
                 taplo
                 yamlfmt
                 mold
+                cargo-edit
               ];
 
               inputsFrom = [ (craneLibDev.devShell { }) ];

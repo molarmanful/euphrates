@@ -28,8 +28,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
       - run: |
-          cargo install cargo-edit
-          cargo set-version "${GITHUB_REF_NAME#v}"
+          nix develop -c 'bash' -c "cargo set-version '${GITHUB_REF_NAME#v}'"
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           file_pattern: Cargo.toml Cargo.lock
@@ -49,7 +48,7 @@ jobs:
         uses: rust-lang/crates-io-auth-action@v1
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
-      - run: nix develop -c 'bash' c- 'cargo publish'
+      - run: nix develop -c 'bash' -c 'cargo publish'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
   fh:
