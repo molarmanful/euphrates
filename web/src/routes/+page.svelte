@@ -1,7 +1,7 @@
 <script lang='ts'>
   import { replaceState } from '$app/navigation'
   import { page } from '$app/state'
-  import { Glue } from '$lib/svelte/glue.svelte'
+  import { Glue } from '$lib/states/glue.svelte'
   import { compress, decompress } from '$lib/ts/utils'
   import { onMount } from 'svelte'
   import { fade } from 'svelte/transition'
