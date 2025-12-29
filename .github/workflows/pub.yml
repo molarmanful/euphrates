@@ -47,9 +47,9 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
       - id: auth
         uses: rust-lang/crates-io-auth-action@v1
-      - run: |
-          rustup override set nightly
-          cargo publish
+      - uses: DeterminateSystems/determinate-nix-action@main
+      - uses: DeterminateSystems/flakehub-cache-action@main
+      - run: nix develop -c 'bash' c- 'cargo publish'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
   fh:
