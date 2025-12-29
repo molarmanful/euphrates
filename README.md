@@ -1,3 +1,3 @@
 # euphrates
 
-![Crates.io Version](https://img.shields.io/crates/v/euph?style=flat-square)
+[![Crates.io Version](https://img.shields.io/crates/v/euph?style=flat-square)](https://crates.io/crates/euph)
