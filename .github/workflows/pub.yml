@@ -19,7 +19,7 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.PRIVATE_KEY }}
-      - uses: creds
+      - name: creds
         run: |
           git config --global url.'https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/'.insteadOf https://github.com/
           git config --global user.name '${{ steps.app.outputs.app-slug }}[bot]'
