@@ -19,10 +19,15 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.PRIVATE_KEY }}
-      - run: echo "user-id=$(gh api "/users/${{ steps.app.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+      - name: app user id
+        run: echo "user-id=$(gh api "/users/${{ steps.app.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
         id: user-id
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
+      - name: git config
+        run: |
+          git config --global user.name '${{ steps.app.outputs.app-slug }}[bot]'
+          git config --global user.email '${{ steps.user-id.outputs.user-id }}+${{ steps.app.outputs.app-slug }}[bot]@users.noreply.github.com'
       - uses: actions/checkout@v6
         with:
           token: ${{ steps.app.outputs.token }}
@@ -30,15 +35,14 @@ jobs:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
-      - run: nix build
-      - run: nix develop -c 'bash' -c "cargo set-version '${GITHUB_REF_NAME#v}'"
-      - run: |
-          git config --global user.name '${{ steps.app.outputs.app-slug }}[bot]'
-          git config --global user.email '${{ steps.user-id.outputs.user-id }}+${{ steps.app.outputs.app-slug }}[bot]@users.noreply.github.com'
-      - run: |
+      - name: build
+        run: nix build
+      - name: bump
+        run: nix develop -c 'bash' -c "cargo set-version '${GITHUB_REF_NAME#v}'"
+      - name: push
+        run: |
           git add Cargo.{toml,lock}
           git commit -m $'chore: bump version to ${{ github.ref_name }}\n\n\nskip-checks: true'
-          git config user.name
           git push
   crates:
     needs: validate
