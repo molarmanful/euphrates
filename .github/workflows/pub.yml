@@ -32,12 +32,12 @@ jobs:
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build
       - run: nix develop -c 'bash' -c "cargo set-version '${GITHUB_REF_NAME#v}'"
-      - uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_user_name: '${{ steps.app.outputs.app-slug }}[bot]'
-          commit_user_email: '${{ steps.user-id.outputs.user-id }}+${{ steps.app.outputs.app-slug }}[bot]@users.noreply.github.com'
-          file_pattern: Cargo.toml Cargo.lock
-          commit_message: 'chore: bump version to ${{ github.ref_name }}'
+      - run: |
+          git config --global user.name '${{ steps.app-token.outputs.app-slug }}[bot]'
+          git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com'
+          git add Cargo.{toml,lock}
+          git commit -m $'chore: bump version to ${{ github.ref_name }}\n\n\nskip-checks: true'
+          git push
   crates:
     needs: validate
     runs-on: ubuntu-latest
