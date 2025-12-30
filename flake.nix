@@ -87,6 +87,7 @@
               packages = with pkgs; [
                 taplo
                 yamlfmt
+                actionlint
                 mold
                 cargo-edit
               ];
