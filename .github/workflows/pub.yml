@@ -14,15 +14,30 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+      - run: echo "user-id=$(gh api "/users/${{ steps.app.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+        id: user-id
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
       - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app.outputs.token }}
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build
       - run: nix develop -c 'bash' -c "cargo set-version '${GITHUB_REF_NAME#v}'"
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
+          commit_user_name: '${{ steps.app.outputs.app-slug }}[bot]'
+          commit_user_email: '${{ steps.user-id.outputs.user-id }}+${{ steps.app.outputs.app-slug }}[bot]@users.noreply.github.com'
           file_pattern: Cargo.toml Cargo.lock
-          commit_message: "chore: bump version to ${{ github.ref_name }}\n\nskip-checks: true"
+          commit_message: 'chore: bump version to ${{ github.ref_name }}'
   crates:
     needs: validate
     runs-on: ubuntu-latest
