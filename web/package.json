@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@bytecodealliance/jco": "^1.15.4",
-    "@bytecodealliance/preview2-shim": "^0.17.5",
+    "@bytecodealliance/preview2-shim": "^0.17.6",
     "@molarmanful/fe-tools": "^0.3.8",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.49.2",
