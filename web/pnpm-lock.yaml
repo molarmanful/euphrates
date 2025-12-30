@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.4
         version: 1.15.4
       '@bytecodealliance/preview2-shim':
-        specifier: ^0.17.5
-        version: 0.17.5
+        specifier: ^0.17.6
+        version: 0.17.6
       '@molarmanful/fe-tools':
         specifier: ^0.3.8
         version: 0.3.8(@eslint/js@9.39.2)(@stylistic/eslint-plugin@5.3.1(eslint@9.39.2(jiti@2.6.1)))(eslint-config-flat-gitignore@2.1.0(eslint@9.39.2(jiti@2.6.1)))(eslint-flat-config-utils@2.1.1)(eslint-plugin-better-tailwindcss@3.8.0(eslint@9.39.2(jiti@2.6.1))(tailwindcss@4.1.18))(eslint-plugin-perfectionist@4.15.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-plugin-regexp@2.10.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-svelte@3.13.1(eslint@9.39.2(jiti@2.6.1))(svelte@5.46.1))(eslint-plugin-unicorn@61.0.2(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(typescript-eslint@8.51.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))
@@ -80,8 +80,8 @@ packages:
     resolution: {integrity: sha512-Lu5ZVPD+ethKrOCbfVe7zHwOH8JmhU1sDXBn/7WN4Zf/KcJc34YQmUQCjxrN5n4h9Q2ep3dcK8Gb7DeV1e2i7w==}
     hasBin: true
 
-  '@bytecodealliance/preview2-shim@0.17.5':
-    resolution: {integrity: sha512-F4WYVC6aHOiOXSsG3WDGFALrkpb952+9/EIX119qIzDtYgE5tvbOnKeBb0Y+NMzGEsu3334GdHIRXQ6wibY0MA==}
+  '@bytecodealliance/preview2-shim@0.17.6':
+    resolution: {integrity: sha512-n3cM88gTen5980UOBAD6xDcNNL3ocTK8keab21bpx1ONdA+ARj7uD1qoFxOWCyKlkpSi195FH+GeAut7Oc6zZw==}
 
   '@bytecodealliance/wizer-darwin-arm64@10.0.0':
     resolution: {integrity: sha512-dhZTWel+xccGTKSJtI9A7oM4yyP20FWflsT+AoqkOqkCY7kCNrj4tmMtZ6GXZFRDkrPY5+EnOh62sfShEibAMA==}
@@ -1831,14 +1831,14 @@ snapshots:
   '@bytecodealliance/jco@1.15.4':
     dependencies:
       '@bytecodealliance/componentize-js': 0.19.3
-      '@bytecodealliance/preview2-shim': 0.17.5
+      '@bytecodealliance/preview2-shim': 0.17.6
       binaryen: 123.0.0
       commander: 14.0.2
       mkdirp: 3.0.1
       ora: 8.2.0
       terser: 5.44.1
 
-  '@bytecodealliance/preview2-shim@0.17.5': {}
+  '@bytecodealliance/preview2-shim@0.17.6': {}
 
   '@bytecodealliance/wizer-darwin-arm64@10.0.0':
     optional: true

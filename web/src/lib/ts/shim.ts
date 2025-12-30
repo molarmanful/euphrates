@@ -22,24 +22,6 @@ const loader = async (path: string) => {
   return res
 }
 
-// TODO: remove when p2-shim updates
-// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-class InputStream extends io.streams.InputStream {
-  subscribe() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return new io.poll.Pollable()
-  }
-}
-
-// TODO: remove when p2-shim updates
-// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-class OutputStream extends io.streams.OutputStream {
-  subscribe() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return new io.poll.Pollable()
-  }
-}
-
 export const shim = async ({ readStdin, writeStdout, writeStderr }: {
   readStdin: (len: bigint) => Uint8Array
   writeStdout: (cs: Uint8Array) => void
@@ -55,24 +37,18 @@ export const shim = async ({ readStdin, writeStdout, writeStderr }: {
         ...cli,
         stdin: {
           getStdin: () =>
-            new InputStream(
-              // @ts-expect-error p2-shim types are broken
-              { blockingRead: readStdin },
-            ),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
+            new io.streams.InputStream({ blockingRead: readStdin }),
         },
         stdout: {
           getStdout: () =>
-            new OutputStream(
-              // @ts-expect-error p2-shim types are broken
-              { write: writeStdout },
-            ),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
+            new io.streams.OutputStream({ write: writeStdout }),
         },
         stderr: {
           getStderr: () =>
-            new OutputStream(
-              // @ts-expect-error p2-shim types are broken
-              { write: writeStderr },
-            ),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+            new io.streams.OutputStream({ write: writeStderr }),
         },
       },
     }).getImportObject(),
