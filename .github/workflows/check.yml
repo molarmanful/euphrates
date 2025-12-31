@@ -34,15 +34,17 @@ jobs:
               - '.github/workflows/check.yml'
               - 'wit/**'
               - 'web/**'
-  rust-fmt:
+  fmt:
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.rust == 'true' }}
+    outputs:
+      rust: ${{ needs.changes.outputs.rust }}
+      web: ${{ needs.changes.outputs.web }}
     steps:
       - uses: actions/checkout@v6
-      - uses: DeterminateSystems/determinate-nix-action@main
+      - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
-      - run: nix develop -c 'bash' -c 'cargo fmt --check'
+      - run: nix flake check
   rust-check:
     runs-on: ubuntu-latest
     needs: changes
@@ -52,18 +54,6 @@ jobs:
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build
-  web-fmt:
-    runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.web == 'true' }}
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/flakehub-cache-action@main
-      - run: nix develop ..#web -c 'bash' -c 'dprint check'
   web-check:
     runs-on: ubuntu-latest
     needs: changes

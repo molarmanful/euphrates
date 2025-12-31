@@ -10,12 +10,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
   outputs =
     inputs@{ systems, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import systems;
+      imports = [ inputs.treefmt-nix.flakeModule ];
       perSystem =
         {
           inputs',
@@ -108,6 +110,26 @@
                 tailwindcss-language-server
                 stylelint-lsp
               ];
+            };
+          };
+
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              nixfmt.enable = true;
+              statix.enable = true;
+              deadnix.enable = true;
+              rustfmt = {
+                enable = true;
+                package = craneLibDev.rustfmt;
+              };
+              yamlfmt.enable = true;
+              actionlint.enable = true;
+              taplo.enable = true;
+              dprint = {
+                enable = true;
+                includes = [ "web" ];
+              };
             };
           };
         };
