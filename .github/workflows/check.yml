@@ -24,6 +24,7 @@ jobs:
               - 'flake.nix'
               - 'flake.lock'
               - '.github/workflows/check.yml'
+              - 'wit/**'
               - 'src/**'
               - 'Cargo.{toml,lock}'
               - '.cargo/**'
