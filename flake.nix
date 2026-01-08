@@ -123,7 +123,10 @@
                 enable = true;
                 package = craneLibDev.rustfmt;
               };
-              yamlfmt.enable = true;
+              yamlfmt = {
+                enable = true;
+                excludes = [ "*-lock.yaml" ];
+              };
               actionlint.enable = true;
               taplo.enable = true;
               dprint = {
