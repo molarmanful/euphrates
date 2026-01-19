@@ -37,7 +37,7 @@ pub const EVAL_RES: EuDef = |env| {
     Ok(())
 };
 
-pub const TRY: EuDef = |env| {
+pub const COALESCE: EuDef = |env| {
     let a0 = match env.pop()? {
         t @ (EuType::Opt(None) | EuType::Res(Err(_))) => {
             env.clear_queue();

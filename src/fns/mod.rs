@@ -118,32 +118,32 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
 
     "Ok" => OK,
     "Err" => ERR,
-    "#res" => EVAL_RES,
-    "?" => TRY,
+    "#Res" => EVAL_RES,
+    "?" => COALESCE,
 
     // vec
-    ">vec" => TO_VEC,
+    ">Vec" => TO_VEC,
     "Vec" => WRAP_VEC,
-    "*vec" => ALL_VEC,
-    "#vec" => EVAL_VEC,
+    "*Vec" => ALL_VEC,
+    "#Vec" => EVAL_VEC,
     "," => PAIR,
 
     // map
-    ">map" => TO_MAP,
+    ">Map" => TO_MAP,
     "Map" => WRAP_MAP,
-    "*map" => ALL_MAP,
-    "#map" => EVAL_MAP,
+    "*Map" => ALL_MAP,
+    "#Map" => EVAL_MAP,
 
     // set
-    ">set" => TO_SET,
+    ">Set" => TO_SET,
     "Set" => WRAP_SET,
-    "*set" => ALL_SET,
-    "#set" => EVAL_SET,
+    "*Set" => ALL_SET,
+    "#Set" => EVAL_SET,
 
     // seq
     "SeqN0" => SEQ_N0,
 
-    ">seq" => TO_SEQ,
+    ">Seq" => TO_SEQ,
     "Seq" => WRAP_SEQ,
     "unfold" => UNFOLD,
     "rpt" => REPEAT,
@@ -151,7 +151,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "cyc" => CYCLE,
 
     // expr
-    ">expr" => TO_EXPR,
+    ">Expr" => TO_EXPR,
     "Expr" => WRAP_EXPR,
     "#" => EVAL,
     "tap" => TAP,

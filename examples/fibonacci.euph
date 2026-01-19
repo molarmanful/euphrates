@@ -1,1 +1,1 @@
-1 1 (dup println tuck + f) (f) -> f
+1 1 (dup printL tuck + f) (f) -> f
