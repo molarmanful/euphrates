@@ -32,7 +32,7 @@ ecow = "0.2.6"
 dyn-clone = "1.0.20"
 ordered-float = "5.1.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
-wit-bindgen = "0.50.0"
+wit-bindgen = "0.51.0"
 clap = { version = "4.5.54", features = ["derive"] }
 ordermap = "1.1.0"
 
