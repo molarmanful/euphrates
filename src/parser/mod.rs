@@ -183,7 +183,7 @@ fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 
 #[crabtime::function]
 fn gen_fn_int_suffix() {
-    let types = ["I32", "F32", "I64", "F64", "IBig"];
+    let types = ["I32", "I64", "F64", "IBig"];
     let arms = types
         .map(|t| {
             let tl = format!("\"{}\"", t.to_lowercase());
@@ -218,9 +218,6 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         )))
         .parse_next(input)?;
     cut_err(alt((
-        "f32"
-            .try_map(|_| ns.parse().map(EuType::F32))
-            .context(StrContext::Label("f32")),
         "f64"
             .try_map(|_| ns.parse().map(EuType::F64))
             .context(StrContext::Label("f64")),

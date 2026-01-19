@@ -24,7 +24,7 @@ use super::{
 fn gen_num_tower() {
     use itertools::Itertools;
 
-    let types0 = ["I32", "I64", "F32", "F64"];
+    let types0 = ["I32", "I64", "F64"];
     let types1 = [("Bool", "I32"), ("Char", "I32")];
 
     let arms_same = types0
@@ -125,7 +125,7 @@ gen_num_tower!();
 
 #[crabtime::function]
 fn gen_impl_neg() {
-    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();
@@ -161,7 +161,7 @@ gen_impl_neg!();
 fn gen_math_binops() {
     use itertools::Itertools;
 
-    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F64"];
     for name in ["Add", "Sub", "Mul", "Div", "Rem"] {
         let f = name.to_lowercase();
         let fq = format!(r#""{f}""#);
@@ -267,9 +267,7 @@ fn gen_pow() {
 
             fn pow(self, rhs: Self) -> Self::Output {
                 match (self, rhs) {
-                    (Self::F32(a), Self::I32(b)) => Ok(Self::f32(a.powi(b))),
                     (Self::F64(a), Self::I32(b)) => Ok(Self::f64(a.powi(b))),
-                    (Self::F32(a), Self::F32(b)) => Ok(Self::f32(a.powf(*b))),
                     (Self::F64(a), Self::F64(b)) => Ok(Self::f64(a.powf(*b))),
                     {{arms}}
                     (Self::IBig(a), y @ Self::I32(b)) if b >= 0 => {

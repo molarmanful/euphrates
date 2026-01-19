@@ -36,7 +36,7 @@ gen_fn_int_consts!();
 
 #[crabtime::function]
 fn gen_fn_float_consts() {
-    let types = ["F32", "F64"];
+    let types = ["F64"];
     let consts = [("MIN", "min_value"), ("MAX", "max_value")];
     for t in types {
         for (c, f) in consts {
@@ -57,24 +57,14 @@ pub const INF: EuDef = |env| {
     Ok(())
 };
 
-pub const INF32: EuDef = |env| {
-    env.push(EuType::F32(OrderedFloat::infinity()));
-    Ok(())
-};
-
 pub const NAN: EuDef = |env| {
     env.push(EuType::F64(OrderedFloat::nan()));
     Ok(())
 };
 
-pub const NAN32: EuDef = |env| {
-    env.push(EuType::F32(OrderedFloat::nan()));
-    Ok(())
-};
-
 #[crabtime::function]
 fn gen_def_to_num() {
-    let types = ["I32", "I64", "F32", "F64", "IBig"];
+    let types = ["I32", "I64", "F64", "IBig"];
     for &t in &types {
         let n = t.to_lowercase();
         let n_up = t.to_uppercase();
