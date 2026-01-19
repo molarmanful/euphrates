@@ -13,8 +13,8 @@ fn gen_eqv_ord() {
     use itertools::Itertools;
 
     let types = [
-        "Bool", "Char", "I32", "I64", "IBig", "F32", "F64", "Word", "Str", "Opt", "Res", "Expr",
-        "Vec", "Map", "Set", "Seq",
+        "Bool", "Char", "I32", "I64", "IBig", "F64", "Word", "Str", "Opt", "Res", "Expr", "Vec",
+        "Map", "Set", "Seq",
     ];
 
     let arms = itertools::repeat_n(types, 2)
@@ -52,8 +52,8 @@ gen_eqv_ord!();
 #[crabtime::function]
 fn gen_partial_eq() {
     let types = [
-        "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
-        "Map", "Set", "Expr",
+        "Bool", "I32", "I64", "IBig", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec", "Map",
+        "Set", "Expr",
     ];
     let arms = types
         .map(|t| {
@@ -95,8 +95,8 @@ fn gen_ord() {
     use itertools::Itertools;
 
     let types = [
-        "Bool", "I32", "I64", "IBig", "F32", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec",
-        "Map", "Set", "Expr",
+        "Bool", "I32", "I64", "IBig", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec", "Map",
+        "Set", "Expr",
     ];
     let arms = types
         .map(|t| {
@@ -106,7 +106,7 @@ fn gen_ord() {
         })
         .join("");
 
-    let nums = ["I32", "I64", "F32", "F64"];
+    let nums = ["I32", "I64", "F64"];
     let arms_num = nums
         .iter()
         .permutations(2)

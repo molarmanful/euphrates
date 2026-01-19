@@ -54,8 +54,6 @@ pub enum EuType<'eu> {
     #[debug("{_0:?}")]
     IBig(IBig),
     #[debug("{}", if _0.is_infinite() { format!("{}Inf32", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
-    F32(OrderedFloat<f32>),
-    #[debug("{}", if _0.is_infinite() { format!("{}Inf", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
     F64(OrderedFloat<f64>),
     #[debug("{_0:?}")]
     Char(char),
@@ -109,11 +107,6 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn ibig(n: impl Into<IBig>) -> Self {
         Self::IBig(n.into())
-    }
-
-    #[inline]
-    pub fn f32(n: impl Into<OrderedFloat<f32>>) -> Self {
-        Self::F32(n.into())
     }
 
     #[inline]
@@ -312,7 +305,7 @@ impl<'eu> EuType<'eu> {
 
     #[inline]
     pub fn is_num(&self) -> bool {
-        self.is_i_32() || self.is_i_64() || self.is_i_big() || self.is_f_32() || self.is_f_64()
+        self.is_i_32() || self.is_i_64() || self.is_i_big() || self.is_f_64()
     }
 
     #[inline]
@@ -348,7 +341,7 @@ impl<'eu> EuType<'eu> {
 
 #[crabtime::function]
 fn gen_type_to_num() {
-    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F64"];
     for t0 in types {
         let tl = t0.to_lowercase();
         let tlp = if t0 == "IBig" { t0 } else { &tl };
@@ -418,7 +411,7 @@ gen_type_to_num!();
 
 #[crabtime::function]
 fn gen_type_to_num_other() {
-    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F64"];
     for n in ["isize", "usize", "u32", "u64"] {
         let nq = format!(r#""{n}""#);
         let arms = types
@@ -456,7 +449,7 @@ gen_type_to_num_other!();
 
 #[crabtime::function]
 fn gen_type_to_bool() {
-    let types = ["I32", "I64", "IBig", "F32", "F64"];
+    let types = ["I32", "I64", "IBig", "F64"];
     let arms = types
         .map(|t| {
             let n = t.to_lowercase();

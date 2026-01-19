@@ -28,9 +28,6 @@ fn test_float() {
     assert_eq!(parse("123e-4"), Ok(eco_vec![EuType::f64(123e-4).into()]));
     assert_eq!(parse("123.0e4"), Ok(eco_vec![EuType::f64(123e4).into()]));
     assert_eq!(parse("12.34e5"), Ok(eco_vec![EuType::f64(12.34e5).into()]));
-    assert_eq!(parse("123f32"), Ok(eco_vec![EuType::f32(123.0).into()]));
-    assert_eq!(parse("123.0f32"), Ok(eco_vec![EuType::f32(123.0).into()]));
-    assert_eq!(parse("123e-4f32"), Ok(eco_vec![EuType::f32(123e-4).into()]));
 }
 
 #[test]
@@ -72,13 +69,6 @@ fn test_dec() {
         Ok(eco_vec![
             EuType::ibig(1234).into(),
             EuType::word("..5678").into()
-        ])
-    );
-    assert_eq!(
-        parse("123.f32"),
-        Ok(eco_vec![
-            EuType::ibig(123).into(),
-            EuType::word(".f32").into()
         ])
     );
 }
