@@ -427,6 +427,22 @@ impl<'eu> EuType<'eu> {
         })
     }
 
+    pub fn sep(self, sep: Self) -> EuRes<Self> {
+        match self {
+            Self::Vec(ts) => Ok(Self::Vec(
+                Iterator::intersperse(ts.into_iter(), sep).collect(),
+            )),
+            Self::Map(kvs) => Ok(Self::Vec(
+                Iterator::intersperse(Rc::unwrap_or_clone(kvs).into_values(), sep).collect(),
+            )),
+            Self::Set(ts) => Ok(Self::Vec(
+                Iterator::intersperse(Rc::unwrap_or_clone(ts).into_iter(), sep).collect(),
+            )),
+            Self::Seq(it) => Ok(Self::seq(Iterator::intersperse(it, Ok(sep)))),
+            _ => Self::Vec(self.to_vec()?).sep(sep),
+        }
+    }
+
     pub fn for_rec<F>(self, f: &mut F) -> EuRes<()>
     where
         F: FnMut(EcoVec<EuSyn<'eu>>) -> EuRes<()>,

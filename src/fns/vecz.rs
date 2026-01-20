@@ -327,3 +327,11 @@ pub const ALL: EuDef = |env| {
     env.push(a0.all_env(a1, env.scope.clone())?);
     Ok(())
 };
+
+pub const SEP: EuDef = |env| {
+    env.check_nargs(2)?;
+    let a1 = env.stack.pop().unwrap();
+    let a0 = env.stack.pop().unwrap();
+    env.push(a0.sep(a1)?);
+    Ok(())
+};

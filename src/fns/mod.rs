@@ -188,6 +188,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "pairs" => PAIRS,
     "zipN" => MULTI_ZIP,
     "cprodN" => MULTI_CPROD,
+    "sep" => SEP,
 
     "map" => MAP,
     "mapR" => MAP_ATOM,
