@@ -447,38 +447,30 @@ fn gen_type_to_num_other() {
 
 gen_type_to_num_other!();
 
-#[crabtime::function]
-fn gen_type_to_bool() {
-    let types = ["I32", "I64", "IBig", "F64"];
-    let arms = types
-        .map(|t| {
-            let n = t.to_lowercase();
-            crabtime::quote! {
-                EuType::{{t}}(n) => !n.is_zero(),
-            }
-        })
-        .join("");
-
-    crabtime::output! {
-        impl From<EuType<'_>> for bool {
-            fn from(value: EuType) -> Self {
-                match value {
-                    EuType::Bool(b) => b,
-                    {{arms}}
-                    EuType::Char(c) => c != '\0',
-                    EuType::Str(s) => !s.is_empty(),
-                    EuType::Word(_) => true,
-                    EuType::Opt(o) => o.is_some(),
-                    EuType::Res(r) => r.is_ok(),
-                    EuType::Vec(ts) => !ts.is_empty(),
-                    EuType::Map(kvs) => !kvs.is_empty(),
-                    EuType::Set(ts) => !ts.is_empty(),
-                    EuType::Expr(ts) => !ts.is_empty(),
-                    EuType::Seq(it) => Iterator::peekable(it).peek().is_some(),
-                }
-            }
-        }
+impl From<EuType<'_>> for bool {
+    fn from(value: EuType) -> Self {
+        (&value).into()
     }
 }
 
-gen_type_to_bool!();
+impl From<&EuType<'_>> for bool {
+    fn from(value: &EuType) -> Self {
+        match value {
+            EuType::Bool(b) => *b,
+            EuType::I32(n) => !n.is_zero(),
+            EuType::I64(n) => !n.is_zero(),
+            EuType::IBig(n) => !n.is_zero(),
+            EuType::F64(n) => !n.is_zero(),
+            EuType::Char(c) => *c != '\0',
+            EuType::Str(s) => !s.is_empty(),
+            EuType::Word(_) => true,
+            EuType::Opt(o) => o.is_some(),
+            EuType::Res(r) => r.is_ok(),
+            EuType::Vec(ts) => !ts.is_empty(),
+            EuType::Map(kvs) => !kvs.is_empty(),
+            EuType::Set(ts) => !ts.is_empty(),
+            EuType::Expr(ts) => !ts.is_empty(),
+            EuType::Seq(it) => Iterator::peekable(it.clone()).peek().is_some(),
+        }
+    }
+}

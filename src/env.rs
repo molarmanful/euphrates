@@ -267,7 +267,7 @@ impl<'eu> EuEnv<'eu> {
 
     pub fn check_nargs(&self, n: usize) -> EuRes<()> {
         if self.stack.len() < n {
-            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n,).into())
+            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n).into())
         } else {
             Ok(())
         }
