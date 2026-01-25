@@ -38,6 +38,7 @@ use crate::{
     types::{
         EuRes,
         EuSeq,
+        EuSeqT,
         EuSyn,
     },
 };
@@ -168,7 +169,7 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn seq<I>(it: I) -> Self
     where
-        I: Iterator<Item = EuRes<Self>> + Clone + 'eu,
+        I: EuSeqT<'eu> + 'eu,
     {
         Self::Seq(Box::new(it))
     }
