@@ -2,8 +2,10 @@ use std::io;
 
 use anyhow::anyhow;
 
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const READ: EuDef = |env| {
     env.push(EuType::res_str(

@@ -1,6 +1,6 @@
-use super::EuDef;
 use crate::{
     env::EuEnv,
+    fns::EuDef,
     types::EuType,
 };
 

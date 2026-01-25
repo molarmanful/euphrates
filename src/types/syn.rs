@@ -7,7 +7,7 @@ use ecow::EcoVec;
 use hipstr::LocalHipStr;
 use itertools::Itertools;
 
-use super::EuType;
+use crate::types::EuType;
 
 #[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, IsVariant)]
 #[display("{_0}")]

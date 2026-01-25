@@ -1,11 +1,13 @@
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const GET: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(EuType::opt(a0.get(a1)?));
+    env.push(EuType::opt(a0.get(&a1)?));
     Ok(())
 };
 

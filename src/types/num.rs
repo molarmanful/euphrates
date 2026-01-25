@@ -15,7 +15,7 @@ use num_traits::{
 };
 use ordered_float::OrderedFloat;
 
-use super::{
+use crate::types::{
     EuRes,
     EuType,
 };

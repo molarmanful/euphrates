@@ -6,7 +6,7 @@ use num_traits::{
 };
 use ordered_float::OrderedFloat;
 
-use super::EuType;
+use crate::types::EuType;
 
 #[crabtime::function]
 fn gen_eqv_ord() {

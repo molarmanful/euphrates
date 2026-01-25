@@ -1,7 +1,9 @@
 use std::iter;
 
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const SEQ_N0: EuDef = |env| {
     env.push(EuType::seq((0..).map(EuType::ibig).map(Ok)));

@@ -1,7 +1,9 @@
 use std::mem;
 
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const TO_SET: EuDef = |env| {
     let a0 = env.pop()?.to_set()?;

@@ -1,5 +1,7 @@
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const CMP: EuDef = |env| {
     env.check_nargs(2)?;

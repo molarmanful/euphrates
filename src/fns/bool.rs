@@ -1,5 +1,7 @@
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 pub const TRUE: EuDef = |env| {
     env.push(EuType::Bool(true));

@@ -222,7 +222,7 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
             .try_map(|_| ns.parse().map(EuType::F64))
             .context(StrContext::Label("f64")),
         empty
-            .try_map(|_| ns.parse().map(EuType::F64))
+            .try_map(|()| ns.parse().map(EuType::F64))
             .context(StrContext::Label("float")),
     )))
     .map(EuSyn::Raw)

@@ -13,6 +13,7 @@ use std::{
     slice,
 };
 
+use anyhow::anyhow;
 use ecow::EcoVec;
 use itertools::Itertools;
 use ordermap::{
@@ -20,17 +21,17 @@ use ordermap::{
     OrderSet,
 };
 
-use super::{
-    EuErr,
-    EuRes,
-    EuSeqImpl,
-    EuSyn,
-    EuType,
-};
 use crate::{
     env::{
         EuEnv,
         EuScope,
+    },
+    types::{
+        EuErr,
+        EuRes,
+        EuSeqT,
+        EuSyn,
+        EuType,
     },
     utils::{
         IterExt,
@@ -40,7 +41,7 @@ use crate::{
 };
 
 impl<'eu> EuType<'eu> {
-    pub fn unfold<F>(mut self, mut f: F) -> impl EuSeqImpl<'eu>
+    pub fn unfold<F>(mut self, mut f: F) -> impl EuSeqT<'eu>
     where
         F: FnMut(&mut Self) -> EuRes<(Self, Self)> + Clone + 'eu,
     {
@@ -65,7 +66,8 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn repeat(self) -> impl EuSeqImpl<'eu> {
+    #[must_use]
+    pub fn repeat(self) -> impl EuSeqT<'eu> {
         iter::repeat(Ok(self))
     }
 
@@ -75,7 +77,8 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn cycle(self) -> impl EuSeqImpl<'eu> {
+    #[must_use]
+    pub fn cycle(self) -> impl EuSeqT<'eu> {
         match self {
             Self::Seq(it) => it.cycle(),
             _ => self.to_seq().cycle(),
@@ -89,13 +92,13 @@ impl<'eu> EuType<'eu> {
             Self::Vec(mut ts) => Ok(if i < 0 {
                 ts.len().checked_add_signed(i)
             } else {
-                Some(i as usize)
+                Some(i.cast_unsigned())
             }
             .and_then(|i| ts.make_mut().get_mut(i).map(mem::take))),
             Self::Map(mut kvs) => Ok(if i < 0 {
                 kvs.len().checked_add_signed(i)
             } else {
-                Some(i as usize)
+                Some(i.cast_unsigned())
             }
             .and_then(|i| {
                 Rc::make_mut(&mut kvs)
@@ -105,14 +108,14 @@ impl<'eu> EuType<'eu> {
             Self::Set(mut ts) => Ok(if i < 0 {
                 ts.len().checked_add_signed(i)
             } else {
-                Some(i as usize)
+                Some(i.cast_unsigned())
             }
             .and_then(|i| Rc::make_mut(&mut ts).get_index(i).cloned())),
             Self::Seq(mut it) => {
                 if i < 0 {
                     Self::Vec(Self::Seq(it).to_vec()?).at(i)
                 } else {
-                    it.nth(i as usize).transpose()
+                    it.nth(i.cast_unsigned()).transpose()
                 }
             }
             _ => Self::Vec(self.to_vec()?).at(i),
@@ -195,35 +198,6 @@ impl<'eu> EuType<'eu> {
 
     pub fn chunk(self, n: isize) -> EuRes<Self> {
         let a = n.unsigned_abs();
-
-        fn split<T, U, V, W>(
-            ts: impl IntoIterator<Item = T>,
-            len: usize,
-            a: usize,
-            inner: impl Fn(U) -> V,
-        ) -> W
-        where
-            U: FromIterator<T>,
-            W: FromIterator<V>,
-        {
-            let l = len / a;
-            let mut r = len % a;
-            let mut c = a;
-            ts.into_iter()
-                .batching(move |it| {
-                    if c == 0 {
-                        return None;
-                    }
-                    c -= 1;
-                    let mut l = l;
-                    if r > 0 {
-                        l += 1;
-                        r -= 1;
-                    }
-                    Some(inner(it.take(l).collect()))
-                })
-                .collect()
-        }
 
         match self {
             Self::Opt(_) => Self::Vec(self.to_vec()?)
@@ -392,6 +366,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    #[must_use]
     pub fn enumerate(self) -> Self {
         match self {
             Self::Seq(it) => Self::seq(it.enumerate().map(Self::enum_to_pair)),
@@ -400,9 +375,13 @@ impl<'eu> EuType<'eu> {
     }
 
     fn enum_to_pair((i, r): (usize, EuRes<Self>)) -> EuRes<Self> {
-        r.map(|t| Self::vec([Self::I64(i as i64), t]))
+        let i = i
+            .try_into()
+            .map_err(|_| anyhow!("failed to convert `{i}` to i64"))?;
+        r.map(|t| Self::vec([Self::I64(i), t]))
     }
 
+    #[must_use]
     pub fn pairs(self) -> Self {
         match self {
             Self::Seq(it) => Self::seq(it.map(|r| r?.to_pair().map(|(a, b)| Self::vec([a, b])))),
@@ -410,18 +389,18 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
+    pub fn multi_cartesian_product(ts: impl IntoIterator<Item = Self>) -> impl EuSeqT<'eu> {
         ts.into_iter()
             .map(Self::to_seq)
             .multi_cartesian_product()
             .map(|rs| rs.into_iter().try_collect().map(Self::Vec))
     }
 
-    pub fn multi_zip(ts: impl IntoIterator<Item = Self>) -> impl EuSeqImpl<'eu> {
+    pub fn multi_zip(ts: impl IntoIterator<Item = Self>) -> impl EuSeqT<'eu> {
         let mut it = ts.into_iter().map(Self::to_seq).collect_vec();
         iter::from_fn(move || {
             it.iter_mut()
-                .map(|it1| it1.next())
+                .map(Iterator::next)
                 .collect::<Option<Result<_, _>>>()
                 .map(|r| r.map(Self::Vec))
         })
@@ -573,14 +552,14 @@ impl<'eu> EuType<'eu> {
                 let (a, b) = o
                     .map(|t| f(*t))
                     .transpose()?
-                    .map(|(a, b)| (Some(a), Some(b)))
-                    .unwrap_or((None, None));
+                    .map_or((None, None), |(a, b)| (Some(a), Some(b)));
                 Ok((Self::opt(a), Self::opt(b)))
             }
             Self::Res(r) => {
-                let (a, b) = swap_errors(r.map(|t| f(*t)))?
-                    .map(|(a, b)| (Ok(Box::new(a)), Ok(Box::new(b))))
-                    .unwrap_or_else(|e| (Err(e.clone()), Err(e)));
+                let (a, b) = swap_errors(r.map(|t| f(*t)))?.map_or_else(
+                    |e| (Err(e.clone()), Err(e)),
+                    |(a, b)| (Ok(Box::new(a)), Ok(Box::new(b))),
+                );
                 Ok((Self::Res(a), Self::Res(b)))
             }
             _ => f(self),
@@ -669,7 +648,7 @@ impl<'eu> EuType<'eu> {
 
     pub fn flatten_rec(self) -> EuRes<Self> {
         if self.is_vecz() {
-            self.flat_map(|t| t.flatten_rec())
+            self.flat_map(Self::flatten_rec)
         } else {
             Ok(self)
         }
@@ -955,13 +934,14 @@ impl<'eu> EuType<'eu> {
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs).into_values().try_reduce(f),
             Self::Set(ts) => Rc::unwrap_or_clone(ts).into_iter().try_reduce(f),
             Self::Seq(it) => it.reduce(|a, b| f(a?, b?)).transpose(),
-            _ => self.fold1_once(),
+            _ => Ok(self.fold1_once()),
         }
     }
 
     #[inline]
-    pub fn fold1_once(self) -> EuRes<Option<Self>> {
-        Ok(self.to_opt())
+    #[must_use]
+    pub fn fold1_once(self) -> Option<Self> {
+        self.to_opt()
     }
 
     pub fn fold1_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
@@ -970,7 +950,7 @@ impl<'eu> EuType<'eu> {
             if self.is_many() {
                 self.fold1(move |a, b| EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone()))
             } else {
-                self.fold1_once()
+                Ok(self.fold1_once())
             }
             .map(Self::opt)
         })
@@ -1041,7 +1021,6 @@ impl<'eu> EuType<'eu> {
                 e @ Self::Opt(None) => Err(e),
                 t => Ok(t),
             })),
-            Self::Opt(None) | Self::Res(Err(_)) => Ok(self),
             _ => Ok(self),
         }
     }
@@ -1088,10 +1067,12 @@ impl<'eu> EuType<'eu> {
             Self::Vec(ref mut ts) => {
                 let res = unpanic(AssertUnwindSafe(|| {
                     ts.make_mut()
-                        .sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)))
+                        .sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)));
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Map(ref mut kvs) => {
                 let res = unpanic(AssertUnwindSafe(|| {
@@ -1101,17 +1082,22 @@ impl<'eu> EuType<'eu> {
                             &Self::vec([k1.clone(), v1.clone()]),
                         )
                         .unwrap_or_else(|e| panic::panic_any(e))
-                    })
+                    });
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Set(ref mut ts) => {
                 let res = unpanic(AssertUnwindSafe(|| {
-                    Rc::make_mut(ts).sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)))
+                    Rc::make_mut(ts)
+                        .sort_by(|a, b| f(a, b).unwrap_or_else(|e| panic::panic_any(e)));
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Seq(it) => unpanic(AssertUnwindSafe(|| {
                 it.sorted_by(|a, b| {
@@ -1122,10 +1108,12 @@ impl<'eu> EuType<'eu> {
                     .unwrap_or_else(|e| panic::panic_any(e))
                 })
                 .try_collect()
-                .map(Self::Vec)
-                .unwrap_or_else(|e| panic::panic_any(e))
+                .map_or_else(|e| panic::panic_any(e), Self::Vec)
             }))
-            .map_err(|e| *e.downcast::<EuErr>().unwrap()),
+            .map_err(|e| {
+                #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                *e.downcast::<EuErr>().unwrap()
+            }),
             _ => Self::Vec(self.to_vec()?).sorted_by(f),
         }
     }
@@ -1148,27 +1136,33 @@ impl<'eu> EuType<'eu> {
             Self::Vec(ref mut ts) => {
                 let res = unpanic(AssertUnwindSafe(|| {
                     ts.make_mut()
-                        .sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)))
+                        .sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)));
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Map(ref mut kvs) => {
                 let res = unpanic(AssertUnwindSafe(|| {
                     Rc::make_mut(kvs).sort_by_key(|k, v| {
                         f(&Self::vec([k.clone(), v.clone()]))
                             .unwrap_or_else(|e| panic::panic_any(e))
-                    })
+                    });
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Set(ref mut ts) => {
                 let res = unpanic(AssertUnwindSafe(|| {
-                    Rc::make_mut(ts).sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)))
+                    Rc::make_mut(ts).sort_by_key(|t| f(t).unwrap_or_else(|e| panic::panic_any(e)));
                 }));
-                res.map(|()| self)
-                    .map_err(|e| *e.downcast::<EuErr>().unwrap())
+                res.map(|()| self).map_err(|e| {
+                    #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                    *e.downcast::<EuErr>().unwrap()
+                })
             }
             Self::Seq(it) => unpanic(AssertUnwindSafe(|| {
                 it.sorted_by_key(|t| {
@@ -1176,10 +1170,12 @@ impl<'eu> EuType<'eu> {
                         .unwrap_or_else(|e| panic::panic_any(e))
                 })
                 .try_collect()
-                .map(Self::Vec)
-                .unwrap_or_else(|e| panic::panic_any(e))
+                .map_or_else(|e| panic::panic_any(e), Self::Vec)
             }))
-            .map_err(|e| *e.downcast::<EuErr>().unwrap()),
+            .map_err(|e| {
+                #[expect(clippy::missing_panics_doc, reason = "infallible")]
+                *e.downcast::<EuErr>().unwrap()
+            }),
             _ => Self::Vec(self.to_vec()?).sorted(),
         }
     }
@@ -1200,7 +1196,7 @@ impl<'eu> EuType<'eu> {
             Self::Map(kvs) => Rc::unwrap_or_clone(kvs).into_values().try_find(f),
             Self::Set(ts) => Rc::unwrap_or_clone(ts).into_iter().try_find(f),
             Self::Seq(mut it) => it
-                .try_find(|r| r.as_ref().map_err(|e| e.clone()).and_then(&mut f))
+                .try_find(|r| r.as_ref().map_err(Clone::clone).and_then(&mut f))
                 .and_then(Option::transpose),
             _ => self.find_once(f),
         }
@@ -1291,4 +1287,33 @@ impl<'eu> EuType<'eu> {
             .map(Self::Bool)
         })
     }
+}
+
+fn split<T, U, V, W>(
+    ts: impl IntoIterator<Item = T>,
+    len: usize,
+    a: usize,
+    inner: impl Fn(U) -> V,
+) -> W
+where
+    U: FromIterator<T>,
+    W: FromIterator<V>,
+{
+    let l = len / a;
+    let mut r = len % a;
+    let mut c = a;
+    ts.into_iter()
+        .batching(move |it| {
+            if c == 0 {
+                return None;
+            }
+            c -= 1;
+            let mut l = l;
+            if r > 0 {
+                l += 1;
+                r -= 1;
+            }
+            Some(inner(it.take(l).collect()))
+        })
+        .collect()
 }

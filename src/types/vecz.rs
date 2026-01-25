@@ -11,16 +11,16 @@ use anyhow::anyhow;
 use hipstr::LocalHipStr;
 use itertools::Itertools;
 
-use super::{
+use crate::types::{
     EuRes,
     EuSyn,
     EuType,
 };
 
-impl<'eu> EuType<'eu> {
-    pub fn get(self, t: Self) -> EuRes<Option<Self>> {
+impl EuType<'_> {
+    pub(crate) fn get(self, t: &Self) -> EuRes<Option<Self>> {
         match self {
-            Self::Map(mut kvs) => Ok(Rc::make_mut(&mut kvs).get_mut(&t).map(mem::take)),
+            Self::Map(mut kvs) => Ok(Rc::make_mut(&mut kvs).get_mut(t).map(mem::take)),
             _ => t
                 .to_isize()
                 .and_then(|i| self.at(i).transpose())
@@ -28,7 +28,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn has(self, t: &Self) -> bool {
+    pub(crate) fn has(self, t: &Self) -> bool {
         match self {
             Self::Set(ts) => ts.contains(t),
             Self::Map(kvs) => kvs.contains_key(t),
@@ -38,7 +38,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn delete(mut self, t: Self) -> Self {
+    pub(crate) fn delete(mut self, t: Self) -> Self {
         match self {
             Self::Set(ref mut ts) => {
                 Rc::make_mut(ts).remove(&t);
@@ -53,7 +53,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn push_back(mut self, t: Self) -> EuRes<Self> {
+    pub(crate) fn push_back(mut self, t: Self) -> EuRes<Self> {
         match self {
             Self::Vec(ref mut ts) => {
                 ts.push(t);
@@ -78,7 +78,7 @@ impl<'eu> EuType<'eu> {
                     s.push(c);
                 } else {
                     s.push_str(&t.to_string());
-                };
+                }
                 Ok(self)
             }
             _ => Self::Vec(self.to_vec()?).push_back(t),
@@ -86,14 +86,14 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn push_front(self, t: Self) -> EuRes<Self> {
+    pub(crate) fn push_front(self, t: Self) -> EuRes<Self> {
         self.insert(0, t)
     }
 
-    pub fn insert(mut self, index: isize, mut t: Self) -> EuRes<Self> {
+    pub(crate) fn insert(mut self, index: isize, mut t: Self) -> EuRes<Self> {
         let a = index.unsigned_abs();
         let check = |len: usize| {
-            let hi = len as isize;
+            let hi = len.cast_signed();
             let low = -hi - 1;
             (low <= index && index <= hi)
                 .ok_or_else(|| anyhow!("{index} out of bounds [{low}, {hi}]"))
@@ -147,7 +147,7 @@ impl<'eu> EuType<'eu> {
                     res.push(c);
                 } else {
                     res.push_str(&t.to_string());
-                };
+                }
                 res.push_str(&s.slice(a..));
                 Ok(Self::Str(res))
             }
@@ -155,7 +155,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn append(self, other: Self) -> EuRes<Self> {
+    pub(crate) fn append(self, other: Self) -> EuRes<Self> {
         match (self, other) {
             (Self::Map(a), Self::Map(b)) => {
                 let mut a = Rc::unwrap_or_clone(a);
@@ -189,7 +189,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn pop_back(mut self) -> EuRes<(Option<Self>, Self)> {
+    pub(crate) fn pop_back(mut self) -> EuRes<(Option<Self>, Self)> {
         match self {
             Self::Vec(ref mut ts) => Ok((ts.pop(), self)),
             Self::Map(ref mut kvs) => Ok((
@@ -205,14 +205,14 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn pop_front(self) -> EuRes<(Option<Self>, Self)> {
+    pub(crate) fn pop_front(self) -> EuRes<(Option<Self>, Self)> {
         self.remove(0)
     }
 
-    pub fn remove(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
+    pub(crate) fn remove(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
         let a = index.unsigned_abs();
         let check = |len: usize| {
-            let hi = len as isize;
+            let hi = len.cast_signed();
             let low = -hi - 1;
             (low <= index && index <= hi).then(|| if index < 0 { len + 1 - a } else { a })
         };
