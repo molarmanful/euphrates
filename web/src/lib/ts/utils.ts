@@ -4,7 +4,6 @@ import {
   strFromU8,
   strToU8,
 } from 'fflate'
-
 import 'core-js/proposals/array-buffer-base64'
 
 declare global {
