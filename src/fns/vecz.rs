@@ -103,7 +103,7 @@ pub const DELETE: EuDef = |env| {
     env.check_nargs(2)?;
     let a1 = env.stack.pop().unwrap();
     let a0 = env.stack.pop().unwrap();
-    env.push(a0.delete(a1));
+    env.push(a0.delete(a1)?);
     Ok(())
 };
 
