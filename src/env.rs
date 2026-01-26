@@ -86,7 +86,9 @@ impl<'eu> EuEnv<'eu> {
     {
         Self::apply(ts, args, scope).and_then(|mut env| {
             env.check_nargs(2)?;
+            #[expect(clippy::missing_panics_doc, reason = "infallible")]
             let a1 = env.stack.pop().unwrap();
+            #[expect(clippy::missing_panics_doc, reason = "infallible")]
             let a0 = env.stack.pop().unwrap();
             Ok((a0, a1))
         })
@@ -161,7 +163,7 @@ impl<'eu> EuEnv<'eu> {
         } else if let Some(f) = CORE.get(w) {
             f(self)
                 .with_context(|| format!("`{w}` failed"))
-                .map_err(|e| e.into())
+                .map_err(Into::into)
         } else {
             Err(anyhow!("unknown word `{w}`").into())
         }
@@ -213,6 +215,7 @@ impl<'eu> EuEnv<'eu> {
         self.queue = it.peekable();
     }
 
+    #[must_use]
     pub fn frame<T>(&self, ts: T) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
@@ -238,7 +241,7 @@ impl<'eu> EuEnv<'eu> {
                 }
             }
             _ => todo!(),
-        };
+        }
         Ok(())
     }
 
@@ -249,25 +252,31 @@ impl<'eu> EuEnv<'eu> {
 
     #[inline]
     pub fn pop(&mut self) -> EuRes<EuType<'eu>> {
-        self.check_nargs(1).map(|_| self.stack.pop().unwrap())
+        self.check_nargs(1).map(|()| {
+            #[expect(clippy::missing_panics_doc, reason = "infallible")]
+            self.stack.pop().unwrap()
+        })
     }
 
     #[inline]
     pub fn last(&self) -> EuRes<&EuType<'eu>> {
-        self.check_nargs(1).map(|_| self.stack.last().unwrap())
+        self.check_nargs(1).map(|()| {
+            #[expect(clippy::missing_panics_doc, reason = "infallible")]
+            self.stack.last().unwrap()
+        })
     }
 
     pub fn iflip(&self, i: isize) -> EuRes<usize> {
-        let len = self.stack.len() as isize;
+        let len = self.stack.len().cast_signed();
         let j = if i < 0 { !i } else { len - i - 1 };
         (0 <= j && j < len)
-            .then_some(j as usize)
+            .then_some(j.cast_unsigned())
             .ok_or_else(|| anyhow!("{i} out of bounds [{}, {}]", -len, len - 1).into())
     }
 
     pub fn check_nargs(&self, n: usize) -> EuRes<()> {
         if self.stack.len() < n {
-            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n,).into())
+            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n).into())
         } else {
             Ok(())
         }

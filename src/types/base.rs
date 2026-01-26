@@ -29,17 +29,18 @@ use ordermap::{
 };
 use winnow::Parser;
 
-use super::{
-    EuRes,
-    EuSeq,
-    EuSyn,
-};
 use crate::{
     env::{
         EuEnv,
         EuScope,
     },
     parser::euphrates,
+    types::{
+        EuRes,
+        EuSeq,
+        EuSeqT,
+        EuSyn,
+    },
 };
 
 #[derive(Debug, Display, Hash, Clone, IsVariant)]
@@ -64,7 +65,7 @@ pub enum EuType<'eu> {
     Word(LocalHipStr<'eu>),
 
     #[debug("{}", if let Some(t) = _0 { format!("Some:{t:?}") } else { "None".into() })]
-    #[display("{}", if let Some(t) = _0 { t.to_string() } else { "".to_string() })]
+    #[display("{}", if let Some(t) = _0 { t.to_string() } else { String::new() })]
     Opt(Option<Box<Self>>),
     #[debug("{}", match _0 { Ok(t) => format!("Ok:{t:?}"), Err(e) => format!("Err:{e:?}") })]
     #[display("{}", match _0 { Ok(t) => t.to_string(), Err(e) => e.to_string() })]
@@ -83,7 +84,7 @@ pub enum EuType<'eu> {
     #[display("{}", _0.iter().join(" "))]
     Expr(EcoVec<EuSyn<'eu>>),
     #[debug("Seq:(...)")]
-    #[display("{}", match _0.clone().try_collect::<_, Vec<_>, _>() { Ok(ts) => ts.into_iter().join(""), Err(e) => "".into() })]
+    #[display("{}", match _0.clone().try_collect::<_, Vec<_>, _>() { Ok(ts) => ts.into_iter().join(""), Err(e) => String::new() })]
     Seq(EuSeq<'eu>),
 }
 
@@ -140,6 +141,7 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
+    #[must_use]
     pub fn res_str(r: EuRes<Self>) -> Self {
         Self::res(r.map_err(|s| Self::str(s.to_string())))
     }
@@ -167,7 +169,7 @@ impl<'eu> EuType<'eu> {
     #[inline]
     pub fn seq<I>(it: I) -> Self
     where
-        I: Iterator<Item = EuRes<Self>> + Clone + 'eu,
+        I: EuSeqT<'eu> + 'eu,
     {
         Self::Seq(Box::new(it))
     }
@@ -180,6 +182,7 @@ impl<'eu> EuType<'eu> {
         }
     }
 
+    #[must_use]
     pub fn to_opt(self) -> Option<Self> {
         match self {
             Self::Opt(o) => o.map(|t| *t),
@@ -304,36 +307,43 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
+    #[must_use]
     pub fn is_num(&self) -> bool {
         self.is_i_32() || self.is_i_64() || self.is_i_big() || self.is_f_64()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_num_like(&self) -> bool {
         self.is_num() || self.is_bool() || self.is_char()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_num_parse(&self) -> bool {
         self.is_num() || self.is_str()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_int(&self) -> bool {
         self.is_i_32() || self.is_i_64() || self.is_i_big()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_vecz(&self) -> bool {
         self.is_once() || self.is_many()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_once(&self) -> bool {
         self.is_opt() || self.is_res()
     }
 
     #[inline]
+    #[must_use]
     pub fn is_many(&self) -> bool {
         self.is_vec() || self.is_seq() || self.is_map() || self.is_set()
     }
@@ -447,38 +457,30 @@ fn gen_type_to_num_other() {
 
 gen_type_to_num_other!();
 
-#[crabtime::function]
-fn gen_type_to_bool() {
-    let types = ["I32", "I64", "IBig", "F64"];
-    let arms = types
-        .map(|t| {
-            let n = t.to_lowercase();
-            crabtime::quote! {
-                EuType::{{t}}(n) => !n.is_zero(),
-            }
-        })
-        .join("");
-
-    crabtime::output! {
-        impl From<EuType<'_>> for bool {
-            fn from(value: EuType) -> Self {
-                match value {
-                    EuType::Bool(b) => b,
-                    {{arms}}
-                    EuType::Char(c) => c != '\0',
-                    EuType::Str(s) => !s.is_empty(),
-                    EuType::Word(_) => true,
-                    EuType::Opt(o) => o.is_some(),
-                    EuType::Res(r) => r.is_ok(),
-                    EuType::Vec(ts) => !ts.is_empty(),
-                    EuType::Map(kvs) => !kvs.is_empty(),
-                    EuType::Set(ts) => !ts.is_empty(),
-                    EuType::Expr(ts) => !ts.is_empty(),
-                    EuType::Seq(it) => Iterator::peekable(it).peek().is_some(),
-                }
-            }
-        }
+impl From<EuType<'_>> for bool {
+    fn from(value: EuType) -> Self {
+        (&value).into()
     }
 }
 
-gen_type_to_bool!();
+impl From<&EuType<'_>> for bool {
+    fn from(value: &EuType) -> Self {
+        match value {
+            EuType::Bool(b) => *b,
+            EuType::I32(n) => !n.is_zero(),
+            EuType::I64(n) => !n.is_zero(),
+            EuType::IBig(n) => !n.is_zero(),
+            EuType::F64(n) => !n.is_zero(),
+            EuType::Char(c) => *c != '\0',
+            EuType::Str(s) => !s.is_empty(),
+            EuType::Word(_) => true,
+            EuType::Opt(o) => o.is_some(),
+            EuType::Res(r) => r.is_ok(),
+            EuType::Vec(ts) => !ts.is_empty(),
+            EuType::Map(kvs) => !kvs.is_empty(),
+            EuType::Set(ts) => !ts.is_empty(),
+            EuType::Expr(ts) => !ts.is_empty(),
+            EuType::Seq(it) => Iterator::peekable(it.clone()).peek().is_some(),
+        }
+    }
+}

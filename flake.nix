@@ -92,6 +92,7 @@
                 actionlint
                 mold
                 cargo-edit
+                bacon
               ];
 
               inputsFrom = [ (craneLibDev.devShell { }) ];
@@ -108,7 +109,9 @@
                 svelte-language-server
                 emmet-language-server
                 tailwindcss-language-server
-                stylelint-lsp
+                nixfmt
+                statix
+                deadnix
               ];
             };
           };

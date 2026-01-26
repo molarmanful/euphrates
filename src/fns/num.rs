@@ -12,8 +12,10 @@ use ordered_float::{
     OrderedFloat,
 };
 
-use super::EuDef;
-use crate::types::EuType;
+use crate::{
+    fns::EuDef,
+    types::EuType,
+};
 
 #[crabtime::function]
 fn gen_fn_int_consts() {

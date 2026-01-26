@@ -39,6 +39,9 @@ ordermap = "1.1.0"
 [build-dependencies]
 itertools = "0.14.0"
 
+[lints.clippy]
+pedantic = "warn"
+
 [profile.release]
 opt-level = 3
 codegen-units = 1

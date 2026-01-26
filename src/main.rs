@@ -37,7 +37,7 @@ fn run_res<E: Error>(r: Result<String, E>) {
     match r {
         Ok(code) => run(&code),
         Err(e) => eprintln!("ERR:\n{e}"),
-    };
+    }
 }
 
 fn run(code: &str) {
@@ -50,5 +50,5 @@ fn run(code: &str) {
             }
             std::process::exit(1);
         }
-    };
+    }
 }

@@ -2,6 +2,10 @@
 #![feature(iterator_try_reduce)]
 #![feature(trait_alias)]
 #![feature(bool_to_result)]
+#![feature(iter_intersperse)]
+#![allow(clippy::same_length_and_capacity)]
+// FIXME
+#![allow(clippy::missing_errors_doc)]
 
 pub mod env;
 pub mod fns;

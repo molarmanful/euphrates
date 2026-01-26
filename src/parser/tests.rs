@@ -121,8 +121,8 @@ fn test_str_raw() {
         Ok(eco_vec![EuType::str("testing testing 123").into()])
     );
     assert_eq!(
-        parse(r#"`asdf \n 123`"#),
-        Ok(eco_vec![EuType::str(r#"asdf \n 123"#).into()])
+        parse("`asdf \n 123`"),
+        Ok(eco_vec![EuType::str("asdf \n 123").into()])
     );
 }
 
@@ -142,13 +142,13 @@ fn test_str_invalid() {
 #[test]
 fn test_char() {
     assert_eq!(parse("'a"), Ok(eco_vec![EuType::char('a').into()]));
-    assert_eq!(parse(r#"'\n"#), Ok(eco_vec![EuType::char('\n').into()]));
+    assert_eq!(parse("'\n"), Ok(eco_vec![EuType::char('\n').into()]));
     assert_eq!(parse("''"), Ok(eco_vec![EuType::char('\'').into()]));
 }
 
 #[test]
 fn test_char_invalid() {
-    assert!(is_err(r#"'"#));
+    assert!(is_err("'"));
 }
 
 #[test]
