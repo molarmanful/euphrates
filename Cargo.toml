@@ -25,7 +25,7 @@ phf = { version = "0.13.1", features = ["macros"] }
 num-traits = "0.2.19"
 crabtime = { version = "1.1.4" }
 hipstr = "0.8.0"
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 itertools = "0.14.0"
 imbl = "6.1.0"
 ecow = "0.2.6"
@@ -33,7 +33,7 @@ dyn-clone = "1.0.20"
 ordered-float = "5.1.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
 wit-bindgen = "0.51.0"
-clap = { version = "4.5.54", features = ["derive"] }
+clap = { version = "4.5.57", features = ["derive"] }
 ordermap = "1.1.0"
 
 [build-dependencies]
