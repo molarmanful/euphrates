@@ -1,4 +1,6 @@
 <script lang='ts'>
+  import '$lib/ts/polyfills'
+
   import type { Snippet } from 'svelte'
 
   import '../app.css'
