@@ -31,7 +31,6 @@ export const shim = async ({ readStdin, writeStdout, writeStderr }: {
     loader,
     // @ts-expect-error p2-shim types are broken
     new WASIShim({
-      // @ts-expect-error p2-shim types are broken
       cli: {
         // @ts-expect-error p2-shim types are broken
         ...cli,
