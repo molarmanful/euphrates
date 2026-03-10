@@ -230,19 +230,19 @@ fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 }
 
 fn eu_var<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    alt((
-        preceded('$', eu_word_inner).output_into().map(EuSyn::Var),
-        eu_word,
-    ))
-    .parse_next(input)
+    preceded('$', eu_word_inner)
+        .output_into()
+        .map(EuSyn::Var)
+        .context(StrContext::Label("var"))
+        .parse_next(input)
 }
 
 fn eu_move<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    alt((
-        preceded('\\', eu_word_inner).output_into().map(EuSyn::Move),
-        eu_word,
-    ))
-    .parse_next(input)
+    preceded('\\', eu_word_inner)
+        .output_into()
+        .map(EuSyn::Move)
+        .context(StrContext::Label("move"))
+        .parse_next(input)
 }
 
 fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
@@ -253,11 +253,19 @@ fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
 }
 
 fn eu_word_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
-    take_while(1.., |c: char| {
-        !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}') && !c.is_whitespace()
-    })
-    .output_into()
+    cut_err((
+        take_while(1, |c: char| {
+            !c.is_dec_digit() && !matches!(c, '$' | '\\') && is_word_char(c)
+        }),
+        take_while(0.., is_word_char),
+    ))
+    .map(|(a, b)| LocalHipStr::concat([a, b]))
+    .context(StrContext::Label("word"))
     .parse_next(input)
+}
+
+fn is_word_char(c: char) -> bool {
+    !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}') && !c.is_whitespace()
 }
 
 fn ws<'i>(input: &mut &'i str) -> ModalResult<&'i str> {

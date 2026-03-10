@@ -47,7 +47,19 @@ fn test_word() {
 #[test]
 fn test_var() {
     assert_eq!(parse("$asdf"), Ok(eco_vec![EuSyn::Var("asdf".into())]));
-    assert_eq!(parse("$"), Ok(eco_vec![EuType::word("$").into()]));
+    assert!(is_err("$"));
+    assert!(is_err("$$"));
+    assert!(is_err("$\\"));
+    assert!(is_err("$1"));
+}
+
+#[test]
+fn test_move() {
+    assert_eq!(parse("\\asdf"), Ok(eco_vec![EuSyn::Move("asdf".into())]));
+    assert!(is_err("\\"));
+    assert!(is_err("\\\\"));
+    assert!(is_err("\\$"));
+    assert!(is_err("\\1"));
 }
 
 #[test]
