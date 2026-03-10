@@ -19,9 +19,13 @@ use itertools::Itertools;
 use winnow::Parser;
 
 use crate::{
-    fns::CORE,
+    fns::{
+        CORE,
+        bind,
+    },
     parser::euphrates,
     types::{
+        EuBind,
         EuIter,
         EuRes,
         EuSyn,
@@ -138,6 +142,7 @@ impl<'eu> EuEnv<'eu> {
                 )));
                 Ok(())
             }
+            EuSyn::Bind(bs) => self.bind_args(&bs),
         }
     }
 
@@ -229,19 +234,65 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
-    pub fn bind_args(&mut self, t: EuSyn<'eu>) -> EuRes<()> {
-        match t {
-            EuSyn::Raw(EuType::Word(w)) => {
-                let v = self.stack.pop().context("insufficient args passed")?;
-                self.scope.insert(w, v);
+    pub fn bind_args(&mut self, bs: &EcoVec<EuBind<'eu>>) -> EuRes<()> {
+        for b in bs.iter().rev() {
+            let t = self
+                .stack
+                .pop()
+                .with_context(|| format!("missing `{b:?}`"))?;
+            self.bind_type(b, t)?;
+        }
+        Ok(())
+    }
+
+    pub fn bind_type(&mut self, b: &EuBind<'eu>, t: EuType<'eu>) -> EuRes<()> {
+        fn check<'eu>(a: &EuType<'eu>, b: &EuType<'eu>) -> EuRes<()> {
+            (a == b).ok_or_else(|| anyhow!("expected `{a:?}`, got `{b:?}`").into())
+        }
+
+        match b {
+            EuBind::Word(w) => {
+                self.scope.insert(w.clone(), t);
             }
-            EuSyn::Raw(EuType::Expr(ts)) => {
-                for t in ts.into_iter().rev() {
-                    self.bind_args(t)?;
+
+            EuBind::Tag(w, bs) => {
+                if let Some(f) = bind::BIND.get(w) {
+                    (f.bind)(self, bs, t).with_context(|| format!("in `${w}`"))?;
+                } else {
+                    return Err(anyhow!("unknown tag `${w}`").into());
                 }
             }
-            _ => todo!(),
+
+            EuBind::Union(bs) => {
+                let mut errs = EcoVec::new();
+                for b in bs {
+                    match self.bind_type(b, t.clone()) {
+                        Ok(()) => return Ok(()),
+                        Err(e) => errs.push(e),
+                    }
+                }
+                return Err(
+                    anyhow!("failed to bind `{bs:?}` ({})", errs.into_iter().join("; ")).into(),
+                );
+            }
+
+            EuBind::Bind(b0, b1) => {
+                self.bind_type(b0, t.clone())?;
+                self.bind_type(b1, t)?;
+            }
+
+            EuBind::Bool(b) => check(&EuType::Bool(*b), &t)?,
+            EuBind::I32(n) => check(&EuType::I32(*n), &t)?,
+            EuBind::I64(n) => check(&EuType::I64(*n), &t)?,
+            EuBind::IBig(n) => check(&EuType::IBig(n.clone()), &t)?,
+            EuBind::F64(n) => check(&EuType::F64(*n), &t)?,
+            EuBind::Char(c) => check(&EuType::Char(*c), &t)?,
+            EuBind::Str(s) => check(&EuType::Str(s.clone()), &t)?,
+
+            EuBind::Vecz(bs) => (bind::VECZ.bind)(self, bs, t)?,
+            EuBind::Map(bs) => (bind::MAP.bind)(self, bs, t)?,
         }
+
         Ok(())
     }
 
@@ -290,6 +341,7 @@ impl<'eu> EuEnv<'eu> {
         }
     }
 
+    #[inline]
     pub fn clear_queue(&mut self) {
         let queue: EuIter<'_> = Box::new(iter::empty());
         self.queue = queue.peekable();

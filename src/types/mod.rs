@@ -1,4 +1,5 @@
 mod base;
+mod bind;
 mod err;
 mod into_iter;
 mod iter;
@@ -13,6 +14,7 @@ pub use std::hash::{
 };
 
 pub use base::*;
+pub use bind::*;
 use dyn_clone::DynClone;
 pub use err::*;
 pub use syn::*;
