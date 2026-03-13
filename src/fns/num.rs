@@ -17,42 +17,35 @@ use crate::{
     types::EuType,
 };
 
-#[crabtime::function]
-fn gen_fn_int_consts() {
-    let types = ["I32", "I64"];
-    let consts = ["MIN", "MAX"];
-    for t in types {
-        let n = t.to_lowercase();
-        for c in consts {
-            crabtime::output! {
-                pub const {{c}}_{{t}}: EuDef = |env| {
-                    env.push(EuType::{{t}}({{n}}::{{c}}));
-                    Ok(())
-                };
-            };
-        }
-    }
-}
+pub const MIN_I32: EuDef = |env| {
+    env.push(EuType::I32(i32::MIN));
+    Ok(())
+};
 
-gen_fn_int_consts!();
+pub const MAX_I32: EuDef = |env| {
+    env.push(EuType::I32(i32::MAX));
+    Ok(())
+};
 
-#[crabtime::function]
-fn gen_fn_float_consts() {
-    let types = ["F64"];
-    let consts = [("MIN", "min_value"), ("MAX", "max_value")];
-    for t in types {
-        for (c, f) in consts {
-            crabtime::output! {
-                pub const {{c}}_{{t}}: EuDef = |env| {
-                    env.push(EuType::{{t}}(OrderedFloat::{{f}}()));
-                    Ok(())
-                };
-            };
-        }
-    }
-}
+pub const MIN_I64: EuDef = |env| {
+    env.push(EuType::I64(i64::MIN));
+    Ok(())
+};
 
-gen_fn_float_consts!();
+pub const MAX_I64: EuDef = |env| {
+    env.push(EuType::I64(i64::MAX));
+    Ok(())
+};
+
+pub const MIN_F64: EuDef = |env| {
+    env.push(EuType::F64(OrderedFloat::min_value()));
+    Ok(())
+};
+
+pub const MAX_F64: EuDef = |env| {
+    env.push(EuType::F64(OrderedFloat::max_value()));
+    Ok(())
+};
 
 pub const INF: EuDef = |env| {
     env.push(EuType::F64(OrderedFloat::infinity()));
@@ -64,23 +57,30 @@ pub const NAN: EuDef = |env| {
     Ok(())
 };
 
-#[crabtime::function]
-fn gen_def_to_num() {
-    let types = ["I32", "I64", "F64", "IBig"];
-    for &t in &types {
-        let n = t.to_lowercase();
-        let n_up = t.to_uppercase();
-        crabtime::output! {
-            pub const TO_{{n_up}}: EuDef = |env| {
-                let a0 = env.pop()?;
-                env.push(EuType::opt(a0.to_{{n}}().map(EuType::{{n}})));
-                Ok(())
-            };
-        }
-    }
-}
+pub const TO_I32: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::opt(a0.to_i32().map(EuType::i32)));
+    Ok(())
+};
 
-gen_def_to_num!();
+pub const TO_I64: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::opt(a0.to_i64().map(EuType::i64)));
+    Ok(())
+};
+
+pub const TO_F64: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::opt(a0.to_f64().map(EuType::f64)));
+    Ok(())
+};
+
+pub const TO_IBIG: EuDef = |env| {
+    let a0 = env.pop()?;
+    env.push(EuType::opt(a0.to_ibig().map(EuType::ibig)));
+    Ok(())
+};
+
 pub const NEG: EuDef = |env| {
     let a0 = env.pop()?;
     env.push((-a0)?);
