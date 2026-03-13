@@ -4,7 +4,7 @@ use crate::{
 };
 
 pub const TO_STR: EuDef = |env| {
-    let a0 = match env.pop()? {
+    let a0 = match env.arg("a0")? {
         t @ EuType::Str(_) => t,
         t => EuType::str(t.to_string()),
     };

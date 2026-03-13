@@ -11,6 +11,7 @@
     };
     crane.url = "github:ipetkov/crane";
     treefmt-nix.url = "github:numtide/treefmt-nix";
+    bacon-ls.url = "github:crisidev/bacon-ls/0.26.0";
   };
 
   outputs =
@@ -22,6 +23,7 @@
         {
           inputs',
           pkgs,
+          system,
           ...
         }:
 
@@ -92,7 +94,7 @@
                 actionlint
                 mold
                 cargo-edit
-                bacon
+                inputs.bacon-ls.defaultPackage.${system}
               ];
 
               inputsFrom = [ (craneLibDev.devShell { }) ];

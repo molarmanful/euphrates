@@ -28,11 +28,11 @@ pub const READLN: EuDef = |env| {
 };
 
 pub const PRINT: EuDef = |env| {
-    print!("{}", env.pop()?);
+    print!("{}", env.arg("a0")?);
     Ok(())
 };
 
 pub const PRINTLN: EuDef = |env| {
-    println!("{}", env.pop()?);
+    println!("{}", env.arg("a0")?);
     Ok(())
 };

@@ -13,7 +13,10 @@ use ordered_float::{
 };
 
 use crate::{
-    fns::EuDef,
+    fns::{
+        EuDef,
+        macros::f_2_to_1,
+    },
     types::EuType,
 };
 
@@ -58,49 +61,38 @@ pub const NAN: EuDef = |env| {
 };
 
 pub const TO_I32: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_i32().map(EuType::i32)));
     Ok(())
 };
 
 pub const TO_I64: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_i64().map(EuType::i64)));
     Ok(())
 };
 
 pub const TO_F64: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_f64().map(EuType::f64)));
     Ok(())
 };
 
 pub const TO_IBIG: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_ibig().map(EuType::ibig)));
     Ok(())
 };
 
 pub const NEG: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push((-a0)?);
     Ok(())
 };
 
-#[crabtime::function]
-fn gen_fn_math_binops() {
-    for name in ["ADD", "SUB", "MUL", "DIV", "REM", "POW"] {
-        let op = name.to_lowercase();
-        crabtime::output! {
-            pub const {{name}}: EuDef = |env| {
-                env.check_nargs(2)?;
-                let a1 = env.stack.pop().unwrap();
-                let a0 = env.stack.pop().unwrap();
-                env.push(a0.{{op}}(a1)?);
-                Ok(())
-            };
-        }
-    }
-}
-
-gen_fn_math_binops!();
+f_2_to_1!(ADD);
+f_2_to_1!(SUB);
+f_2_to_1!(MUL);
+f_2_to_1!(DIV);
+f_2_to_1!(REM);
+f_2_to_1!(POW);

@@ -6,13 +6,13 @@ use crate::{
 };
 
 pub const TO_MAP: EuDef = |env| {
-    let a0 = env.pop()?.to_map()?;
+    let a0 = env.arg("a0")?.to_map()?;
     env.push(EuType::Map(a0));
     Ok(())
 };
 
 pub const WRAP_MAP: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::map_([(EuType::I64(0), a0)]));
     Ok(())
 };
@@ -24,7 +24,7 @@ pub const ALL_MAP: EuDef = |env| {
 };
 
 pub const EVAL_MAP: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0 (eval)")?;
     env.push(a0.eval_to_map(env.scope.clone())?);
     Ok(())
 };
