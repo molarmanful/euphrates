@@ -971,7 +971,7 @@ impl<'eu> EuType<'eu> {
         })
     }
 
-    pub fn sorted(mut self) -> EuRes<Self> {
+    pub fn sort(mut self) -> EuRes<Self> {
         match self {
             Self::Seq(it) => it.sorted().try_collect().map(Self::Vec),
             Self::Vec(ref mut ts) => {
@@ -986,11 +986,11 @@ impl<'eu> EuType<'eu> {
                 Rc::make_mut(ts).sort_unstable();
                 Ok(self)
             }
-            _ => Self::Vec(self.to_vec()?).sorted(),
+            _ => Self::Vec(self.to_vec()?).sort(),
         }
     }
 
-    pub fn sorted_by<F>(mut self, mut f: F) -> EuRes<Self>
+    pub fn sort_by<F>(mut self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(&Self, &Self) -> EuRes<Ordering>,
     {
@@ -1045,21 +1045,21 @@ impl<'eu> EuType<'eu> {
                     *e.downcast::<EuErr>().unwrap()
                 })
             }
-            _ => Self::Vec(self.to_vec()?).sorted_by(f),
+            _ => Self::Vec(self.to_vec()?).sort_by(f),
         }
     }
 
-    pub fn sorted_by_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+    pub fn sort_by_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
         f.vecz1(|f| {
             let f = f.to_expr()?;
-            self.sorted_by(move |a, b| {
+            self.sort_by(move |a, b| {
                 EuEnv::apply_n_1(f.clone(), &[a.clone(), b.clone()], scope.clone())
                     .map(|t| t.cmp(&Self::ibig(0)))
             })
         })
     }
 
-    pub fn sorted_by_key<F>(mut self, mut f: F) -> EuRes<Self>
+    pub fn sort_by_key<F>(mut self, mut f: F) -> EuRes<Self>
     where
         F: FnMut(&Self) -> EuRes<Self>,
     {
@@ -1103,14 +1103,14 @@ impl<'eu> EuType<'eu> {
                 #[expect(clippy::missing_panics_doc, reason = "infallible")]
                 *e.downcast::<EuErr>().unwrap()
             }),
-            _ => Self::Vec(self.to_vec()?).sorted(),
+            _ => Self::Vec(self.to_vec()?).sort(),
         }
     }
 
-    pub fn sorted_by_key_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+    pub fn sort_by_key_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
         f.vecz1(move |f| {
             let f = f.to_expr()?;
-            self.sorted_by_key(|t| EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()))
+            self.sort_by_key(|t| EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()))
         })
     }
 

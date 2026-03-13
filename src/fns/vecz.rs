@@ -1,5 +1,12 @@
 use crate::{
-    fns::EuDef,
+    fns::{
+        EuDef,
+        macros::{
+            f_2_to_1,
+            f_env_2_to_1,
+            f_env_3_to_1,
+        },
+    },
     types::EuType,
 };
 
@@ -19,21 +26,8 @@ pub const HAS: EuDef = |env| {
     Ok(())
 };
 
-pub const PUSH_BACK: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.push_back(a1)?);
-    Ok(())
-};
-
-pub const PUSH_FRONT: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.push_front(a1)?);
-    Ok(())
-};
+f_2_to_1!(PUSH_BACK);
+f_2_to_1!(PUSH_FRONT);
 
 pub const INSERT: EuDef = |env| {
     env.check_nargs(3)?;
@@ -44,13 +38,7 @@ pub const INSERT: EuDef = |env| {
     Ok(())
 };
 
-pub const APPEND: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.append(a1)?);
-    Ok(())
-};
+f_2_to_1!(APPEND);
 
 pub const POP_BACK: EuDef = |env| {
     let a0 = env.pop()?;
@@ -99,13 +87,7 @@ pub const MOVE_INDEX: EuDef = |env| {
     Ok(())
 };
 
-pub const DELETE: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.delete(a1)?);
-    Ok(())
-};
+f_2_to_1!(DELETE);
 
 pub const AT: EuDef = |env| {
     env.check_nargs(2)?;
@@ -158,7 +140,7 @@ pub const DIVVY: EuDef = |env| {
 
 pub const SORT: EuDef = |env| {
     let a0 = env.pop()?;
-    env.push(a0.sorted()?);
+    env.push(a0.sort()?);
     Ok(())
 };
 
@@ -198,142 +180,22 @@ pub const MULTI_CPROD: EuDef = |env| {
     Ok(())
 };
 
-pub const MAP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.map_env(a1, env.scope.clone())?);
-    Ok(())
-};
+f_env_2_to_1!(MAP);
+f_env_2_to_1!(MAP_ATOM);
+f_env_2_to_1!(FLAT_MAP);
+f_env_2_to_1!(FILTER);
+f_env_2_to_1!(TAKE_WHILE);
+f_env_2_to_1!(DROP_WHILE);
+f_env_2_to_1!(FOLD1);
+f_env_2_to_1!(SORT_BY);
+f_env_2_to_1!(SORT_BY_KEY);
+f_env_2_to_1!(FIND);
+f_env_2_to_1!(ANY);
+f_env_2_to_1!(ALL);
 
-pub const MAP_ATOM: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.map_atom_env(a1, env.scope.clone())?);
-    Ok(())
-};
+f_env_3_to_1!(ZIP);
+f_env_3_to_1!(FOLD);
+f_env_3_to_1!(SCAN);
+f_env_3_to_1!(ZIP_ATOM);
 
-pub const FLATMAP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.flat_map_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const FILTER: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.filter_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const TAKE_WHILE: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.take_while_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const DROP_WHILE: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.drop_while_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const ZIP: EuDef = |env| {
-    env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap();
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.zip_env(a1, a2, env.scope.clone())?);
-    Ok(())
-};
-
-pub const ZIP_ATOM: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a2 = env.stack.pop().unwrap();
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.zip_atom_env(a1, a2, env.scope.clone())?);
-    Ok(())
-};
-
-pub const FOLD: EuDef = |env| {
-    env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap();
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.fold_env(a1, a2, env.scope.clone())?);
-    Ok(())
-};
-
-pub const FOLD1: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.fold1_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const SCAN: EuDef = |env| {
-    env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap();
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.scan_env(a1, a2, env.scope.clone())?);
-    Ok(())
-};
-
-pub const SORT_BY: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.sorted_by_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const SORT_BY_KEY: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.sorted_by_key_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const FIND: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.find_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const ANY: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.any_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const ALL: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.all_env(a1, env.scope.clone())?);
-    Ok(())
-};
-
-pub const SEP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
-    env.push(a0.sep(a1)?);
-    Ok(())
-};
+f_2_to_1!(SEP);

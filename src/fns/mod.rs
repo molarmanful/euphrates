@@ -2,6 +2,7 @@ mod bool;
 mod cmp;
 mod expr;
 mod io;
+mod macros;
 mod map;
 mod num;
 mod seq;
@@ -192,7 +193,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
 
     "map" => MAP,
     "mapR" => MAP_ATOM,
-    "mapF" => FLATMAP,
+    "mapF" => FLAT_MAP,
     "fltr" => FILTER,
     "tk?" => TAKE_WHILE,
     "dp?" => DROP_WHILE,
