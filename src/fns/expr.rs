@@ -5,30 +5,29 @@ use crate::{
 };
 
 pub const TO_EXPR: EuDef = |env| {
-    let a0 = env.pop()?.to_expr();
+    let a0 = env.arg("a0")?.to_expr();
     env.push(EuType::res_str(a0.map(EuType::expr)));
     Ok(())
 };
 
 pub const WRAP_EXPR: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::expr([a0.into()]));
     Ok(())
 };
 
-pub const EVAL: EuDef = |env| env.pop()?.for_rec(&mut |f| env.eval_iter(f));
+pub const EVAL: EuDef = |env| env.arg("a0 (eval)")?.for_rec(&mut |f| env.eval_iter(f));
 
 pub const TAP: EuDef = |env| {
-    env.pop()?.for_rec(&mut |f| {
+    env.arg("a0 (eval)")?.for_rec(&mut |f| {
         EuEnv::apply(f, &env.stack, env.scope.clone())?;
         Ok(())
     })
 };
 
 pub const AND_EVAL: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap().into();
+    let a1 = env.arg("a1 (eval)")?;
+    let a0 = env.arg("a0 (cond)")?.into();
     if a0 {
         a1.for_rec(&mut |f| env.eval_iter(f))
     } else {
@@ -37,9 +36,8 @@ pub const AND_EVAL: EuDef = |env| {
 };
 
 pub const OR_EVAL: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap().into();
+    let a1 = env.arg("a1 (eval)")?;
+    let a0 = env.arg("a0 (cond)")?.into();
     if a0 {
         Ok(())
     } else {
@@ -48,10 +46,9 @@ pub const OR_EVAL: EuDef = |env| {
 };
 
 pub const IF_EVAL: EuDef = |env| {
-    env.check_nargs(3)?;
-    let a2 = env.stack.pop().unwrap();
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap().into();
+    let a2 = env.arg("a2 (evalT)")?;
+    let a1 = env.arg("a1 (evalF)")?;
+    let a0 = env.arg("a0 (cond)")?.into();
     if a0 { a1 } else { a2 }.for_rec(&mut |f| env.eval_iter(f))
 };
 

@@ -61,31 +61,31 @@ pub const NAN: EuDef = |env| {
 };
 
 pub const TO_I32: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_i32().map(EuType::i32)));
     Ok(())
 };
 
 pub const TO_I64: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_i64().map(EuType::i64)));
     Ok(())
 };
 
 pub const TO_F64: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_f64().map(EuType::f64)));
     Ok(())
 };
 
 pub const TO_IBIG: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_ibig().map(EuType::ibig)));
     Ok(())
 };
 
 pub const NEG: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push((-a0)?);
     Ok(())
 };

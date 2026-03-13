@@ -259,6 +259,14 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
+    pub fn arg(&mut self, name: &str) -> EuRes<EuType<'eu>> {
+        Ok(self
+            .stack
+            .pop()
+            .with_context(|| format!("missing arg `{name}`"))?)
+    }
+
+    #[inline]
     pub fn last(&self) -> EuRes<&EuType<'eu>> {
         self.check_nargs(1).map(|()| {
             #[expect(clippy::missing_panics_doc, reason = "infallible")]

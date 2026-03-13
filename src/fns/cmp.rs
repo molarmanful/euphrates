@@ -4,9 +4,8 @@ use crate::{
 };
 
 pub const CMP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap();
-    let a0 = env.stack.pop().unwrap();
+    let a1 = env.arg("a1")?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::i32(a0.cmp(&a1) as i32));
     Ok(())
 };
@@ -14,9 +13,8 @@ pub const CMP: EuDef = |env| {
 macro_rules! cmp_binop {
     ($name:ident, $op:tt) => {
         pub const $name: EuDef = |env| {
-            env.check_nargs(2)?;
-            let a1 = env.stack.pop().unwrap();
-            let a0 = env.stack.pop().unwrap();
+            let a1 = env.arg("a1")?;
+            let a0 = env.arg("a0")?;
             env.push(EuType::Bool(a0 $op a1));
             Ok(())
         };

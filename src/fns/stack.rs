@@ -47,7 +47,7 @@ pub const EDUP: EuDef = |env| {
 };
 
 pub const PICK: EuDef = |env| {
-    let a0 = env.pop()?.try_isize()?;
+    let a0 = env.arg("a0")?.try_isize()?;
     env.push(env.stack[env.iflip(a0)?].clone());
     Ok(())
 };
@@ -81,7 +81,7 @@ pub const QPOP: EuDef = |env| {
 };
 
 pub const NIX: EuDef = |env| {
-    let a0 = env.pop()?.try_isize()?;
+    let a0 = env.arg("a0")?.try_isize()?;
     env.stack.remove(env.iflip(a0)?);
     Ok(())
 };
@@ -113,7 +113,7 @@ pub const TUCK: EuDef = |env| {
 };
 
 pub const TRADE: EuDef = |env| {
-    let a0 = env.pop()?.try_isize()?;
+    let a0 = env.arg("a0")?.try_isize()?;
     let i = env.iflip(a0)?;
     let j = env.iflip(0).unwrap();
     env.stack.make_mut().swap(i, j);
@@ -129,24 +129,23 @@ pub const ROT: EuDef = |env| {
 
 pub const UNROT: EuDef = |env| {
     env.check_nargs(3)?;
-    let a0 = env.stack.pop().unwrap();
+    let a0 = env.arg("a0")?;
     env.stack.insert(env.iflip(1).unwrap(), a0);
     Ok(())
 };
 
 pub const ROLL: EuDef = |env| {
-    let a0 = env.pop()?.try_isize()?;
+    let a0 = env.arg("a0")?.try_isize()?;
     let t = env.stack.remove(env.iflip(a0)?);
     env.push(t);
     Ok(())
 };
 
 pub const UNROLL: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a0 = env.stack.pop().unwrap().try_isize()?;
-    let i = env.iflip(a0)?;
-    let t = env.stack.pop().unwrap();
-    env.stack.insert(i, t);
+    let a1 = env.arg("a1")?.try_isize()?;
+    let i = env.iflip(a1)?;
+    let a0 = env.arg("a0")?;
+    env.stack.insert(i, a0);
     Ok(())
 };
 
@@ -168,17 +167,15 @@ pub const USURP: EuDef = |env| {
 };
 
 pub const SUB_STACK: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
-    let a0 = env.stack.pop().unwrap().to_vec()?;
+    let a1 = env.arg("a1 (eval)")?.to_expr()?;
+    let a0 = env.arg("a0")?.to_vec()?;
     env.push(EuType::Vec(EuEnv::apply(a1, &a0, env.scope.clone())?.stack));
     Ok(())
 };
 
 pub const DIP: EuDef = |env| {
-    env.check_nargs(2)?;
-    let a1 = env.stack.pop().unwrap().to_expr()?;
-    let a0 = env.stack.pop().unwrap();
+    let a1 = env.arg("a1 (eval)")?.to_expr()?;
+    let a0 = env.arg("a0")?;
     env.stack = EuEnv::apply(a1, &env.stack, env.scope.clone())?.stack;
     env.push(a0);
     Ok(())

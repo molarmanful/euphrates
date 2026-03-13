@@ -14,13 +14,13 @@ pub const FALSE: EuDef = |env| {
 };
 
 pub const TO_BOOL: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::Bool(a0.into()));
     Ok(())
 };
 
 pub const NOT: EuDef = |env| {
-    let a0: bool = env.pop()?.into();
+    let a0: bool = env.arg("a0")?.into();
     env.push(EuType::Bool(!a0));
     Ok(())
 };

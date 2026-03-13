@@ -10,25 +10,25 @@ pub const NONE: EuDef = |env| {
 };
 
 pub const SOME: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::opt(Some(a0)));
     Ok(())
 };
 
 pub const OK: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::res(Ok(a0)));
     Ok(())
 };
 
 pub const ERR: EuDef = |env| {
-    let a0 = env.pop()?;
+    let a0 = env.arg("a0")?;
     env.push(EuType::res(Err(a0)));
     Ok(())
 };
 
 pub const EVAL_RES: EuDef = |env| {
-    let a0 = env.pop()?.to_expr()?;
+    let a0 = env.arg("a0 (eval)")?.to_expr()?;
     env.push(EuType::res_str(EuEnv::apply_n_1(
         a0,
         &env.stack,
@@ -38,7 +38,7 @@ pub const EVAL_RES: EuDef = |env| {
 };
 
 pub const COALESCE: EuDef = |env| {
-    let a0 = match env.pop()? {
+    let a0 = match env.arg("a0")? {
         t @ (EuType::Opt(None) | EuType::Res(Err(_))) => {
             env.clear_queue();
             t
