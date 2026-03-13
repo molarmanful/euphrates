@@ -8,46 +8,32 @@ use ordered_float::OrderedFloat;
 
 use crate::types::EuType;
 
-#[crabtime::function]
-fn gen_eqv_ord() {
-    use itertools::Itertools;
+impl EuType<'_> {
+    #[must_use]
+    pub fn eqv_ord(&self, other: &Self) -> Ordering {
+        self.enum_index().cmp(&other.enum_index())
+    }
 
-    let types = [
-        "Bool", "Char", "I32", "I64", "IBig", "F64", "Word", "Str", "Opt", "Res", "Expr", "Vec",
-        "Map", "Set", "Seq",
-    ];
-
-    let arms = itertools::repeat_n(types, 2)
-        .multi_cartesian_product()
-        .map(|ts| {
-            let t0 = ts[0];
-            let t1 = ts[1];
-            let c = format!(
-                "Ordering::{:?}",
-                types
-                    .iter()
-                    .position(|&t| t == t0)
-                    .unwrap()
-                    .cmp(&types.iter().position(|&t| t == t1).unwrap())
-            );
-            crabtime::quote! {
-                (Self::{{t0}}(a), Self::{{t1}}(b)) => {{c}},
-            }
-        })
-        .join("");
-
-    crabtime::output! {
-        impl EuType<'_> {
-            pub fn eqv_ord(&self, other: &Self) -> Ordering {
-                match (self, other) {
-                    {{arms}}
-                }
-            }
+    fn enum_index(&self) -> u8 {
+        match self {
+            Self::Bool(_) => 0,
+            Self::Char(_) => 1,
+            Self::I32(_) => 2,
+            Self::I64(_) => 3,
+            Self::IBig(_) => 4,
+            Self::F64(_) => 5,
+            Self::Word(_) => 6,
+            Self::Str(_) => 7,
+            Self::Opt(_) => 8,
+            Self::Res(_) => 9,
+            Self::Expr(_) => 10,
+            Self::Vec(_) => 11,
+            Self::Map(_) => 12,
+            Self::Set(_) => 13,
+            Self::Seq(_) => 14,
         }
     }
 }
-
-gen_eqv_ord!();
 
 #[crabtime::function]
 fn gen_partial_eq() {
