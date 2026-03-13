@@ -11,26 +11,21 @@ pub const CMP: EuDef = |env| {
     Ok(())
 };
 
-#[crabtime::function]
-fn gen_fn_cmp_binops() {
-    for (name, op) in [
-        ("EQ", "=="),
-        ("NE", "!="),
-        ("LT", "<"),
-        ("LE", "<="),
-        ("GT", ">"),
-        ("GE", ">="),
-    ] {
-        crabtime::output! {
-            pub const {{name}}: EuDef = |env| {
-                env.check_nargs(2)?;
-                let a1 = env.stack.pop().unwrap();
-                let a0 = env.stack.pop().unwrap();
-                env.push(EuType::Bool(a0 {{op}} a1));
-                Ok(())
-            };
-        }
-    }
+macro_rules! cmp_binop {
+    ($name:ident, $op:tt) => {
+        pub const $name: EuDef = |env| {
+            env.check_nargs(2)?;
+            let a1 = env.stack.pop().unwrap();
+            let a0 = env.stack.pop().unwrap();
+            env.push(EuType::Bool(a0 $op a1));
+            Ok(())
+        };
+    };
 }
 
-gen_fn_cmp_binops!();
+cmp_binop!(EQ, ==);
+cmp_binop!(NE, !=);
+cmp_binop!(LT, <);
+cmp_binop!(LE, <=);
+cmp_binop!(GT, >);
+cmp_binop!(GE, >=);
