@@ -15,10 +15,6 @@ need_stdout = false
 command = ["cargo", "test"]
 need_stdout = true
 
-[jobs.doc]
-command = ["cargo", "doc", "--no-deps"]
-need_stdout = false
-
 [jobs.doc-open]
 command = ["cargo", "doc", "--no-deps", "--open"]
 need_stdout = false
@@ -34,5 +30,5 @@ background = true
 Shift-c = "job:check"
 c = "job:clippy"
 t = "job:test"
-d = "job:doc"
+d = "job:doc-open"
 r = "job:run"
