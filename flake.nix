@@ -94,6 +94,7 @@
                 actionlint
                 mold
                 cargo-edit
+                bacon
                 inputs.bacon-ls.defaultPackage.${system}
               ];
 
