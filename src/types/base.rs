@@ -249,11 +249,12 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Map(kvs) => Ok(kvs),
             Self::Vec(ts) => ts.into_iter().map(Self::to_pair).try_collect().map(Rc::new),
-            Self::Set(ts) => Rc::unwrap_or_clone(ts)
-                .into_iter()
-                .map(Self::to_pair)
-                .try_collect()
-                .map(Rc::new),
+            Self::Set(ts) => Ok(Rc::new(
+                Rc::unwrap_or_clone(ts)
+                    .into_iter()
+                    .map(|k| (k, Self::Bool(true)))
+                    .collect(),
+            )),
             Self::Seq(it) => it.map(|r| r?.to_pair()).try_collect().map(Rc::new),
             Self::Opt(o) => o
                 .into_iter()
