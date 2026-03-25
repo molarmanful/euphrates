@@ -1,3 +1,4 @@
+pub mod bind;
 mod bool;
 mod cmp;
 mod expr;
@@ -32,7 +33,7 @@ use crate::{
     types::EuRes,
 };
 
-pub type EuDef = fn(&mut EuEnv) -> EuRes<()>;
+type EuDef = fn(&mut EuEnv) -> EuRes<()>;
 
 pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     // stack
@@ -159,7 +160,6 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "&#" => AND_EVAL,
     "|#" => OR_EVAL,
     "&|#" => IF_EVAL,
-    "->" => BIND_ARGS,
 
     // vecz
     ":" => GET,

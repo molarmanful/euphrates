@@ -1,5 +1,10 @@
-use ecow::EcoVec;
+mod base;
+mod bind;
+
+pub use base::euphrates;
+use dashu_int::IBig;
 use hipstr::LocalHipStr;
+use ordered_float::OrderedFloat;
 use winnow::{
     ascii::digit1,
     combinator::{
@@ -14,7 +19,6 @@ use winnow::{
         peek,
         preceded,
         repeat,
-        terminated,
     },
     error::{
         StrContext,
@@ -28,50 +32,13 @@ use winnow::{
     },
 };
 
-use crate::types::{
-    EuSyn,
-    EuType,
-};
-
-pub fn euphrates<'eu>(input: &mut &str) -> ModalResult<EcoVec<EuSyn<'eu>>> {
-    terminated(
-        repeat(0.., preceded(ws, eu_syn)).fold(EcoVec::new, |mut ts, t| {
-            ts.push(t);
-            ts
-        }),
-        ws,
-    )
-    .parse_next(input)
-}
-
-fn eu_syn<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    dispatch!(peek(any);
-        '`' => eu_str_raw,
-        '"' => eu_str,
-        '\'' => eu_char,
-        '(' => eu_expr,
-        ')' => fail,
-        '[' => eu_vec,
-        ']' => fail,
-        '{' => eu_map,
-        '}' => fail,
-        '0'..='9' => eu_num,
-        '$' => eu_var,
-        '\\' => eu_move,
-        _ => eu_word,
-    )
-    .parse_next(input)
-}
-
-fn eu_str_raw<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+fn eu_str_raw_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
         .output_into()
-        .map(EuType::Str)
-        .map(EuSyn::Raw)
         .parse_next(input)
 }
 
-fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+fn eu_str_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     delimited(
         '"',
         repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
@@ -85,19 +52,11 @@ fn eu_str<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         ),
         opt('"'),
     )
-    .map(EuType::str)
-    .map(EuSyn::Raw)
     .parse_next(input)
 }
 
-fn eu_char<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    preceded(
-        '\'',
-        cut_err(eu_char_atom.verify_map(|x| x.map(EuType::Char)))
-            .context(StrContext::Label("char")),
-    )
-    .map(EuSyn::Raw)
-    .parse_next(input)
+fn eu_char_inner(input: &mut &str) -> ModalResult<Option<char>> {
+    preceded('\'', eu_char_atom).parse_next(input)
 }
 
 fn eu_char_atom(input: &mut &str) -> ModalResult<Option<char>> {
@@ -151,19 +110,63 @@ fn eu_char_uni(input: &mut &str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_expr<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    delimited('(', euphrates.map(EuType::expr).map(EuSyn::Raw), opt(')')).parse_next(input)
+fn int_suffix<T>(
+    ns: &str,
+    i32: impl FnOnce(i32) -> T + Copy,
+    i64: impl FnOnce(i64) -> T + Copy,
+    ibig: impl FnOnce(IBig) -> T + Copy,
+    f64: impl FnOnce(OrderedFloat<f64>) -> T + Copy,
+) -> impl FnMut(&mut &str) -> ModalResult<T> {
+    move |input| {
+        cut_err(alt((
+            "i32"
+                .try_map(|_| ns.parse().map(i32))
+                .context(StrContext::Label("i32")),
+            "i64"
+                .try_map(|_| ns.parse().map(i64))
+                .context(StrContext::Label("i64")),
+            "ibig"
+                .try_map(|_| ns.parse().map(ibig))
+                .context(StrContext::Label("ibig")),
+            "f64"
+                .try_map(|_| ns.parse().map(f64))
+                .context(StrContext::Label("f64")),
+            empty
+                .try_map(|()| ns.parse().map(ibig))
+                .context(StrContext::Label("int")),
+        )))
+        .parse_next(input)
+    }
 }
 
-fn eu_vec<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    delimited('[', euphrates.map(EuSyn::Vec), opt(']')).parse_next(input)
+fn float_suffix<T>(
+    ns: &str,
+    f64: impl FnOnce(OrderedFloat<f64>) -> T + Copy,
+) -> impl FnMut(&mut &str) -> ModalResult<T> {
+    move |input| {
+        not_int_suffix(input)?;
+        cut_err(alt((
+            "f64"
+                .try_map(|_| ns.parse().map(f64))
+                .context(StrContext::Label("f64")),
+            empty
+                .try_map(|()| ns.parse().map(f64))
+                .context(StrContext::Label("float")),
+        )))
+        .parse_next(input)
+    }
 }
 
-fn eu_map<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    delimited('{', euphrates.map(EuSyn::Map), opt('}')).parse_next(input)
+fn not_int_suffix(input: &mut &str) -> ModalResult<()> {
+    cut_err(not(alt(("i32", "i64", "ibig"))))
+        .context(StrContext::Label("float suffix"))
+        .context(StrContext::Expected(StrContextValue::Description(
+            "`f64` or no suffix",
+        )))
+        .parse_next(input)
 }
 
-fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
+fn eu_num_inner<'i>(input: &mut &'i str) -> ModalResult<(bool, &'i str)> {
     let ((_, dec, exp), ns) = (
         digit1,
         opt(preceded('.', digit1)),
@@ -174,98 +177,25 @@ fn eu_num<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
         })
         .with_taken()
         .parse_next(input)?;
-    if dec.is_some() || exp.is_some() {
-        eu_float_suffix(ns, input)
-    } else {
-        eu_int_suffix(ns, input)
-    }
-}
-
-#[crabtime::function]
-fn gen_fn_int_suffix() {
-    let types = ["I32", "I64", "F64", "IBig"];
-    let arms = types
-        .map(|t| {
-            let tl = format!("\"{}\"", t.to_lowercase());
-            crabtime::quote! {
-                {{tl}}
-                    .try_map(|_| ns.parse().map(EuType::{{t}}))
-                    .context(StrContext::Label({{tl}})),
-            }
-        })
-        .join("");
-    crabtime::output! {
-        fn eu_int_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-            cut_err(alt((
-                {{arms}}
-                empty
-                    .try_map(|_| ns.parse().map(EuType::IBig))
-                    .context(StrContext::Label("int")),
-            )))
-            .map(EuSyn::Raw)
-            .parse_next(input)
-        }
-    }
-}
-
-gen_fn_int_suffix!();
-
-fn eu_float_suffix<'eu>(ns: &str, input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    cut_err(not(alt(("i32", "i64", "ibig"))))
-        .context(StrContext::Label("float suffix"))
-        .context(StrContext::Expected(StrContextValue::Description(
-            "none of [`i32` `i64` `ibig`]",
-        )))
-        .parse_next(input)?;
-    cut_err(alt((
-        "f64"
-            .try_map(|_| ns.parse().map(EuType::F64))
-            .context(StrContext::Label("f64")),
-        empty
-            .try_map(|()| ns.parse().map(EuType::F64))
-            .context(StrContext::Label("float")),
-    )))
-    .map(EuSyn::Raw)
-    .parse_next(input)
-}
-
-fn eu_var<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    preceded('$', eu_word_inner)
-        .output_into()
-        .map(EuSyn::Var)
-        .context(StrContext::Label("var"))
-        .parse_next(input)
-}
-
-fn eu_move<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    preceded('\\', eu_word_inner)
-        .output_into()
-        .map(EuSyn::Move)
-        .context(StrContext::Label("move"))
-        .parse_next(input)
-}
-
-fn eu_word<'eu>(input: &mut &str) -> ModalResult<EuSyn<'eu>> {
-    eu_word_inner
-        .map(EuType::Word)
-        .map(EuSyn::Raw)
-        .parse_next(input)
+    Ok((dec.is_some() || exp.is_some(), ns))
 }
 
 fn eu_word_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
-    cut_err((
+    (
         take_while(1, |c: char| {
             !c.is_dec_digit() && !matches!(c, '$' | '\\') && is_word_char(c)
         }),
         take_while(0.., is_word_char),
-    ))
-    .map(|(a, b)| LocalHipStr::concat([a, b]))
-    .context(StrContext::Label("word"))
-    .parse_next(input)
+    )
+        .map(|(a, b)| LocalHipStr::concat([a, b]))
+        .parse_next(input)
 }
 
 fn is_word_char(c: char) -> bool {
-    !matches!(c, '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}') && !c.is_whitespace()
+    !matches!(
+        c,
+        '`' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '.' | '\\'
+    ) && !c.is_whitespace()
 }
 
 fn ws<'i>(input: &mut &'i str) -> ModalResult<&'i str> {

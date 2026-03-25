@@ -44,7 +44,6 @@ use crate::{
 };
 
 #[derive(Debug, Display, Hash, Clone, IsVariant)]
-#[display("{_0}")]
 pub enum EuType<'eu> {
     #[debug("{}", if *_0 { "True" } else { "False" })]
     Bool(bool),
@@ -75,7 +74,7 @@ pub enum EuType<'eu> {
     #[display("{}", _0.iter().join(""))]
     Vec(EcoVec<Self>),
     #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} {v:?}")).join(", "))]
-    #[display("{}", _0.iter().map(|(k, v)| format!("{k:?}{v:?}")).join(" "))]
+    #[display("{}", _0.iter().map(|(k, v)| format!("{k}{v}")).join(" "))]
     Map(Rc<OrderMap<Self, Self>>),
     #[debug("Set:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
@@ -249,11 +248,12 @@ impl<'eu> EuType<'eu> {
         match self {
             Self::Map(kvs) => Ok(kvs),
             Self::Vec(ts) => ts.into_iter().map(Self::to_pair).try_collect().map(Rc::new),
-            Self::Set(ts) => Rc::unwrap_or_clone(ts)
-                .into_iter()
-                .map(Self::to_pair)
-                .try_collect()
-                .map(Rc::new),
+            Self::Set(ts) => Ok(Rc::new(
+                Rc::unwrap_or_clone(ts)
+                    .into_iter()
+                    .map(|k| (k, Self::Bool(true)))
+                    .collect(),
+            )),
             Self::Seq(it) => it.map(|r| r?.to_pair()).try_collect().map(Rc::new),
             Self::Opt(o) => o
                 .into_iter()
@@ -456,6 +456,17 @@ fn gen_type_to_num_other() {
 }
 
 gen_type_to_num_other!();
+
+impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
+    fn from(value: EuSyn<'eu>) -> Self {
+        match value {
+            EuSyn::Vec(ts) | EuSyn::Map(ts) => Self::Expr(ts),
+            EuSyn::Var(w) | EuSyn::Move(w) => Self::word(w),
+            EuSyn::Raw(t) => t,
+            EuSyn::Bind(ts) => Self::Expr(ts.into_iter().map_into().collect()),
+        }
+    }
+}
 
 impl From<EuType<'_>> for bool {
     fn from(value: EuType) -> Self {

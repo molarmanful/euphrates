@@ -3,14 +3,19 @@ use derive_more::{
     Display,
     IsVariant,
 };
-use ecow::EcoVec;
+use ecow::{
+    EcoVec,
+    eco_vec,
+};
 use hipstr::LocalHipStr;
 use itertools::Itertools;
 
-use crate::types::EuType;
+use crate::types::{
+    EuBind,
+    EuType,
+};
 
 #[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, IsVariant)]
-#[display("{_0}")]
 pub enum EuSyn<'eu> {
     #[debug("{_0:?}")]
     Raw(EuType<'eu>),
@@ -18,12 +23,15 @@ pub enum EuSyn<'eu> {
     Var(LocalHipStr<'eu>),
     #[debug("\\{_0}")]
     Move(LocalHipStr<'eu>),
-    #[debug("@Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("$Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),
-    #[debug("@Map({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[debug("$Map({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Map(EcoVec<Self>),
+    #[debug("\\[{}]", _0.iter().map(|t| format!("{t:?}")).join(" "))]
+    #[display("{}", _0.iter().join(" "))]
+    Bind(EcoVec<EuBind<'eu>>),
 }
 
 impl<'eu> From<EuType<'eu>> for EuSyn<'eu> {
@@ -32,12 +40,8 @@ impl<'eu> From<EuType<'eu>> for EuSyn<'eu> {
     }
 }
 
-impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
-    fn from(value: EuSyn<'eu>) -> Self {
-        match value {
-            EuSyn::Vec(ts) | EuSyn::Map(ts) => Self::Expr(ts),
-            EuSyn::Var(w) | EuSyn::Move(w) => Self::word(w),
-            EuSyn::Raw(t) => t,
-        }
+impl<'eu> From<EuBind<'eu>> for EuSyn<'eu> {
+    fn from(value: EuBind<'eu>) -> Self {
+        Self::Bind(eco_vec![value])
     }
 }

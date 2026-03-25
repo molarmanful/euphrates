@@ -51,8 +51,3 @@ pub const IF_EVAL: EuDef = |env| {
     let a0 = env.arg("a0 (cond)")?.into();
     if a0 { a1 } else { a2 }.for_rec(&mut |f| env.eval_iter(f))
 };
-
-pub const BIND_ARGS: EuDef = |env| {
-    let a0 = env.pop()?;
-    env.bind_args(a0.into())
-};

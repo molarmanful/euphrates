@@ -1,10 +1,10 @@
 use ecow::eco_vec;
-use winnow::error::{
-    ContextError,
-    ParseError,
-};
 
 use super::*;
+use crate::types::{
+    EuSyn,
+    EuType,
+};
 
 #[test]
 fn test_empty() {
@@ -64,29 +64,14 @@ fn test_move() {
 
 #[test]
 fn test_dec() {
-    assert_eq!(parse(".1234"), Ok(eco_vec![EuType::word(".1234").into()]));
-    assert_eq!(
-        parse("1234.5.678"),
-        Ok(eco_vec![
-            EuType::f64(1234.5).into(),
-            EuType::word(".678").into()
-        ])
-    );
-    assert_eq!(
-        parse(".1234.5.678"),
-        Ok(eco_vec![EuType::word(".1234.5.678").into()])
-    );
-    assert_eq!(
-        parse("1234..5678"),
-        Ok(eco_vec![
-            EuType::ibig(1234).into(),
-            EuType::word("..5678").into()
-        ])
-    );
+    assert!(is_err(".1234"));
+    assert!(is_err("1234.5.678"));
+    assert!(is_err("1234..5678"));
 }
 
 #[test]
 fn test_str() {
+    assert_eq!(parse(r#""""#), Ok(eco_vec![EuType::str("").into()]));
     assert_eq!(
         parse(r#""testing testing 123""#),
         Ok(eco_vec![EuType::str("testing testing 123").into()])
@@ -124,6 +109,7 @@ fn test_str() {
 
 #[test]
 fn test_str_raw() {
+    assert_eq!(parse("``"), Ok(eco_vec![EuType::str("").into()]));
     assert_eq!(
         parse("`testing testing 123`"),
         Ok(eco_vec![EuType::str("testing testing 123").into()])
@@ -165,6 +151,7 @@ fn test_char_invalid() {
 
 #[test]
 fn test_expr() {
+    assert_eq!(parse("()"), Ok(eco_vec![EuType::expr([]).into()]));
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf)"#),
         Ok(eco_vec![
@@ -213,6 +200,7 @@ fn test_expr_invalid() {
 
 #[test]
 fn test_vec() {
+    assert_eq!(parse("[]"), Ok(eco_vec![EuSyn::Vec(eco_vec![])]));
     assert_eq!(
         parse(r#"[1 "2" 3+ asdf]"#),
         Ok(eco_vec![EuSyn::Vec(eco_vec![
@@ -287,13 +275,7 @@ fn test_all() {
             EuType::word("ever").into()
         ])
     );
-    assert_eq!(
-        parse("123e.4"),
-        Ok(eco_vec![
-            EuType::ibig(123).into(),
-            EuType::word("e.4").into()
-        ])
-    );
+    assert!(is_err("123e.4"));
     assert_eq!(
         parse("(1 2+)map"),
         Ok(eco_vec![
@@ -306,19 +288,5 @@ fn test_all() {
             EuType::word("map").into()
         ])
     );
-    assert_eq!(
-        parse("12e3.4"),
-        Ok(eco_vec![
-            EuType::f64(12e3).into(),
-            EuType::word(".4").into()
-        ])
-    );
-}
-
-fn parse(input: &str) -> Result<EcoVec<EuSyn<'_>>, ParseError<&str, ContextError>> {
-    euphrates.parse(input)
-}
-
-fn is_err(input: &str) -> bool {
-    euphrates.parse(input).is_err()
+    assert!(is_err("12e3.4"));
 }
