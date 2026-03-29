@@ -53,7 +53,7 @@ pub enum EuType<'eu> {
     I64(i64),
     #[debug("{_0:?}")]
     IBig(IBig),
-    #[debug("{}", if _0.is_infinite() { format!("{}Inf32", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
+    #[debug("{}", if _0.is_infinite() { format!("{}Inf", if _0.is_negative() {"-"} else {""}) } else { format!("{_0:?}") })]
     F64(OrderedFloat<f64>),
     #[debug("{_0:?}")]
     Char(char),
