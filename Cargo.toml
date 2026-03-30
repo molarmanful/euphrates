@@ -30,7 +30,7 @@ itertools = "0.14.0"
 imbl = "7.0.0"
 ecow = "0.2.6"
 dyn-clone = "1.0.20"
-ordered-float = "5.1.0"
+ordered-float = "5.3.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
 wit-bindgen = "0.53.1"
 clap = { version = "4.6.0", features = ["derive"] }
