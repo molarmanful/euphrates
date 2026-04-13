@@ -1,12 +1,14 @@
 use std::{
-    error::Error,
     fs,
     io,
     path,
 };
 
 use clap::Parser;
-use euph::env::EuEnv;
+use euph::{
+    EuEnvOpts,
+    env::EuEnv,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -20,29 +22,37 @@ struct Cli {
     /// Evaluate code passed from STDIN
     #[arg(short = 'i', long, group = "input")]
     stdin: bool,
+    /// Turn on debug mode
+    #[arg(long, default_value_t = false)]
+    debug: bool,
+    /// Print final program state
+    #[arg(long, default_value_t = false)]
+    dump: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
-    if let Some(s) = cli.string {
-        run(&s);
+    let opts = EuEnvOpts { debug: cli.debug };
+
+    let res: anyhow::Result<String> = if let Some(s) = cli.string {
+        Ok(s)
     } else if let Some(p) = cli.file {
-        run_res(fs::read_to_string(p));
+        fs::read_to_string(p).map_err(Into::into)
     } else if cli.stdin {
-        run_res(io::read_to_string(io::stdin()));
-    }
-}
+        io::read_to_string(io::stdin()).map_err(Into::into)
+    } else {
+        return;
+    };
 
-fn run_res<E: Error>(r: Result<String, E>) {
-    match r {
-        Ok(code) => run(&code),
-        Err(e) => eprintln!("ERR:\n{e}"),
-    }
-}
-
-fn run(code: &str) {
-    match EuEnv::run_str(code) {
-        Ok(env) => println!("{env}"),
+    match res
+        .map_err(Into::into)
+        .and_then(|code| EuEnv::run_str(&code, &opts))
+    {
+        Ok(env) => {
+            if cli.debug || cli.dump {
+                println!("{env}");
+            }
+        }
         Err(e) => {
             eprintln!("ERR:");
             for c in e.0.chain() {

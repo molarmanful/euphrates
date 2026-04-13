@@ -25,6 +25,6 @@ pub const ALL_SET: EuDef = |env| {
 
 pub const EVAL_SET: EuDef = |env| {
     let a0 = env.arg("a0 (eval)")?;
-    env.push(a0.eval_to_set(env.scope.clone())?);
+    env.push(a0.eval_to_set(env.scope.clone(), env.opts)?);
     Ok(())
 };

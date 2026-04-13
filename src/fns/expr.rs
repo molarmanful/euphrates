@@ -20,7 +20,7 @@ pub const EVAL: EuDef = |env| env.arg("a0 (eval)")?.for_rec(&mut |f| env.eval_it
 
 pub const TAP: EuDef = |env| {
     env.arg("a0 (eval)")?.for_rec(&mut |f| {
-        EuEnv::apply(f, &env.stack, env.scope.clone())?;
+        EuEnv::apply(f, &env.stack, env.scope.clone(), env.opts)?;
         Ok(())
     })
 };

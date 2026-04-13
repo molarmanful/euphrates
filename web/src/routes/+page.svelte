@@ -18,6 +18,8 @@
 
   type ParamKey = keyof typeof params
 
+  let opts = $state({ debug: false })
+
   const autoScroll = (...[node]: [HTMLTextAreaElement, unknown]) => ({
     update() {
       requestAnimationFrame(() => {
@@ -31,11 +33,14 @@
   const setParams = async () => {
     replaceState(
       `?${new URLSearchParams(
-        await Promise.all(
-          Object.entries(params)
-            .filter(([, { value }]) => value)
-            .map(async ([k, { value }]) => [k, await compress(value)]),
-        ),
+        [
+          ...await Promise.all(
+            Object.entries(params)
+              .filter(([, { value }]) => value)
+              .map(async ([k, { value }]) => [k, await compress(value)]),
+          ),
+          ...opts.debug ? [['debug', '']] : [],
+        ],
       )}`,
       page.state,
     )
@@ -55,6 +60,7 @@
         .map(p => params[p].value)
         .join('\n'),
       params.input.value,
+      opts,
     )
   }
 
@@ -62,6 +68,7 @@
     await Promise.all(
       Object.keys(params).map(p => getParam(p as ParamKey)),
     )
+    opts.debug = page.url.searchParams.has('debug')
   })
 </script>
 
@@ -78,12 +85,24 @@
 <div class='flex h-screen flex-col gap-2 p-4'>
   <header>
     <h1 class='mb-3'>euphrates</h1>
-    <div class='flex items-start gap-3'>
+    <div class='flex items-center gap-3'>
       <button
         class='btn'
         onclick={run}
       >
         run
+      </button>
+
+      <button
+        class='btn'
+        role='switch'
+        aria-checked={opts.debug}
+        onclick={() => {
+          opts.debug = !opts.debug
+          void setParams()
+        }}
+      >
+        debug?
       </button>
     </div>
   </header>
@@ -126,6 +145,8 @@
   >
     <button
       class='text-left'
+      role='switch'
+      aria-checked={params[p].open}
       onclick={() => {
         params[p].open = !params[p].open
       }}

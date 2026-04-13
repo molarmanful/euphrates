@@ -30,6 +30,7 @@ use ordermap::{
 use winnow::Parser;
 
 use crate::{
+    EuEnvOpts,
     env::{
         EuEnv,
         EuScope,
@@ -217,8 +218,8 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_vec(self, scope: EuScope<'eu>) -> EuRes<Self> {
-        self.vecz1(|f| EuEnv::apply(f.to_expr()?, &[], scope).map(|env| Self::Vec(env.stack)))
+    pub fn eval_to_vec(self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        self.vecz1(|f| EuEnv::apply(f.to_expr()?, &[], scope, opts).map(|env| Self::Vec(env.stack)))
     }
 
     pub fn to_seq(self) -> EuSeq<'eu> {
@@ -274,9 +275,9 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_map(self, scope: EuScope<'eu>) -> EuRes<Self> {
+    pub fn eval_to_map(self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
         self.vecz1(|f| {
-            EuEnv::apply(f.to_expr()?, &[], scope)?
+            EuEnv::apply(f.to_expr()?, &[], scope, opts)?
                 .stack
                 .into_iter()
                 .map(EuType::to_pair)
@@ -299,9 +300,9 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_set(self, scope: EuScope<'eu>) -> EuRes<Self> {
+    pub fn eval_to_set(self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
         self.vecz1(|f| {
-            EuEnv::apply(f.to_expr()?, &[], scope)
+            EuEnv::apply(f.to_expr()?, &[], scope, opts)
                 .map(|env| EuType::Set(Rc::new(env.stack.into_iter().collect())))
         })
     }

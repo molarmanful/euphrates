@@ -1,5 +1,9 @@
 package euphrates:glue;
 
 world glue {
-    export run-euph: func(code: string);
+    record eu-env-opts {
+        debug: bool, 
+    }
+
+    export run-euph: func(code: string, opts: eu-env-opts);
 }
