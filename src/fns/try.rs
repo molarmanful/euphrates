@@ -33,6 +33,7 @@ pub const EVAL_RES: EuDef = |env| {
         a0,
         &env.stack,
         env.scope.clone(),
+        env.opts,
     )));
     Ok(())
 };

@@ -19,6 +19,7 @@ use itertools::Itertools;
 use winnow::Parser;
 
 use crate::{
+    EuEnvOpts,
     fns::{
         CORE,
         bind,
@@ -39,13 +40,14 @@ pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: EuScope<'eu>,
+    pub opts: &'eu EuEnvOpts,
 }
 
 pub type EuScope<'eu> =
     imbl::GenericHashMap<LocalHipStr<'eu>, EuType<'eu>, hash::RandomState, imbl::shared_ptr::RcK>;
 
 impl<'eu> EuEnv<'eu> {
-    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> Self
+    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
@@ -55,27 +57,38 @@ impl<'eu> EuEnv<'eu> {
             queue: it.peekable(),
             stack: args.into(),
             scope,
+            opts,
         }
     }
 
     #[inline]
-    pub fn apply<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuEnv<'eu>>
+    pub fn apply<T>(
+        ts: T,
+        args: &[EuType<'eu>],
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<EuEnv<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        let mut env = Self::new(ts, args, scope);
+        let mut env = Self::new(ts, args, scope, opts);
         env.eval()?;
         Ok(env)
     }
 
     #[inline]
-    pub fn apply_n_1<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>) -> EuRes<EuType<'eu>>
+    pub fn apply_n_1<T>(
+        ts: T,
+        args: &[EuType<'eu>],
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<EuType<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope).and_then(|mut env| env.pop())
+        Self::apply(ts, args, scope, opts).and_then(|mut env| env.pop())
     }
 
     #[inline]
@@ -83,12 +96,13 @@ impl<'eu> EuEnv<'eu> {
         ts: T,
         args: &[EuType<'eu>],
         scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
     ) -> EuRes<(EuType<'eu>, EuType<'eu>)>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope).and_then(|mut env| {
+        Self::apply(ts, args, scope, opts).and_then(|mut env| {
             env.check_nargs(2)?;
             #[expect(clippy::missing_panics_doc, reason = "infallible")]
             let a1 = env.stack.pop().unwrap();
@@ -98,25 +112,30 @@ impl<'eu> EuEnv<'eu> {
         })
     }
 
-    pub fn run_str(input: &str) -> EuRes<Self> {
-        let mut env = Self::str(input)?;
+    pub fn run_str(input: &str, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        let mut env = Self::str(input, opts)?;
         env.eval()?;
         Ok(env)
     }
 
-    pub fn str(input: &str) -> EuRes<Self> {
+    pub fn str(input: &str, opts: &'eu EuEnvOpts) -> EuRes<Self> {
         Ok(Self::new(
             euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
             &[],
             imbl::GenericHashMap::new(),
+            opts,
         ))
     }
 
     pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
-            println!("{t:?}\n>>>");
+            if self.opts.debug {
+                println!("{t:?}\n>>>");
+            }
             self.eval_syn(t)?;
-            println!("{self}\n<<<\n");
+            if self.opts.debug {
+                println!("{self}\n<<<\n");
+            }
         }
         Ok(())
     }
@@ -128,13 +147,13 @@ impl<'eu> EuEnv<'eu> {
             EuSyn::Move(s) => self.eval_move(&s),
             EuSyn::Vec(ts) => {
                 self.push(EuType::vec(
-                    EuEnv::apply(ts, &[], self.scope.clone())?.stack,
+                    EuEnv::apply(ts, &[], self.scope.clone(), self.opts)?.stack,
                 ));
                 Ok(())
             }
             EuSyn::Map(ts) => {
                 self.push(EuType::Map(Rc::new(
-                    EuEnv::apply(ts, &[], self.scope.clone())?
+                    EuEnv::apply(ts, &[], self.scope.clone(), self.opts)?
                         .stack
                         .into_iter()
                         .map(EuType::to_pair)
@@ -231,6 +250,7 @@ impl<'eu> EuEnv<'eu> {
             queue: it.peekable(),
             stack: self.stack.clone(),
             scope: self.scope.clone(),
+            opts: self.opts,
         }
     }
 

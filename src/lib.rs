@@ -21,8 +21,8 @@ wit_bindgen::generate!();
 struct Glue;
 
 impl Guest for Glue {
-    fn run_euph(code: String) {
-        match EuEnv::run_str(&code) {
+    fn run_euph(code: String, opts: EuEnvOpts) {
+        match EuEnv::run_str(&code, &opts) {
             Ok(env) => println!("{env}"),
             Err(e) => {
                 eprintln!("ERR:");

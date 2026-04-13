@@ -22,6 +22,7 @@ use ordermap::{
 };
 
 use crate::{
+    EuEnvOpts,
     env::{
         EuEnv,
         EuScope,
@@ -56,11 +57,11 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    pub fn unfold_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn unfold_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             Ok(Self::seq(self.unfold(move |acc| {
-                EuEnv::apply_n_2(f.clone(), slice::from_mut(acc), scope.clone())
+                EuEnv::apply_n_2(f.clone(), slice::from_mut(acc), scope.clone(), opts)
             })))
         })
     }
@@ -498,13 +499,13 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn map_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn map_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
-                self.map(move |t| EuEnv::apply_n_1(f.clone(), &[t], scope.clone()))
+                self.map(move |t| EuEnv::apply_n_1(f.clone(), &[t], scope.clone(), opts))
             } else {
-                self.map_once(|t| EuEnv::apply_n_1(f, &[t], scope))
+                self.map_once(|t| EuEnv::apply_n_1(f, &[t], scope, opts))
             }
         })
     }
@@ -557,10 +558,10 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn map_atom_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn map_atom_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
-            self.vecz1(|t| EuEnv::apply_n_1(f, &[t], scope))
+            self.vecz1(|t| EuEnv::apply_n_1(f, &[t], scope, opts))
         })
     }
 
@@ -606,13 +607,13 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn flat_map_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn flat_map_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
-                self.flat_map(move |t| EuEnv::apply_n_1(f.clone(), &[t], scope.clone()))
+                self.flat_map(move |t| EuEnv::apply_n_1(f.clone(), &[t], scope.clone(), opts))
             } else {
-                self.flat_map_once(|t| EuEnv::apply_n_1(f, &[t], scope))
+                self.flat_map_once(|t| EuEnv::apply_n_1(f, &[t], scope, opts))
             }
         })
     }
@@ -673,15 +674,18 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn filter_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn filter_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.filter(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
-                self.filter_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+                self.filter_once(|t| {
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
+                })
             }
         })
     }
@@ -720,16 +724,17 @@ impl<'eu> EuType<'eu> {
         self.filter_once(f)
     }
 
-    pub fn take_while_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn take_while_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.take_while(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
                 self.take_while_once(|t| {
-                    EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into)
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
                 })
             }
         })
@@ -770,16 +775,17 @@ impl<'eu> EuType<'eu> {
         self.filter_once(|t| f(t).map(|b| !b))
     }
 
-    pub fn drop_while_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn drop_while_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.drop_while(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
                 self.drop_while_once(|t| {
-                    EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into)
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
                 })
             }
         })
@@ -828,23 +834,35 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn zip_env(self, t: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn zip_env(
+        self,
+        t: Self,
+        f: Self,
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() || t.is_many() {
                 self.zip(t, move |a, b| {
-                    EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone())
+                    EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone(), opts)
                 })
             } else {
-                self.zip_once(t, |a, b| EuEnv::apply_n_1(f, &[a, b], scope))
+                self.zip_once(t, |a, b| EuEnv::apply_n_1(f, &[a, b], scope, opts))
             }
         })
     }
 
-    pub fn zip_atom_env(self, t: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn zip_atom_env(
+        self,
+        t: Self,
+        f: Self,
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
-            self.vecz2(t, |a, b| EuEnv::apply_n_1(f, &[a, b], scope))
+            self.vecz2(t, |a, b| EuEnv::apply_n_1(f, &[a, b], scope, opts))
         })
     }
 
@@ -869,15 +887,21 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn fold_env(self, init: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn fold_env(
+        self,
+        init: Self,
+        f: Self,
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.fold(init, move |acc, t| {
-                    EuEnv::apply_n_1(f.clone(), &[acc, t], scope.clone())
+                    EuEnv::apply_n_1(f.clone(), &[acc, t], scope.clone(), opts)
                 })
             } else {
-                self.fold_once(init, |acc, t| EuEnv::apply_n_1(f, &[acc, t], scope))
+                self.fold_once(init, |acc, t| EuEnv::apply_n_1(f, &[acc, t], scope, opts))
             }
         })
     }
@@ -899,11 +923,11 @@ impl<'eu> EuType<'eu> {
         self.to_opt()
     }
 
-    pub fn fold1_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn fold1_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
-                self.fold1(move |a, b| EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone()))
+                self.fold1(move |a, b| EuEnv::apply_n_1(f.clone(), &[a, b], scope.clone(), opts))
             } else {
                 Ok(self.fold1_once())
             }
@@ -956,16 +980,22 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn scan_env(self, init: Self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn scan_env(
+        self,
+        init: Self,
+        f: Self,
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.scan(init, move |acc, t| {
-                    EuEnv::apply_n_2(f.clone(), &[mem::take(acc), t], scope.clone())
+                    EuEnv::apply_n_2(f.clone(), &[mem::take(acc), t], scope.clone(), opts)
                 })
             } else {
                 self.scan_once(init, move |acc, t| {
-                    EuEnv::apply_n_2(f, &[mem::take(acc), t], scope)
+                    EuEnv::apply_n_2(f, &[mem::take(acc), t], scope, opts)
                 })
             }
         })
@@ -1049,11 +1079,11 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn sort_by_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn sort_by_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             self.sort_by(move |a, b| {
-                EuEnv::apply_n_1(f.clone(), &[a.clone(), b.clone()], scope.clone())
+                EuEnv::apply_n_1(f.clone(), &[a.clone(), b.clone()], scope.clone(), opts)
                     .map(|t| t.cmp(&Self::ibig(0)))
             })
         })
@@ -1107,10 +1137,17 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn sort_by_key_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
+    pub fn sort_by_key_env(
+        self,
+        f: Self,
+        scope: EuScope<'eu>,
+        opts: &'eu EuEnvOpts,
+    ) -> EuRes<Self> {
         f.vecz1(move |f| {
             let f = f.to_expr()?;
-            self.sort_by_key(|t| EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()))
+            self.sort_by_key(|t| {
+                EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+            })
         })
     }
 
@@ -1143,15 +1180,18 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn find_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn find_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.find(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
-                self.find_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+                self.find_once(|t| {
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
+                })
             }
             .map(Self::opt)
         })
@@ -1171,15 +1211,18 @@ impl<'eu> EuType<'eu> {
         self.find_once(f).map(|o| o.is_some())
     }
 
-    pub fn any_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn any_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.any(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
-                self.any_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+                self.any_once(|t| {
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
+                })
             }
             .map(Self::Bool)
         })
@@ -1199,15 +1242,18 @@ impl<'eu> EuType<'eu> {
         self.any_once(|t| f(t).map(|b| !b)).map(|b| !b)
     }
 
-    pub fn all_env(self, f: Self, scope: EuScope<'eu>) -> EuRes<Self> {
-        f.vecz1(|f| {
+    pub fn all_env(self, f: Self, scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> EuRes<Self> {
+        f.vecz1(move |f| {
             let f = f.to_expr()?;
             if self.is_many() {
                 self.all(move |t| {
-                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone()).map(Self::into)
+                    EuEnv::apply_n_1(f.clone(), slice::from_ref(t), scope.clone(), opts)
+                        .map(Self::into)
                 })
             } else {
-                self.all_once(|t| EuEnv::apply_n_1(f, slice::from_ref(t), scope).map(Self::into))
+                self.all_once(|t| {
+                    EuEnv::apply_n_1(f, slice::from_ref(t), scope, opts).map(Self::into)
+                })
             }
             .map(Self::Bool)
         })
