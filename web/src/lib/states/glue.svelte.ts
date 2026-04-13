@@ -1,5 +1,5 @@
 import { shim } from '$lib/ts/shim'
-import { instantiate } from '$lib/wasm/euph'
+import { type EuEnvOpts, instantiate } from '$lib/wasm/euph'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
@@ -13,7 +13,7 @@ export class Glue {
     return this.#out
   }
 
-  async run(code: string, input: string) {
+  async run(code: string, input: string, opts: EuEnvOpts) {
     this.#in = textEncoder.encode(input).values()
     this.#out = ''
 
@@ -27,6 +27,6 @@ export class Glue {
       },
     })
 
-    this.#mod.runEuph(code)
+    this.#mod.runEuph(code, opts)
   }
 }

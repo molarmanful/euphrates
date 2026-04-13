@@ -51,8 +51,11 @@
   }
 
   .box > :not(:first-child) {
-    @apply border border-slate-400 p-2 text-slate-50 focus:border-slate-50
-      transition outline-none font-normal flex-1;
+    @apply border border-slate-400 p-2 text-slate-50 transition outline-none font-normal flex-1;
+
+    @variant focus {
+      @apply border-slate-50;
+    }
   }
 
   .box > textarea {
@@ -64,6 +67,10 @@
 
     @variant [&:hover,&:focus] {
       @apply text-slate-50;
+    }
+
+    @variant aria-checked {
+      @apply bg-slate-50 text-slate-950 border-slate-50;
     }
   }
 }
