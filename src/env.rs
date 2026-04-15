@@ -145,6 +145,7 @@ impl<'eu> EuEnv<'eu> {
 
     pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
+            #[cfg(not(target_arch = "wasm32"))]
             if !self.ctx.interrupt.load(Ordering::SeqCst) {
                 return Err(anyhow!("interrupted").into());
             }

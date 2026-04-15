@@ -33,6 +33,7 @@ impl Guest for Glue {
             opts,
             interrupt: Arc::new(AtomicBool::new(true)),
         };
+
         match EuEnv::apply_str(&code, &[], imbl::GenericHashMap::new(), &ctx) {
             Ok(env) => println!("{env}"),
             Err(e) => {
