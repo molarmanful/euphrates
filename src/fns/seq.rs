@@ -25,7 +25,7 @@ pub const WRAP_SEQ: EuDef = |env| {
 pub const UNFOLD: EuDef = |env| {
     let a1 = env.arg("a1 (eval)")?;
     let a0 = env.arg("a0")?;
-    env.push(a0.unfold_env(a1, env.scope.clone(), env.opts)?);
+    env.push(a0.unfold_env(a1, env.scope.clone(), env.ctx)?);
     Ok(())
 };
 

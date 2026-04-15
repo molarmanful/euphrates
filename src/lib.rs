@@ -14,7 +14,14 @@ pub mod parser;
 pub mod types;
 pub mod utils;
 
+use std::sync::{
+    Arc,
+    atomic::AtomicBool,
+};
+
 use env::EuEnv;
+
+use crate::env::EuEnvCtx;
 
 wit_bindgen::generate!();
 
@@ -22,7 +29,11 @@ struct Glue;
 
 impl Guest for Glue {
     fn run_euph(code: String, opts: EuEnvOpts) {
-        match EuEnv::run_str(&code, &opts) {
+        let ctx = EuEnvCtx {
+            opts,
+            interrupt: Arc::new(AtomicBool::new(true)),
+        };
+        match EuEnv::apply_str(&code, &[], imbl::GenericHashMap::new(), &ctx) {
             Ok(env) => println!("{env}"),
             Err(e) => {
                 eprintln!("ERR:");
