@@ -6,13 +6,23 @@ use std::{
     },
     mem,
     rc::Rc,
+    sync::{
+        Arc,
+        atomic::{
+            AtomicBool,
+            Ordering,
+        },
+    },
 };
 
 use anyhow::{
     Context,
     anyhow,
 };
-use derive_more::Display;
+use derive_more::{
+    Debug,
+    Display,
+};
 use ecow::EcoVec;
 use hipstr::LocalHipStr;
 use itertools::Itertools;
@@ -34,20 +44,26 @@ use crate::{
     },
 };
 
-#[derive(Display)]
-#[display("stack: {stack:?}\nscope: {scope:?}")]
+#[derive(Debug, Display)]
+#[debug("stack: {stack:?}\nscope: {scope:?}")]
+#[display("{stack:?}")]
 pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
     pub stack: EcoVec<EuType<'eu>>,
     pub scope: EuScope<'eu>,
-    pub opts: &'eu EuEnvOpts,
+    pub ctx: &'eu EuEnvCtx,
+}
+
+pub struct EuEnvCtx {
+    pub opts: EuEnvOpts,
+    pub interrupt: Arc<AtomicBool>,
 }
 
 pub type EuScope<'eu> =
     imbl::GenericHashMap<LocalHipStr<'eu>, EuType<'eu>, hash::RandomState, imbl::shared_ptr::RcK>;
 
 impl<'eu> EuEnv<'eu> {
-    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>, opts: &'eu EuEnvOpts) -> Self
+    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
@@ -57,7 +73,7 @@ impl<'eu> EuEnv<'eu> {
             queue: it.peekable(),
             stack: args.into(),
             scope,
-            opts,
+            ctx,
         }
     }
 
@@ -66,13 +82,13 @@ impl<'eu> EuEnv<'eu> {
         ts: T,
         args: &[EuType<'eu>],
         scope: EuScope<'eu>,
-        opts: &'eu EuEnvOpts,
+        ctx: &'eu EuEnvCtx,
     ) -> EuRes<EuEnv<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        let mut env = Self::new(ts, args, scope, opts);
+        let mut env = Self::new(ts, args, scope, ctx);
         env.eval()?;
         Ok(env)
     }
@@ -82,13 +98,13 @@ impl<'eu> EuEnv<'eu> {
         ts: T,
         args: &[EuType<'eu>],
         scope: EuScope<'eu>,
-        opts: &'eu EuEnvOpts,
+        ctx: &'eu EuEnvCtx,
     ) -> EuRes<EuType<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope, opts).and_then(|mut env| env.pop())
+        Self::apply(ts, args, scope, ctx).and_then(|mut env| env.pop())
     }
 
     #[inline]
@@ -96,13 +112,13 @@ impl<'eu> EuEnv<'eu> {
         ts: T,
         args: &[EuType<'eu>],
         scope: EuScope<'eu>,
-        opts: &'eu EuEnvOpts,
+        ctx: &'eu EuEnvCtx,
     ) -> EuRes<(EuType<'eu>, EuType<'eu>)>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope, opts).and_then(|mut env| {
+        Self::apply(ts, args, scope, ctx).and_then(|mut env| {
             env.check_nargs(2)?;
             #[expect(clippy::missing_panics_doc, reason = "infallible")]
             let a1 = env.stack.pop().unwrap();
@@ -112,29 +128,33 @@ impl<'eu> EuEnv<'eu> {
         })
     }
 
-    pub fn run_str(input: &str, opts: &'eu EuEnvOpts) -> EuRes<Self> {
-        let mut env = Self::str(input, opts)?;
-        env.eval()?;
-        Ok(env)
-    }
-
-    pub fn str(input: &str, opts: &'eu EuEnvOpts) -> EuRes<Self> {
-        Ok(Self::new(
-            euphrates.parse(input).map_err(|e| anyhow!(e.to_string()))?,
-            &[],
-            imbl::GenericHashMap::new(),
-            opts,
-        ))
+    #[inline]
+    pub fn apply_str(
+        s: &str,
+        args: &[EuType<'eu>],
+        scope: EuScope<'eu>,
+        ctx: &'eu EuEnvCtx,
+    ) -> EuRes<EuEnv<'eu>> {
+        Self::apply(
+            euphrates.parse(s).map_err(|e| anyhow!(e.to_string()))?,
+            args,
+            scope,
+            ctx,
+        )
     }
 
     pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
-            if self.opts.debug {
+            #[cfg(not(target_arch = "wasm32"))]
+            if !self.ctx.interrupt.load(Ordering::SeqCst) {
+                return Err(anyhow!("interrupted").into());
+            }
+            if self.ctx.opts.debug {
                 println!("{t:?}\n>>>");
             }
             self.eval_syn(t)?;
-            if self.opts.debug {
-                println!("{self}\n<<<\n");
+            if self.ctx.opts.debug {
+                println!("{self:?}\n<<<\n");
             }
         }
         Ok(())
@@ -147,13 +167,13 @@ impl<'eu> EuEnv<'eu> {
             EuSyn::Move(s) => self.eval_move(&s),
             EuSyn::Vec(ts) => {
                 self.push(EuType::vec(
-                    EuEnv::apply(ts, &[], self.scope.clone(), self.opts)?.stack,
+                    Self::apply(ts, &[], self.scope.clone(), self.ctx)?.stack,
                 ));
                 Ok(())
             }
             EuSyn::Map(ts) => {
                 self.push(EuType::Map(Rc::new(
-                    EuEnv::apply(ts, &[], self.scope.clone(), self.opts)?
+                    Self::apply(ts, &[], self.scope.clone(), self.ctx)?
                         .stack
                         .into_iter()
                         .map(EuType::to_pair)
@@ -250,7 +270,7 @@ impl<'eu> EuEnv<'eu> {
             queue: it.peekable(),
             stack: self.stack.clone(),
             scope: self.scope.clone(),
-            opts: self.opts,
+            ctx: self.ctx,
         }
     }
 
@@ -355,7 +375,7 @@ impl<'eu> EuEnv<'eu> {
 
     pub fn check_nargs(&self, n: usize) -> EuRes<()> {
         if self.stack.len() < n {
-            Err(anyhow!("actual stack len {} < {} expected", self.stack.len(), n).into())
+            Err(anyhow!("actual stack len {} < {n} expected", self.stack.len()).into())
         } else {
             Ok(())
         }

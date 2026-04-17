@@ -2,7 +2,7 @@ package euphrates:glue;
 
 world glue {
     record eu-env-opts {
-        debug: bool, 
+        debug: bool,
     }
 
     export run-euph: func(code: string, opts: eu-env-opts);

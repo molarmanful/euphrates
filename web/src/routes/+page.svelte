@@ -54,8 +54,8 @@
     }
   }
 
-  const run = async () => {
-    await glue.run(
+  const run = () => {
+    glue.run(
       (['header', 'code', 'footer'] as const)
         .map(p => params[p].value)
         .join('\n'),
@@ -73,8 +73,8 @@
 </script>
 
 <svelte:window
-  onkeydown={async (e: KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'Enter') await run()
+  onkeydown={(e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'Enter') run()
   }}
 />
 
@@ -88,9 +88,9 @@
     <div class='flex items-center gap-3'>
       <button
         class='btn'
-        onclick={run}
+        onclick={() => glue.running ? glue.interrupt() : run()}
       >
-        run
+        {glue.running ? 'stop' : 'run'}
       </button>
 
       <button
