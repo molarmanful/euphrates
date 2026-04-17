@@ -1,32 +1,55 @@
-import { shim } from '$lib/ts/shim'
-import { type EuEnvOpts, instantiate } from '$lib/wasm/euph'
+import type { RunnerMsg } from '$lib/ts/runner'
 
-const textEncoder = new TextEncoder()
+import Runner from '$lib/ts/runner?worker'
+import { type EuEnvOpts } from '$lib/wasm/euph'
+
 const textDecoder = new TextDecoder()
 
 export class Glue {
-  #mod?: Awaited<ReturnType<typeof instantiate>>
-  #in = new Uint8Array().values()
+  #worker = $state.raw<Worker>()
   #out = $state('')
-
   get out() {
     return this.#out
   }
 
-  async run(code: string, input: string, opts: EuEnvOpts) {
-    this.#in = textEncoder.encode(input).values()
+  running = $derived(!!this.#worker)
+
+  run(code: string, input: string, opts: EuEnvOpts) {
+    this.#stop()
     this.#out = ''
 
-    this.#mod = await shim({
-      readStdin: len => new Uint8Array(this.#in.take(Number(len))),
-      writeStdout: cs => {
-        this.#out += textDecoder.decode(cs)
+    this.#worker = new Runner()
+    this.#worker.addEventListener(
+      'message',
+      (
+        { data }: MessageEvent<
+          RunnerMsg
+        >,
+      ) => {
+        switch (data.type) {
+          case 'done': {
+            this.#out += textDecoder.decode()
+            this.#stop()
+            break
+          }
+          case 'out':
+          case 'err': {
+            this.#out += textDecoder.decode(data.data, { stream: true })
+            break
+          }
+        }
       },
-      writeStderr: cs => {
-        this.#out += textDecoder.decode(cs)
-      },
-    })
+    )
+    this.#worker.postMessage($state.snapshot({ code, input, opts }))
+  }
 
-    this.#mod.runEuph(code, opts)
+  #stop() {
+    this.#worker?.terminate()
+    this.#worker = void 0
+  }
+
+  interrupt() {
+    this.#stop()
+    this.#out += '\n[interrupted]'
   }
 }
