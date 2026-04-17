@@ -19,11 +19,7 @@
       systems = import inputs.systems;
       imports = [ inputs.treefmt-nix.flakeModule ];
       perSystem =
-        {
-          inputs',
-          pkgs,
-          ...
-        }:
+        { inputs', pkgs, ... }:
 
         let
           inherit (pkgs) lib;
