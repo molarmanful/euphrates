@@ -134,7 +134,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "atanh" => ATANH,
 
     // str
-    ">str" => TO_STR,
+    ">Str" => TO_STR,
 
     // try
     "None" => NONE,
