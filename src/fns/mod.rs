@@ -109,7 +109,23 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "*" => MUL,
     "/" => DIV,
     "%" => REM,
+    "/%" => DIV_REM,
     "^" => POW,
+
+    "sincos" => SIN_COS,
+    "sin" => SIN,
+    "cos" => COS,
+    "tan" => TAN,
+    "asin" => ASIN,
+    "acos" => ACOS,
+    "atan" => ATAN,
+    "atan2" => ATAN2,
+    "sinh" => SINH,
+    "cosh" => COSH,
+    "tanh" => TANH,
+    "asinh" => ASINH,
+    "acosh" => ACOSH,
+    "atanh" => ATANH,
 
     // str
     ">str" => TO_STR,
