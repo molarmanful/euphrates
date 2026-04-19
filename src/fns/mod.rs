@@ -97,6 +97,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "MaxF64" => MAX_F64,
     "Inf" => INF,
     "NaN" => NAN,
+    "Pi" => PI,
+    "E" => E,
+    "Epsilon" => EPSILON,
 
     "i32" => TO_I32,
     "i64" => TO_I64,
@@ -111,6 +114,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "%" => REM,
     "/%" => DIV_REM,
     "^" => POW,
+
+    "sqrt" => SQRT,
+    "cbrt" => CBRT,
 
     "sincos" => SIN_COS,
     "sin" => SIN,

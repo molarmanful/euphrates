@@ -6,7 +6,10 @@ use std::ops::{
     Sub,
 };
 
-use num_traits::Pow;
+use num_traits::{
+    FloatConst,
+    Pow,
+};
 use ordered_float::{
     FloatCore,
     OrderedFloat,
@@ -60,6 +63,21 @@ pub const NAN: EuDef = |env| {
     Ok(())
 };
 
+pub const PI: EuDef = |env| {
+    env.push(EuType::F64(OrderedFloat::PI()));
+    Ok(())
+};
+
+pub const E: EuDef = |env| {
+    env.push(EuType::F64(OrderedFloat::E()));
+    Ok(())
+};
+
+pub const EPSILON: EuDef = |env| {
+    env.push(EuType::F64(OrderedFloat::epsilon()));
+    Ok(())
+};
+
 pub const TO_I32: EuDef = |env| {
     let a0 = env.arg("a0")?;
     env.push(EuType::opt(a0.to_i32().map(EuType::i32)));
@@ -102,6 +120,18 @@ pub const DIV_REM: EuDef = |env| {
     let a0 = env.arg("a0")?;
     env.push((a0.clone() / a1.clone())?);
     env.push((a0 % a1)?);
+    Ok(())
+};
+
+pub const SQRT: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.sqrt()));
+    Ok(())
+};
+
+pub const CBRT: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.cbrt()));
     Ok(())
 };
 
