@@ -1,5 +1,8 @@
 use crate::{
-    fns::EuDef,
+    fns::{
+        EuDef,
+        macros::f_2_to_1,
+    },
     types::EuType,
 };
 
@@ -27,3 +30,6 @@ cmp_binop!(LT, <);
 cmp_binop!(LE, <=);
 cmp_binop!(GT, >);
 cmp_binop!(GE, >=);
+
+f_2_to_1!(MIN);
+f_2_to_1!(MAX);

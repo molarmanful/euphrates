@@ -80,6 +80,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "<=" => LE,
     ">" => GT,
     ">=" => GE,
+    "min" => MIN,
+    "max" => MAX,
 
     // bool
     "True" => TRUE,
@@ -97,6 +99,9 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "MaxF64" => MAX_F64,
     "Inf" => INF,
     "NaN" => NAN,
+    "Pi" => PI,
+    "E" => E,
+    "Epsilon" => EPSILON,
 
     "i32" => TO_I32,
     "i64" => TO_I64,
@@ -111,6 +116,15 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "%" => REM,
     "/%" => DIV_REM,
     "^" => POW,
+
+    "exp" => EXP,
+    "exp1-" => EXP_M1,
+    "sqrt" => SQRT,
+    "cbrt" => CBRT,
+    "hypot" => HYPOT,
+    "log" => LOG,
+    "ln" => LN,
+    "ln1+" => LN_1P,
 
     "sincos" => SIN_COS,
     "sin" => SIN,
@@ -128,7 +142,7 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "atanh" => ATANH,
 
     // str
-    ">str" => TO_STR,
+    ">Str" => TO_STR,
 
     // try
     "None" => NONE,
