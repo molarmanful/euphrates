@@ -162,8 +162,14 @@ pub const DIV_REM: EuDef = |env| {
     Ok(())
 };
 
+f64_f_1_to_1!(EXP);
+f64_f_1_to_1!(EXP_M1);
 f64_f_1_to_1!(SQRT);
 f64_f_1_to_1!(CBRT);
+f64_f_2_to_1!(HYPOT);
+f64_f_2_to_1!(LOG);
+f64_f_1_to_1!(LN);
+f64_f_1_to_1!(LN_1P);
 f64_f_1_to_2!(SIN_COS);
 f64_f_1_to_1!(SIN);
 f64_f_1_to_1!(COS);

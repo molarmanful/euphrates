@@ -11,6 +11,8 @@ fn f_2_to_1(name: String) {
     }
 }
 
+pub(crate) use f_2_to_1;
+
 #[crabtime::function]
 fn f_2_try_1(name: String) {
     let f = name.to_lowercase();

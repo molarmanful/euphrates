@@ -80,6 +80,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "<=" => LE,
     ">" => GT,
     ">=" => GE,
+    "min" => MIN,
+    "max" => MAX,
 
     // bool
     "True" => TRUE,
@@ -115,8 +117,14 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "/%" => DIV_REM,
     "^" => POW,
 
+    "exp" => EXP,
+    "exp1-" => EXP_M1,
     "sqrt" => SQRT,
     "cbrt" => CBRT,
+    "hypot" => HYPOT,
+    "log" => LOG,
+    "ln" => LN,
+    "ln1+" => LN_1P,
 
     "sincos" => SIN_COS,
     "sin" => SIN,
