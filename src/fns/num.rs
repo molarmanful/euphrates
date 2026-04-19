@@ -96,3 +96,98 @@ f_2_to_1!(MUL);
 f_2_to_1!(DIV);
 f_2_to_1!(REM);
 f_2_to_1!(POW);
+
+pub const DIV_REM: EuDef = |env| {
+    let a1 = env.arg("a1")?;
+    let a0 = env.arg("a0")?;
+    env.push((a0.clone() / a1.clone())?);
+    env.push((a0 % a1)?);
+    Ok(())
+};
+
+pub const SIN_COS: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    let (b0, b1) = a0.sin_cos();
+    env.push(EuType::f64(b0));
+    env.push(EuType::f64(b1));
+    Ok(())
+};
+
+pub const SIN: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.sin()));
+    Ok(())
+};
+
+pub const COS: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.cos()));
+    Ok(())
+};
+
+pub const TAN: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.tan()));
+    Ok(())
+};
+
+pub const ASIN: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.asin()));
+    Ok(())
+};
+
+pub const ACOS: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.acos()));
+    Ok(())
+};
+
+pub const ATAN: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.atan()));
+    Ok(())
+};
+
+pub const ATAN2: EuDef = |env| {
+    let a1 = env.arg("a1")?.try_f64()?;
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.atan2(a1)));
+    Ok(())
+};
+
+pub const SINH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.sinh()));
+    Ok(())
+};
+
+pub const COSH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.cosh()));
+    Ok(())
+};
+
+pub const TANH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.tanh()));
+    Ok(())
+};
+
+pub const ASINH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.asinh()));
+    Ok(())
+};
+
+pub const ACOSH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.acosh()));
+    Ok(())
+};
+
+pub const ATANH: EuDef = |env| {
+    let a0 = env.arg("a0")?.try_f64()?;
+    env.push(EuType::f64(a0.atanh()));
+    Ok(())
+};
