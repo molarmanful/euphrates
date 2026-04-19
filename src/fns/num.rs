@@ -18,10 +18,49 @@ use ordered_float::{
 use crate::{
     fns::{
         EuDef,
-        macros::f_2_to_1,
+        macros::f_2_try_1,
     },
     types::EuType,
 };
+
+#[crabtime::function]
+fn f64_f_1_to_1(name: String) {
+    let f = name.to_lowercase();
+    crabtime::output! {
+        pub const {{name}}: EuDef = |env| {
+            let a0 = env.arg("a0")?.try_f64()?;
+            env.push(EuType::f64(a0.{{f}}()));
+            Ok(())
+        };
+    }
+}
+
+#[crabtime::function]
+fn f64_f_2_to_1(name: String) {
+    let f = name.to_lowercase();
+    crabtime::output! {
+        pub const {{name}}: EuDef = |env| {
+            let a1 = env.arg("a1")?.try_f64()?;
+            let a0 = env.arg("a0")?.try_f64()?;
+            env.push(EuType::f64(a0.{{f}}(a1)));
+            Ok(())
+        };
+    }
+}
+
+#[crabtime::function]
+fn f64_f_1_to_2(name: String) {
+    let f = name.to_lowercase();
+    crabtime::output! {
+        pub const {{name}}: EuDef = |env| {
+            let a0 = env.arg("a0")?.try_f64()?;
+            let (b0, b1) = a0.{{f}}();
+            env.push(EuType::f64(b0));
+            env.push(EuType::f64(b1));
+            Ok(())
+        };
+    }
+}
 
 pub const MIN_I32: EuDef = |env| {
     env.push(EuType::I32(i32::MIN));
@@ -108,12 +147,12 @@ pub const NEG: EuDef = |env| {
     Ok(())
 };
 
-f_2_to_1!(ADD);
-f_2_to_1!(SUB);
-f_2_to_1!(MUL);
-f_2_to_1!(DIV);
-f_2_to_1!(REM);
-f_2_to_1!(POW);
+f_2_try_1!(ADD);
+f_2_try_1!(SUB);
+f_2_try_1!(MUL);
+f_2_try_1!(DIV);
+f_2_try_1!(REM);
+f_2_try_1!(POW);
 
 pub const DIV_REM: EuDef = |env| {
     let a1 = env.arg("a1")?;
@@ -123,101 +162,19 @@ pub const DIV_REM: EuDef = |env| {
     Ok(())
 };
 
-pub const SQRT: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.sqrt()));
-    Ok(())
-};
-
-pub const CBRT: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.cbrt()));
-    Ok(())
-};
-
-pub const SIN_COS: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    let (b0, b1) = a0.sin_cos();
-    env.push(EuType::f64(b0));
-    env.push(EuType::f64(b1));
-    Ok(())
-};
-
-pub const SIN: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.sin()));
-    Ok(())
-};
-
-pub const COS: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.cos()));
-    Ok(())
-};
-
-pub const TAN: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.tan()));
-    Ok(())
-};
-
-pub const ASIN: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.asin()));
-    Ok(())
-};
-
-pub const ACOS: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.acos()));
-    Ok(())
-};
-
-pub const ATAN: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.atan()));
-    Ok(())
-};
-
-pub const ATAN2: EuDef = |env| {
-    let a1 = env.arg("a1")?.try_f64()?;
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.atan2(a1)));
-    Ok(())
-};
-
-pub const SINH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.sinh()));
-    Ok(())
-};
-
-pub const COSH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.cosh()));
-    Ok(())
-};
-
-pub const TANH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.tanh()));
-    Ok(())
-};
-
-pub const ASINH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.asinh()));
-    Ok(())
-};
-
-pub const ACOSH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.acosh()));
-    Ok(())
-};
-
-pub const ATANH: EuDef = |env| {
-    let a0 = env.arg("a0")?.try_f64()?;
-    env.push(EuType::f64(a0.atanh()));
-    Ok(())
-};
+f64_f_1_to_1!(SQRT);
+f64_f_1_to_1!(CBRT);
+f64_f_1_to_2!(SIN_COS);
+f64_f_1_to_1!(SIN);
+f64_f_1_to_1!(COS);
+f64_f_1_to_1!(TAN);
+f64_f_1_to_1!(ASIN);
+f64_f_1_to_1!(ACOS);
+f64_f_1_to_1!(ATAN);
+f64_f_2_to_1!(ATAN2);
+f64_f_1_to_1!(SINH);
+f64_f_1_to_1!(COSH);
+f64_f_1_to_1!(TANH);
+f64_f_1_to_1!(ASINH);
+f64_f_1_to_1!(ACOSH);
+f64_f_1_to_1!(ATANH);

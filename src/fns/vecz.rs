@@ -1,14 +1,38 @@
 use crate::{
     fns::{
         EuDef,
-        macros::{
-            f_2_to_1,
-            f_env_2_to_1,
-            f_env_3_to_1,
-        },
+        macros::f_2_try_1,
     },
     types::EuType,
 };
+
+#[crabtime::function]
+fn f_env_2_to_try_1(name: String) {
+    let f = format!("{}_env", name.to_lowercase());
+    crabtime::output! {
+        pub const {{name}}: EuDef = |env| {
+            let a1 = env.arg("a1 (eval)")?;
+            let a0 = env.arg("a0")?;
+            env.push(a0.{{f}}(a1, env.scope.clone(), env.ctx)?);
+            Ok(())
+        };
+    }
+}
+
+#[crabtime::function]
+fn f_env_3_to_try_1(name: String, a1: String) {
+    let f = format!("{}_env", name.to_lowercase());
+    let a1 = format!(r#""a1{a1}""#);
+    crabtime::output! {
+        pub const {{name}}: EuDef = |env| {
+            let a2 = env.arg("a2 (eval)")?;
+            let a1 = env.arg({{a1}})?;
+            let a0 = env.arg("a0")?;
+            env.push(a0.{{f}}(a1, a2, env.scope.clone(), env.ctx)?);
+            Ok(())
+        };
+    }
+}
 
 pub const GET: EuDef = |env| {
     let a1 = env.arg("a1 (key)")?;
@@ -24,8 +48,8 @@ pub const HAS: EuDef = |env| {
     Ok(())
 };
 
-f_2_to_1!(PUSH_BACK);
-f_2_to_1!(PUSH_FRONT);
+f_2_try_1!(PUSH_BACK);
+f_2_try_1!(PUSH_FRONT);
 
 pub const INSERT: EuDef = |env| {
     let a2 = env.arg("a2 (index)")?;
@@ -35,7 +59,7 @@ pub const INSERT: EuDef = |env| {
     Ok(())
 };
 
-f_2_to_1!(APPEND);
+f_2_try_1!(APPEND);
 
 pub const POP_BACK: EuDef = |env| {
     let a0 = env.arg("a0")?;
@@ -82,7 +106,7 @@ pub const MOVE_INDEX: EuDef = |env| {
     Ok(())
 };
 
-f_2_to_1!(DELETE);
+f_2_try_1!(DELETE);
 
 pub const AT: EuDef = |env| {
     let a1 = env.arg("a1 (index)").unwrap();
@@ -92,28 +116,28 @@ pub const AT: EuDef = |env| {
 };
 
 pub const TAKE: EuDef = |env| {
-    let a1 = env.arg("a1 (num)")?;
+    let a1 = env.arg("a1 (int)")?;
     let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.take(n.try_isize()?))?);
     Ok(())
 };
 
 pub const DROP: EuDef = |env| {
-    let a1 = env.arg("a1 (num)")?;
+    let a1 = env.arg("a1 (int)")?;
     let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.drop(n.try_isize()?))?);
     Ok(())
 };
 
 pub const CHUNK: EuDef = |env| {
-    let a1 = env.arg("a1 (num)")?;
+    let a1 = env.arg("a1 (int)")?;
     let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.chunk(n.try_isize()?))?);
     Ok(())
 };
 
 pub const WINDOW: EuDef = |env| {
-    let a1 = env.arg("a1 (num)")?;
+    let a1 = env.arg("a1 (int)")?;
     let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.window(n.try_usize()?))?);
     Ok(())
@@ -169,22 +193,22 @@ pub const MULTI_CPROD: EuDef = |env| {
     Ok(())
 };
 
-f_env_2_to_1!(MAP);
-f_env_2_to_1!(MAP_ATOM);
-f_env_2_to_1!(FLAT_MAP);
-f_env_2_to_1!(FILTER);
-f_env_2_to_1!(TAKE_WHILE);
-f_env_2_to_1!(DROP_WHILE);
-f_env_2_to_1!(FOLD1);
-f_env_2_to_1!(SORT_BY);
-f_env_2_to_1!(SORT_BY_KEY);
-f_env_2_to_1!(FIND);
-f_env_2_to_1!(ANY);
-f_env_2_to_1!(ALL);
+f_env_2_to_try_1!(MAP);
+f_env_2_to_try_1!(MAP_ATOM);
+f_env_2_to_try_1!(FLAT_MAP);
+f_env_2_to_try_1!(FILTER);
+f_env_2_to_try_1!(TAKE_WHILE);
+f_env_2_to_try_1!(DROP_WHILE);
+f_env_2_to_try_1!(FOLD1);
+f_env_2_to_try_1!(SORT_BY);
+f_env_2_to_try_1!(SORT_BY_KEY);
+f_env_2_to_try_1!(FIND);
+f_env_2_to_try_1!(ANY);
+f_env_2_to_try_1!(ALL);
 
-f_env_3_to_1!(ZIP, "");
-f_env_3_to_1!(FOLD, " (acc)");
-f_env_3_to_1!(SCAN, " (acc)");
-f_env_3_to_1!(ZIP_ATOM, "");
+f_env_3_to_try_1!(ZIP, "");
+f_env_3_to_try_1!(FOLD, " (acc)");
+f_env_3_to_try_1!(SCAN, " (acc)");
+f_env_3_to_try_1!(ZIP_ATOM, "");
 
-f_2_to_1!(SEP);
+f_2_try_1!(SEP);
