@@ -32,7 +32,7 @@ ecow = "0.2.6"
 dyn-clone = "1.0.20"
 ordered-float = "5.3.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
-wit-bindgen = "0.55.0"
+wit-bindgen = "0.56.0"
 ordermap = "1.2.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
