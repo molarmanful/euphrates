@@ -67,10 +67,11 @@ fn main() {
         return;
     };
 
-    let ctx = EuEnvCtx {
-        opts: EuEnvOpts { debug: cli.debug },
-        interrupt: Arc::new(AtomicBool::new(true)),
-    };
+    let ctx = EuEnvCtx::new(
+        EuEnvOpts { debug: cli.debug },
+        Arc::new(AtomicBool::new(true)),
+        rand::rng(),
+    );
 
     match res
         .map_err(Into::into)
@@ -101,10 +102,7 @@ fn repl() -> anyhow::Result<()> {
         i.store(false, Ordering::SeqCst);
     })?;
 
-    let ctx = EuEnvCtx {
-        opts: EuEnvOpts { debug: false },
-        interrupt,
-    };
+    let ctx = EuEnvCtx::new(EuEnvOpts { debug: false }, interrupt, rand::rng());
     let mut env = EuEnv::new([], &[], GenericHashMap::new(), &ctx);
 
     loop {

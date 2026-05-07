@@ -6,6 +6,7 @@ mod io;
 mod macros;
 mod map;
 mod num;
+mod rng;
 mod seq;
 mod set;
 mod stack;
@@ -20,6 +21,7 @@ pub use expr::*;
 pub use io::*;
 pub use map::*;
 pub use num::*;
+pub use rng::*;
 pub use seq::*;
 pub use set::*;
 pub use stack::*;
@@ -140,6 +142,11 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     "asinh" => ASINH,
     "acosh" => ACOSH,
     "atanh" => ATANH,
+
+    // rand
+    "randI32" => RAND_I32,
+    "randI64" => RAND_I64,
+    "randF64" => RAND_F64,
 
     // str
     ">Str" => TO_STR,

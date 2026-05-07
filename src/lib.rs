@@ -29,10 +29,7 @@ struct Glue;
 
 impl Guest for Glue {
     fn run_euph(code: String, opts: EuEnvOpts) {
-        let ctx = EuEnvCtx {
-            opts,
-            interrupt: Arc::new(AtomicBool::new(true)),
-        };
+        let ctx = EuEnvCtx::new(opts, Arc::new(AtomicBool::new(true)), rand::rng());
 
         match EuEnv::apply_str(&code, &[], imbl::GenericHashMap::new(), &ctx) {
             Ok(env) => println!("{env}"),

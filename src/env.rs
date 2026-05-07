@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     hash,
     iter::{
         self,
@@ -26,6 +27,7 @@ use derive_more::{
 use ecow::EcoVec;
 use hipstr::LocalHipStr;
 use itertools::Itertools;
+use rand::Rng;
 use winnow::Parser;
 
 use crate::{
@@ -57,6 +59,7 @@ pub struct EuEnv<'eu> {
 pub struct EuEnvCtx {
     pub opts: EuEnvOpts,
     pub interrupt: Arc<AtomicBool>,
+    pub rng: RefCell<Box<dyn Rng>>,
 }
 
 pub type EuScope<'eu> =
@@ -385,5 +388,15 @@ impl<'eu> EuEnv<'eu> {
     pub fn clear_queue(&mut self) {
         let queue: EuIter<'_> = Box::new(iter::empty());
         self.queue = queue.peekable();
+    }
+}
+
+impl EuEnvCtx {
+    pub fn new<R: Rng + 'static>(opts: EuEnvOpts, interrupt: Arc<AtomicBool>, rng: R) -> Self {
+        EuEnvCtx {
+            opts,
+            interrupt,
+            rng: RefCell::new(Box::new(rng)),
+        }
     }
 }
