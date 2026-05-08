@@ -462,7 +462,7 @@ impl<'eu> From<EuSyn<'eu>> for EuType<'eu> {
     fn from(value: EuSyn<'eu>) -> Self {
         match value {
             EuSyn::Vec(ts) | EuSyn::Map(ts) => Self::Expr(ts),
-            EuSyn::Var(w) | EuSyn::Move(w) => Self::word(w),
+            EuSyn::Var(w) | EuSyn::Move(w) | EuSyn::Get(w) => Self::word(w),
             EuSyn::Raw(t) => t,
             EuSyn::Bind(ts) => Self::Expr(ts.into_iter().map_into().collect()),
         }

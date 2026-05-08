@@ -64,9 +64,13 @@ fn test_move() {
 
 #[test]
 fn test_dec() {
-    assert!(is_err(".1234"));
     assert!(is_err("1234.5.678"));
     assert!(is_err("1234..5678"));
+}
+
+#[test]
+fn test_get() {
+    assert_eq!(parse(".asdf"), Ok(eco_vec![EuSyn::Get("asdf".into())]));
 }
 
 #[test]

@@ -18,13 +18,13 @@ use winnow::{
 
 use crate::{
     parser::{
-        eu_char_inner,
-        eu_num_inner,
-        eu_str_inner,
-        eu_str_raw_inner,
-        eu_word_inner,
+        char_inner,
         float_suffix,
         int_suffix,
+        num_inner,
+        str_inner,
+        str_raw_inner,
+        word_inner,
         ws,
     },
     types::{
@@ -77,16 +77,16 @@ fn syn<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
 }
 
 fn str_raw<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
-    eu_str_raw_inner.map(EuBind::Str).parse_next(input)
+    str_raw_inner.map(EuBind::Str).parse_next(input)
 }
 
 fn str<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
-    eu_str_inner.map(EuBind::Str).parse_next(input)
+    str_inner.map(EuBind::Str).parse_next(input)
 }
 
 fn char<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
     cut_err(
-        eu_char_inner
+        char_inner
             .verify_map(|x| x.map(EuBind::Char))
             .context(StrContext::Label("char")),
     )
@@ -113,7 +113,7 @@ fn map<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
 }
 
 fn num<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
-    let (is_float, ns) = eu_num_inner.parse_next(input)?;
+    let (is_float, ns) = num_inner.parse_next(input)?;
     if is_float {
         float_suffix(ns, EuBind::F64).parse_next(input)
     } else {
@@ -123,7 +123,7 @@ fn num<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
 
 fn tag<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
     cut_err(separated_pair(
-        preceded('$', eu_word_inner),
+        preceded('$', word_inner),
         ws,
         delimited('(', bind_inner, opt(')')),
     ))
@@ -139,7 +139,7 @@ fn bind_<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
 }
 
 fn word<'eu>(input: &mut &str) -> ModalResult<EuBind<'eu>> {
-    eu_word_inner
+    word_inner
         .map(EuBind::Word)
         .context(StrContext::Label("word"))
         .parse_next(input)

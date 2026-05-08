@@ -23,6 +23,8 @@ pub enum EuSyn<'eu> {
     Var(LocalHipStr<'eu>),
     #[debug("\\{_0}")]
     Move(LocalHipStr<'eu>),
+    #[debug(".{_0}")]
+    Get(LocalHipStr<'eu>),
     #[debug("$Vec({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(" "))]
     Vec(EcoVec<Self>),

@@ -1,5 +1,6 @@
 mod base;
 mod bind;
+mod raw;
 
 pub use base::euphrates;
 use dashu_int::IBig;
@@ -32,16 +33,16 @@ use winnow::{
     },
 };
 
-fn eu_str_raw_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
+fn str_raw_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     delimited('`', take_while(0.., |c| c != '`'), opt('`'))
         .output_into()
         .parse_next(input)
 }
 
-fn eu_str_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
+fn str_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     delimited(
         '"',
-        repeat(0.., dispatch!(peek(any); '"' => fail, _ => eu_char_atom)).fold(
+        repeat(0.., dispatch!(peek(any); '"' => fail, _ => char_atom)).fold(
             LocalHipStr::new,
             |mut s, co| {
                 if let Some(c) = co {
@@ -55,11 +56,11 @@ fn eu_str_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     .parse_next(input)
 }
 
-fn eu_char_inner(input: &mut &str) -> ModalResult<Option<char>> {
-    preceded('\'', eu_char_atom).parse_next(input)
+fn char_inner(input: &mut &str) -> ModalResult<Option<char>> {
+    preceded('\'', char_atom).parse_next(input)
 }
 
-fn eu_char_atom(input: &mut &str) -> ModalResult<Option<char>> {
+fn char_atom(input: &mut &str) -> ModalResult<Option<char>> {
     dispatch!(any;
         '\\' => dispatch!(cut_err(any).context(StrContext::Label("escape"));
             '\n' => empty.value(None),
@@ -67,8 +68,8 @@ fn eu_char_atom(input: &mut &str) -> ModalResult<Option<char>> {
             'n' => empty.value(Some('\n')),
             'r' => empty.value(Some('\r')),
             't' => empty.value(Some('\t')),
-            'x' => eu_char_hex.map(Some),
-            'u' => eu_char_uni.map(Some),
+            'x' => char_hex.map(Some),
+            'u' => char_uni.map(Some),
             c => empty.value(Some(c)),
         ),
         c => empty.value(Some(c)),
@@ -76,7 +77,7 @@ fn eu_char_atom(input: &mut &str) -> ModalResult<Option<char>> {
     .parse_next(input)
 }
 
-fn eu_char_hex(input: &mut &str) -> ModalResult<char> {
+fn char_hex(input: &mut &str) -> ModalResult<char> {
     cut_err(
         take_while(2, |c: char| c.is_ascii_hexdigit())
             .try_map(|hex| u8::from_str_radix(hex, 16))
@@ -89,7 +90,7 @@ fn eu_char_hex(input: &mut &str) -> ModalResult<char> {
     .parse_next(input)
 }
 
-fn eu_char_uni(input: &mut &str) -> ModalResult<char> {
+fn char_uni(input: &mut &str) -> ModalResult<char> {
     cut_err(
         delimited(
             '{',
@@ -166,7 +167,7 @@ fn not_int_suffix(input: &mut &str) -> ModalResult<()> {
         .parse_next(input)
 }
 
-fn eu_num_inner<'i>(input: &mut &'i str) -> ModalResult<(bool, &'i str)> {
+fn num_inner<'i>(input: &mut &'i str) -> ModalResult<(bool, &'i str)> {
     let ((_, dec, exp), ns) = (
         digit1,
         opt(preceded('.', digit1)),
@@ -180,7 +181,7 @@ fn eu_num_inner<'i>(input: &mut &'i str) -> ModalResult<(bool, &'i str)> {
     Ok((dec.is_some() || exp.is_some(), ns))
 }
 
-fn eu_word_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
+fn word_inner<'eu>(input: &mut &str) -> ModalResult<LocalHipStr<'eu>> {
     (
         take_while(1, |c: char| {
             !c.is_dec_digit() && !matches!(c, '$' | '\\') && is_word_char(c)

@@ -84,6 +84,15 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     ">=" => GE,
     "min" => MIN,
     "max" => MAX,
+    "@<=>" => LOOSE_CMP,
+    "@=" => LOOSE_EQ,
+    "@!=" => LOOSE_NE,
+    "@<" => LOOSE_LT,
+    "@<=" => LOOSE_LE,
+    "@>" => LOOSE_GT,
+    "@>=" => LOOSE_GE,
+    "@min" => LOOSE_MIN,
+    "@max" => LOOSE_MAX,
 
     // bool
     "True" => TRUE,

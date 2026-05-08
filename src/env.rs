@@ -168,6 +168,7 @@ impl<'eu> EuEnv<'eu> {
             EuSyn::Raw(t) => self.eval_type(t),
             EuSyn::Var(s) => self.eval_var(&s),
             EuSyn::Move(s) => self.eval_move(&s),
+            EuSyn::Get(k) => self.eval_get(&k),
             EuSyn::Vec(ts) => {
                 self.push(EuType::vec(
                     Self::apply(ts, &[], self.scope.clone(), self.ctx)?.stack,
@@ -232,6 +233,15 @@ impl<'eu> EuEnv<'eu> {
         } else {
             Err(anyhow!("unknown var `{w}`").into())
         }
+    }
+
+    fn eval_get(&mut self, w: &str) -> EuRes<()> {
+        let ts = self
+            .pop()?
+            .get(&EuType::str(w))?
+            .with_context(|| format!("missing key `{w}`"))?
+            .to_expr()?;
+        self.eval_iter(ts)
     }
 
     pub fn eval_iter<T>(&mut self, ts: T) -> EuRes<()>
