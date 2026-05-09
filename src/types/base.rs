@@ -482,7 +482,7 @@ impl From<&EuType<'_>> for bool {
             EuType::I32(n) => !n.is_zero(),
             EuType::I64(n) => !n.is_zero(),
             EuType::IBig(n) => !n.is_zero(),
-            EuType::F64(n) => !n.is_zero(),
+            EuType::F64(n) => !n.is_zero() && !n.is_nan(),
             EuType::Char(c) => *c != '\0',
             EuType::Str(s) => !s.is_empty(),
             EuType::Word(_) => true,
