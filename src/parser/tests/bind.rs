@@ -7,7 +7,7 @@ use crate::types::{
 };
 
 #[test]
-fn test_base() {
+fn base() {
     assert_eq!(parse(r"\[]"), Ok(eco_vec![EuSyn::Bind(eco_vec![])]));
     assert_eq!(
         parse(r"\[a b]"),
@@ -35,7 +35,7 @@ fn test_base() {
 }
 
 #[test]
-fn test_tag() {
+fn tag() {
     assert_eq!(
         parse(r"\[$None()]"),
         Ok(eco_vec![EuSyn::Bind(eco_vec![EuBind::tag("None", [])])])
@@ -47,7 +47,7 @@ fn test_tag() {
 }
 
 #[test]
-fn test_bind() {
+fn bind() {
     assert_eq!(
         parse(r"\[1\a]"),
         Ok(eco_vec![EuSyn::Bind(eco_vec![EuBind::bind(
@@ -79,7 +79,7 @@ fn test_bind() {
 }
 
 #[test]
-fn test_vecz() {
+fn vecz() {
     assert_eq!(
         parse(r"\[[]]"),
         Ok(eco_vec![EuSyn::Bind(eco_vec![EuBind::vecz([])])])
@@ -94,7 +94,7 @@ fn test_vecz() {
 }
 
 #[test]
-fn test_map() {
+fn map() {
     assert_eq!(
         parse(r"\[{}]"),
         Ok(eco_vec![EuSyn::Bind(eco_vec![EuBind::map([])])])

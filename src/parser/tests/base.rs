@@ -7,20 +7,20 @@ use crate::types::{
 };
 
 #[test]
-fn test_empty() {
+fn empty() {
     assert_eq!(parse(""), Ok(eco_vec![]));
     assert_eq!(parse(" "), Ok(eco_vec![]));
     assert_eq!(parse("\t \n "), Ok(eco_vec![]));
 }
 
 #[test]
-fn test_int() {
+fn int() {
     assert_eq!(parse("1234"), Ok(eco_vec![EuType::ibig(1234).into()]));
     assert_eq!(parse("1234i64"), Ok(eco_vec![EuType::i64(1234).into()]));
 }
 
 #[test]
-fn test_float() {
+fn float() {
     assert_eq!(parse("1234.5"), Ok(eco_vec![EuType::f64(1234.5).into()]));
     assert_eq!(parse("0.1234"), Ok(eco_vec![EuType::f64(0.1234).into()]));
     assert_eq!(parse("1234.0"), Ok(eco_vec![EuType::f64(1234.0).into()]));
@@ -31,12 +31,12 @@ fn test_float() {
 }
 
 #[test]
-fn test_float_invalid() {
+fn float_invalid() {
     assert!(parse("123e4i32").is_err());
 }
 
 #[test]
-fn test_word() {
+fn word() {
     assert_eq!(parse("asdf"), Ok(eco_vec![EuType::word("asdf").into()]));
     assert_eq!(
         parse("asdf1234"),
@@ -45,7 +45,7 @@ fn test_word() {
 }
 
 #[test]
-fn test_var() {
+fn var() {
     assert_eq!(parse("$asdf"), Ok(eco_vec![EuSyn::Var("asdf".into())]));
     assert!(is_err("$"));
     assert!(is_err("$$"));
@@ -54,7 +54,7 @@ fn test_var() {
 }
 
 #[test]
-fn test_move() {
+fn r#move() {
     assert_eq!(parse("\\asdf"), Ok(eco_vec![EuSyn::Move("asdf".into())]));
     assert!(is_err("\\"));
     assert!(is_err("\\\\"));
@@ -63,18 +63,18 @@ fn test_move() {
 }
 
 #[test]
-fn test_dec() {
+fn dec() {
     assert!(is_err("1234.5.678"));
     assert!(is_err("1234..5678"));
 }
 
 #[test]
-fn test_get() {
+fn get() {
     assert_eq!(parse(".asdf"), Ok(eco_vec![EuSyn::Get("asdf".into())]));
 }
 
 #[test]
-fn test_str() {
+fn str() {
     assert_eq!(parse(r#""""#), Ok(eco_vec![EuType::str("").into()]));
     assert_eq!(
         parse(r#""testing testing 123""#),
@@ -112,7 +112,7 @@ fn test_str() {
 }
 
 #[test]
-fn test_str_raw() {
+fn str_raw() {
     assert_eq!(parse("``"), Ok(eco_vec![EuType::str("").into()]));
     assert_eq!(
         parse("`testing testing 123`"),
@@ -129,7 +129,7 @@ fn test_str_raw() {
 }
 
 #[test]
-fn test_str_invalid() {
+fn str_invalid() {
     assert!(is_err(r#""\"#));
     assert!(is_err(r#""\x1""#));
     assert!(is_err(r#""\x1x""#));
@@ -142,19 +142,19 @@ fn test_str_invalid() {
 }
 
 #[test]
-fn test_char() {
+fn char() {
     assert_eq!(parse("'a"), Ok(eco_vec![EuType::char('a').into()]));
     assert_eq!(parse("'\n"), Ok(eco_vec![EuType::char('\n').into()]));
     assert_eq!(parse("''"), Ok(eco_vec![EuType::char('\'').into()]));
 }
 
 #[test]
-fn test_char_invalid() {
+fn char_invalid() {
     assert!(is_err("'"));
 }
 
 #[test]
-fn test_expr() {
+fn expr() {
     assert_eq!(parse("()"), Ok(eco_vec![EuType::expr([]).into()]));
     assert_eq!(
         parse(r#"(1 "2" 3+ asdf)"#),
@@ -197,13 +197,13 @@ fn test_expr() {
 }
 
 #[test]
-fn test_expr_invalid() {
+fn expr_invalid() {
     assert!(is_err(")"));
     assert!(is_err("())asdf"));
 }
 
 #[test]
-fn test_vec() {
+fn vec() {
     assert_eq!(parse("[]"), Ok(eco_vec![EuSyn::Vec(eco_vec![])]));
     assert_eq!(
         parse(r#"[1 "2" 3+ asdf]"#),
@@ -237,13 +237,13 @@ fn test_vec() {
 }
 
 #[test]
-fn test_vec_invalid() {
+fn vec_invalid() {
     assert!(is_err("]"));
     assert!(is_err("[]]asdf"));
 }
 
 #[test]
-fn test_all() {
+fn all() {
     assert_eq!(
         parse(r#"1234"testing testing 123"#),
         Ok(eco_vec![
