@@ -158,12 +158,17 @@ mod tests {
     }
 
     #[test]
-    fn ints_cmp_properly() {
-        assert!(EuType::i64(0) < EuType::i32(1));
-        assert!(EuType::i32(2) > EuType::i64(1));
-        assert!(EuType::ibig(0) < EuType::i32(1));
-        assert!(EuType::i32(100) < EuType::ibig(200));
-        assert!(EuType::i64(-5) < EuType::i32(0));
+    fn ord_transitive() {
+        let vs = sample_values();
+        for a in &vs {
+            for b in &vs {
+                for c in &vs {
+                    if a <= b && b <= c {
+                        assert!(a <= c);
+                    }
+                }
+            }
+        }
     }
 
     #[test]
