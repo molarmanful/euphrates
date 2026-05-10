@@ -133,6 +133,8 @@ mod tests {
         },
     };
 
+    use dashu_int::IBig;
+
     use super::*;
 
     #[test]
@@ -217,9 +219,12 @@ mod tests {
             EuType::ibig(-1),
             EuType::ibig(0),
             EuType::ibig(1),
+            EuType::ibig(IBig::from(2).pow(1024)),
             EuType::f64(-1.0),
             EuType::f64(0.0),
             EuType::f64(1.0),
+            EuType::f64(f64::NAN),
+            EuType::f64(f64::INFINITY),
             EuType::char('a'),
             EuType::str("asdf"),
             EuType::word("asdf"),
