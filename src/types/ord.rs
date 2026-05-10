@@ -1,11 +1,5 @@
 use std::cmp::Ordering;
 
-use num_traits::{
-    AsPrimitive,
-    ToPrimitive,
-};
-use ordered_float::OrderedFloat;
-
 use crate::types::EuType;
 
 impl EuType<'_> {
@@ -33,6 +27,24 @@ impl EuType<'_> {
             Self::Seq(_) => 14,
         }
     }
+
+    #[must_use]
+    pub fn loose_eq(&self, other: &Self) -> bool {
+        if let Some((a, b)) = self.clone().num_tower(other.clone()) {
+            a == b
+        } else {
+            self == other
+        }
+    }
+
+    #[must_use]
+    pub fn loose_cmp(&self, other: &Self) -> Ordering {
+        if let Some((a, b)) = self.clone().num_tower(other.clone()) {
+            a.cmp(&b)
+        } else {
+            self.cmp(other)
+        }
+    }
 }
 
 #[crabtime::function]
@@ -55,10 +67,6 @@ fn gen_partial_eq() {
                 match (self, other) {
                     {{arms}}
                     (Self::Seq(l0), Self::Seq(r0)) => l0.clone().eq(r0.clone()),
-                    (a, b) if a.is_num() && b.is_num() => {
-                        let (a, b) = a.clone().num_tower(b.clone()).unwrap();
-                        a == b
-                    }
                     _ => false,
                 }
             }
@@ -78,8 +86,6 @@ impl PartialOrd for EuType<'_> {
 
 #[crabtime::function]
 fn gen_ord() {
-    use itertools::Itertools;
-
     let types = [
         "Bool", "I32", "I64", "IBig", "F64", "Char", "Str", "Word", "Opt", "Res", "Vec", "Map",
         "Set", "Expr",
@@ -92,57 +98,6 @@ fn gen_ord() {
         })
         .join("");
 
-    let nums = ["I32", "I64", "F64"];
-    let arms_num = nums
-        .iter()
-        .permutations(2)
-        .map(|ts| {
-            let t0 = *ts[0];
-            let t1 = *ts[1];
-            let m = *nums.iter().find(|&&t| t == t0 || t == t1).unwrap();
-            let n = if t0 == m { t1 } else { t0 };
-            if t0.chars().next() == t1.chars().next() {
-                crabtime::quote! {
-                    (Self::{{t0}}(l0), Self::{{t1}}(r0)) => Self::{{n}}((*l0).as_()).cmp(&Self::{{n}}((*r0).as_())),
-                }
-            } else if t0 == n {
-                let m = m.to_lowercase();
-                let n = n.to_lowercase();
-                crabtime::quote! {
-                    (Self::{{t0}}(l0), Self::{{t1}}(r0)) => {
-                        if l0.to_{{m}}().is_none() {
-                            l0.cmp(&0.0.into())
-                        } else {
-                            let r0: OrderedFloat<{{n}}> = r0.to_{{n}}().unwrap().into();
-                            l0.cmp(&r0)
-                        }
-                    }
-                }
-            } else {
-                crabtime::quote! {
-                    (l0 @ Self::{{t0}}(_), r0 @ Self::{{t1}}(_)) => r0.cmp(l0).reverse(),
-                }
-            }
-        })
-        .join("");
-
-    let arms_ibig = nums
-        .map(|t| {
-            if t.chars().next() == Some('I') {
-                crabtime::quote! {
-                    (Self::IBig(l0), Self::{{t}}(r0)) => l0.cmp(&(*r0).into()),
-                    (l0 @ Self::{{t}}(_), r0 @ Self::IBig(_)) => r0.cmp(l0).reverse(),
-                }
-            } else {
-                let n = t.to_lowercase();
-                crabtime::quote! {
-                    (Self::{{t}}(l0), Self::IBig(r0)) => l0.cmp(&r0.to_{{n}}().value().into()),
-                    (l0 @ Self::IBig(_), r0 @ Self::{{t}}(_)) => r0.cmp(l0).reverse(),
-                }
-            }
-        })
-        .join("");
-
     crabtime::output! {
         impl Ord for EuType<'_> {
             fn cmp(&self, other: &Self) -> Ordering {
@@ -150,18 +105,16 @@ fn gen_ord() {
                     {{arms}}
                     (Self::Seq(l0), Self::Seq(r0)) => l0.clone().cmp(r0.clone()),
                     (Self::Bool(l0), _) => l0.cmp(&!l0),
+                    (_, Self::Bool(r0)) => r0.cmp(&!r0).reverse(),
                     (Self::Word(_), _) => Ordering::Greater,
-                    (l0, r0 @ (Self::Bool(_) | Self::Word(_))) => r0.cmp(l0).reverse(),
-                    {{arms_num}}
-                    {{arms_ibig}}
-                    (a, b) if a.is_num_like() && b.is_num_like() => {
-                        let (a1, b1) = a.clone().num_tower(b.clone()).unwrap();
-                        a1.cmp(&b1).then_with(|| a.eqv_ord(b))
+                    (l0, r0 @ Self::Word(_)) => r0.cmp(l0).reverse(),
+                    (a, b) if a.is_int() && b.is_int() => {
+                        a.to_ibig().unwrap().cmp(&b.to_ibig().unwrap()).then_with(|| a.eqv_ord(b))
                     }
                     (a, b) if a.is_vecz() || a.is_str() || a.is_expr() || b.is_vecz() || b.is_str() || b.is_expr() => {
                         a.clone().to_seq().cmp(b.clone().to_seq()).then_with(|| a.eqv_ord(b))
                     }
-                    _ => unreachable!(),
+                    (a, b) => a.eqv_ord(b),
                 }
             }
         }
@@ -169,3 +122,108 @@ fn gen_ord() {
 }
 
 gen_ord!();
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{
+            Hash,
+            Hasher,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn ord_eq_consistent() {
+        let vs = sample_values();
+        for a in &vs {
+            for b in &vs {
+                assert_consistent(a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn ord_antisymmetric() {
+        let vs = sample_values();
+        for a in &vs {
+            for b in &vs {
+                assert_eq!(a.cmp(b).reverse(), b.cmp(a));
+            }
+        }
+    }
+
+    #[test]
+    fn ints_cmp_properly() {
+        assert!(EuType::i64(0) < EuType::i32(1));
+        assert!(EuType::i32(2) > EuType::i64(1));
+        assert!(EuType::ibig(0) < EuType::i32(1));
+        assert!(EuType::i32(100) < EuType::ibig(200));
+        assert!(EuType::i64(-5) < EuType::i32(0));
+    }
+
+    #[test]
+    fn loose_eq() {
+        assert!(EuType::i32(1).loose_eq(&EuType::i64(1)));
+        assert!(EuType::i32(1).loose_eq(&EuType::ibig(1)));
+        assert!(EuType::i32(1).loose_eq(&EuType::f64(1.0)));
+        assert!(EuType::ibig(1).loose_eq(&EuType::f64(1.0)));
+        assert!(EuType::Bool(true).loose_eq(&EuType::i32(1)));
+        assert!(EuType::Bool(false).loose_eq(&EuType::i32(0)));
+        assert!(EuType::Bool(true).loose_eq(&EuType::char(1)));
+        assert!(EuType::Bool(false).loose_eq(&EuType::char(0)));
+        assert!(!EuType::i32(1).loose_eq(&EuType::str("1")));
+    }
+
+    #[test]
+    fn loose_cmp() {
+        assert_eq!(EuType::i32(1).loose_cmp(&EuType::f64(2.0)), Ordering::Less);
+        assert_eq!(
+            EuType::f64(2.0).loose_cmp(&EuType::i32(1)),
+            Ordering::Greater
+        );
+        assert_eq!(EuType::i32(1).loose_cmp(&EuType::f64(1.0)), Ordering::Equal);
+    }
+
+    fn assert_consistent<'a>(a: &EuType<'a>, b: &EuType<'a>) {
+        let cmp = a.cmp(b);
+        let eq = a == b;
+        assert_eq!(cmp == Ordering::Equal, eq);
+        if eq {
+            assert_eq!(hash(a), hash(b));
+        }
+    }
+
+    fn hash(t: &EuType<'_>) -> u64 {
+        let mut h = DefaultHasher::new();
+        t.hash(&mut h);
+        h.finish()
+    }
+
+    fn sample_values() -> Vec<EuType<'static>> {
+        vec![
+            EuType::Bool(false),
+            EuType::Bool(true),
+            EuType::char(0),
+            EuType::char(1),
+            EuType::i32(-1),
+            EuType::i32(0),
+            EuType::i32(1),
+            EuType::i64(-1),
+            EuType::i64(0),
+            EuType::i64(1),
+            EuType::ibig(-1),
+            EuType::ibig(0),
+            EuType::ibig(1),
+            EuType::f64(-1.0),
+            EuType::f64(0.0),
+            EuType::f64(1.0),
+            EuType::char('a'),
+            EuType::str("asdf"),
+            EuType::word("asdf"),
+            EuType::vec([EuType::i32(1)]),
+        ]
+    }
+}
