@@ -1,7 +1,7 @@
 use crate::{
     fns::{
         EuDef,
-        macros::f_2_try_1,
+        macros::f_2_to_try_1,
     },
     types::EuType,
 };
@@ -48,8 +48,8 @@ pub const HAS: EuDef = |env| {
     Ok(())
 };
 
-f_2_try_1!(PUSH_BACK);
-f_2_try_1!(PUSH_FRONT);
+f_2_to_try_1!(PUSH_BACK);
+f_2_to_try_1!(PUSH_FRONT);
 
 pub const INSERT: EuDef = |env| {
     let a2 = env.arg("a2 (index)")?;
@@ -59,7 +59,7 @@ pub const INSERT: EuDef = |env| {
     Ok(())
 };
 
-f_2_try_1!(APPEND);
+f_2_to_try_1!(APPEND);
 
 pub const POP_BACK: EuDef = |env| {
     let a0 = env.arg("a0")?;
@@ -70,13 +70,6 @@ pub const POP_BACK: EuDef = |env| {
 pub const POP_FRONT: EuDef = |env| {
     let a0 = env.arg("a0")?;
     env.push(a0.pop_front()?.1);
-    Ok(())
-};
-
-pub const REMOVE_INDEX: EuDef = |env| {
-    let a1 = env.arg("a1 (index)")?;
-    let a0 = env.arg("a0")?;
-    env.push(a1.vecz1(|n| a0.remove(n.try_isize()?).map(|(_, ts)| ts))?);
     Ok(())
 };
 
@@ -94,11 +87,20 @@ pub const MOVE_FRONT: EuDef = |env| {
     Ok(())
 };
 
+pub const MOVE: EuDef = |env| {
+    let a1 = env.arg("a1 (key)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    let (t, ts) = a0.remove(&a1).map(|(t, ts)| (EuType::opt(t), ts))?;
+    env.push(ts);
+    env.push(t);
+    Ok(())
+};
+
 pub const MOVE_INDEX: EuDef = |env| {
     let a1 = env.arg("a1 (index)").unwrap();
     let a0 = env.arg("a0").unwrap();
     let (t, ts) = a1.vecz1_2(|n| {
-        a0.remove(n.try_isize()?)
+        a0.remove_index(n.try_isize()?)
             .map(|(t, ts)| (EuType::opt(t), ts))
     })?;
     env.push(ts);
@@ -106,7 +108,54 @@ pub const MOVE_INDEX: EuDef = |env| {
     Ok(())
 };
 
-f_2_try_1!(DELETE);
+pub const DELETE: EuDef = |env| {
+    let a1 = env.arg("a1 (key)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    env.push(a0.remove(&a1)?.1);
+    Ok(())
+};
+
+pub const DELETE_INDEX: EuDef = |env| {
+    let a1 = env.arg("a1 (index)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    env.push(a1.vecz1(|n| a0.remove_index(n.try_isize()?).map(|(_, ts)| ts))?);
+    Ok(())
+};
+
+pub const SWAP_MOVE: EuDef = |env| {
+    let a1 = env.arg("a1 (key)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    let (t, ts) = a0.swap_remove(&a1).map(|(t, ts)| (EuType::opt(t), ts))?;
+    env.push(ts);
+    env.push(t);
+    Ok(())
+};
+
+pub const SWAP_MOVE_INDEX: EuDef = |env| {
+    let a1 = env.arg("a1 (index)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    let (t, ts) = a1.vecz1_2(|n| {
+        a0.swap_remove_index(n.try_isize()?)
+            .map(|(t, ts)| (EuType::opt(t), ts))
+    })?;
+    env.push(ts);
+    env.push(t);
+    Ok(())
+};
+
+pub const SWAP_DELETE: EuDef = |env| {
+    let a1 = env.arg("a1 (key)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    env.push(a0.swap_remove(&a1)?.1);
+    Ok(())
+};
+
+pub const SWAP_DELETE_INDEX: EuDef = |env| {
+    let a1 = env.arg("a1 (index)").unwrap();
+    let a0 = env.arg("a0").unwrap();
+    env.push(a1.vecz1(|n| a0.swap_remove_index(n.try_isize()?).map(|(_, ts)| ts))?);
+    Ok(())
+};
 
 pub const AT: EuDef = |env| {
     let a1 = env.arg("a1 (index)").unwrap();
@@ -211,4 +260,4 @@ f_env_3_to_try_1!(FOLD, " (acc)");
 f_env_3_to_try_1!(SCAN, " (acc)");
 f_env_3_to_try_1!(ZIP_ATOM, "");
 
-f_2_try_1!(SEP);
+f_2_to_try_1!(SEP);

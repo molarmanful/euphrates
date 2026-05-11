@@ -86,43 +86,6 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn at(self, i: isize) -> EuRes<Option<Self>> {
-        match self {
-            Self::Opt(o) => Ok((i == 0).then(|| o.map(|t| *t)).flatten()),
-            Self::Res(r) => Self::Opt(r.ok()).at(i),
-            Self::Vec(mut ts) => Ok(if i < 0 {
-                ts.len().checked_add_signed(i)
-            } else {
-                Some(i.cast_unsigned())
-            }
-            .and_then(|i| ts.make_mut().get_mut(i).map(mem::take))),
-            Self::Map(mut kvs) => Ok(if i < 0 {
-                kvs.len().checked_add_signed(i)
-            } else {
-                Some(i.cast_unsigned())
-            }
-            .and_then(|i| {
-                Rc::make_mut(&mut kvs)
-                    .get_index_mut(i)
-                    .map(|(k, v)| Self::vec([k.clone(), mem::take(v)]))
-            })),
-            Self::Set(mut ts) => Ok(if i < 0 {
-                ts.len().checked_add_signed(i)
-            } else {
-                Some(i.cast_unsigned())
-            }
-            .and_then(|i| Rc::make_mut(&mut ts).get_index(i).cloned())),
-            Self::Seq(mut it) => {
-                if i < 0 {
-                    Self::Vec(Self::Seq(it).to_vec()?).at(i)
-                } else {
-                    it.nth(i.cast_unsigned()).transpose()
-                }
-            }
-            _ => Self::Vec(self.to_vec()?).at(i),
-        }
-    }
-
     pub fn take(self, n: isize) -> EuRes<Self> {
         let a = n.unsigned_abs();
         match self {
