@@ -28,6 +28,40 @@ impl EuType<'_> {
         }
     }
 
+    pub fn at(self, index: isize) -> EuRes<Option<Self>> {
+        let check = |len: usize| {
+            if index < 0 {
+                len.checked_add_signed(index)
+            } else {
+                Some(index.cast_unsigned())
+            }
+        };
+
+        match self {
+            Self::Opt(o) => Ok((index == 0 || index == -1).then(|| o.map(|t| *t)).flatten()),
+            Self::Res(r) => Self::Opt(r.ok()).at(index),
+            Self::Vec(mut ts) => {
+                Ok(check(ts.len()).and_then(|i| ts.make_mut().get_mut(i).map(mem::take)))
+            }
+            Self::Map(mut kvs) => Ok(check(kvs.len()).and_then(|i| {
+                Rc::make_mut(&mut kvs)
+                    .get_index_mut(i)
+                    .map(|(k, v)| Self::vec([k.clone(), mem::take(v)]))
+            })),
+            Self::Set(mut ts) => {
+                Ok(check(ts.len()).and_then(|i| Rc::make_mut(&mut ts).get_index(i).cloned()))
+            }
+            Self::Seq(mut it) => {
+                if index < 0 {
+                    Self::Vec(Self::Seq(it).to_vec()?).at(index)
+                } else {
+                    it.nth(index.cast_unsigned()).transpose()
+                }
+            }
+            _ => Self::Vec(self.to_vec()?).at(index),
+        }
+    }
+
     #[must_use]
     pub fn has(self, t: &Self) -> bool {
         match self {
@@ -39,17 +73,137 @@ impl EuType<'_> {
         }
     }
 
-    pub fn delete(mut self, t: Self) -> EuRes<Self> {
+    pub fn remove(mut self, t: &Self) -> EuRes<(Option<Self>, Self)> {
+        match self {
+            Self::Set(ref mut ts) => Ok((Rc::make_mut(ts).remove_full(t).map(|(_, t)| t), self)),
+            Self::Map(ref mut kvs) => Ok((
+                Rc::make_mut(kvs)
+                    .remove_full(t)
+                    .map(|(_, k, v)| Self::vec([k, v])),
+                self,
+            )),
+            _ => self.remove_index(t.try_isize()?),
+        }
+    }
+
+    pub fn remove_index(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
+        let check = |len: usize| {
+            if len == 0 {
+                None
+            } else if index < 0 {
+                len.checked_add_signed(index)
+            } else {
+                Some(index.cast_unsigned())
+            }
+        };
+
+        match self {
+            Self::Vec(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i)), self)),
+            Self::Map(ref mut kvs) => Ok((
+                check(kvs.len()).and_then(|i| {
+                    Rc::make_mut(kvs)
+                        .remove_index(i)
+                        .map(|(k, v)| Self::vec([k, v]))
+                }),
+                self,
+            )),
+            Self::Set(ref mut ts) => Ok((
+                check(ts.len()).and_then(|i| Rc::make_mut(ts).remove_index(i)),
+                self,
+            )),
+            Self::Opt(ref mut o) => Ok((
+                (index == 0 || index == -1)
+                    .then(|| o.take().map(|t| *t))
+                    .flatten(),
+                self,
+            )),
+            Self::Res(_) => Self::opt(self.to_opt()).pop_back(),
+            Self::Expr(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i).into()), self)),
+            Self::Str(ref mut s) => Ok((
+                check(s.len()).map(|i| {
+                    let mut r = s.mutate();
+                    Self::Char(r.remove(i))
+                }),
+                self,
+            )),
+            _ => Self::Vec(self.to_vec()?).remove_index(index),
+        }
+    }
+
+    pub fn swap_remove(mut self, t: &Self) -> EuRes<(Option<Self>, Self)> {
         match self {
             Self::Set(ref mut ts) => {
-                Rc::make_mut(ts).remove(&t);
-                Ok(self)
+                Ok((Rc::make_mut(ts).swap_remove_full(t).map(|(_, t)| t), self))
             }
-            Self::Map(ref mut kvs) => {
-                Rc::make_mut(kvs).remove(&t);
-                Ok(self)
+            Self::Map(ref mut kvs) => Ok((
+                Rc::make_mut(kvs)
+                    .swap_remove_full(t)
+                    .map(|(_, k, v)| Self::vec([k, v])),
+                self,
+            )),
+            _ => self.swap_remove_index(t.try_isize()?),
+        }
+    }
+
+    pub fn swap_remove_index(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
+        let check = |len: usize| {
+            if len == 0 {
+                None
+            } else if index < 0 {
+                len.checked_add_signed(index)
+            } else {
+                Some(index.cast_unsigned())
             }
-            _ => self.filter(move |a| Ok(a == &t)),
+        };
+
+        match self {
+            Self::Vec(ref mut ts) => {
+                let len = ts.len();
+                Ok((
+                    check(len).and_then(|i| {
+                        ts.make_mut().swap(i, len - 1);
+                        ts.pop()
+                    }),
+                    self,
+                ))
+            }
+            Self::Map(ref mut kvs) => Ok((
+                check(kvs.len()).and_then(|i| {
+                    Rc::make_mut(kvs)
+                        .swap_remove_index(i)
+                        .map(|(k, v)| Self::vec([k, v]))
+                }),
+                self,
+            )),
+            Self::Set(ref mut ts) => Ok((
+                check(ts.len()).and_then(|i| Rc::make_mut(ts).swap_remove_index(i)),
+                self,
+            )),
+            Self::Opt(ref mut o) => Ok((
+                (index == 0 || index == -1)
+                    .then(|| o.take().map(|t| *t))
+                    .flatten(),
+                self,
+            )),
+            Self::Res(_) => Self::opt(self.to_opt()).pop_back(),
+            Self::Expr(ref mut ts) => {
+                let len = ts.len();
+                Ok((
+                    check(len).and_then(|i| {
+                        ts.make_mut().swap(i, len - 1);
+                        ts.pop().map(Into::into)
+                    }),
+                    self,
+                ))
+            }
+            Self::Str(ref mut s) => Ok((
+                check(s.len()).map(|i| {
+                    let mut r = s.mutate();
+                    Self::Char(r.remove(i))
+                }),
+                self,
+            )),
+            _ => Self::Vec(self.to_vec()?).remove_index(index),
         }
     }
 
@@ -206,47 +360,6 @@ impl EuType<'_> {
     }
 
     pub fn pop_front(self) -> EuRes<(Option<Self>, Self)> {
-        self.remove(0)
-    }
-
-    pub fn remove(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
-        let a = index.unsigned_abs();
-        let check = |len: usize| {
-            let hi = len.cast_signed();
-            let low = -hi - 1;
-            (low <= index && index <= hi).then(|| if index < 0 { len + 1 - a } else { a })
-        };
-
-        match self {
-            Self::Vec(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i)), self)),
-            Self::Map(ref mut kvs) => Ok((
-                check(kvs.len()).and_then(|i| {
-                    Rc::make_mut(kvs)
-                        .remove_index(i)
-                        .map(|(k, v)| Self::vec([k, v]))
-                }),
-                self,
-            )),
-            Self::Set(ref mut ts) => Ok((
-                check(ts.len()).and_then(|i| Rc::make_mut(ts).remove_index(i)),
-                self,
-            )),
-            Self::Opt(ref mut o) => Ok((
-                (index == 0 || index == -1)
-                    .then(|| o.take().map(|t| *t))
-                    .flatten(),
-                self,
-            )),
-            Self::Res(_) => Self::opt(self.to_opt()).pop_back(),
-            Self::Expr(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i).into()), self)),
-            Self::Str(ref mut s) => Ok((
-                check(s.len()).map(|i| {
-                    let mut r = s.mutate();
-                    Self::Char(r.remove(i))
-                }),
-                self,
-            )),
-            _ => Self::Vec(self.to_vec()?).remove(index),
-        }
+        self.remove_index(0)
     }
 }

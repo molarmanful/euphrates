@@ -18,7 +18,7 @@ use ordered_float::{
 use crate::{
     fns::{
         EuDef,
-        macros::f_2_try_1,
+        macros::f_2_to_try_1,
     },
     types::EuType,
 };
@@ -147,12 +147,12 @@ pub const NEG: EuDef = |env| {
     Ok(())
 };
 
-f_2_try_1!(ADD);
-f_2_try_1!(SUB);
-f_2_try_1!(MUL);
-f_2_try_1!(DIV);
-f_2_try_1!(REM);
-f_2_try_1!(POW);
+f_2_to_try_1!(ADD);
+f_2_to_try_1!(SUB);
+f_2_to_try_1!(MUL);
+f_2_to_try_1!(DIV);
+f_2_to_try_1!(REM);
+f_2_to_try_1!(POW);
 
 pub const DIV_REM: EuDef = |env| {
     let a1 = env.arg("a1")?;
