@@ -12,7 +12,7 @@ keywords = ["language", "stack", "functional", "euphrates"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-winnow = "1.0.2"
+winnow = "1.0.3"
 derive_more = { version = "2.1.1", features = [
   "debug",
   "display",
@@ -28,7 +28,7 @@ hipstr = "0.8.0"
 anyhow = "1.0.102"
 itertools = "0.14.0"
 imbl = "7.0.0"
-ecow = "0.2.6"
+ecow = "0.2.7"
 dyn-clone = "1.0.20"
 ordered-float = "5.3.0"
 dashu-int = { version = "0.4.1", features = ["num-traits"] }
