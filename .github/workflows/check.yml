@@ -15,7 +15,7 @@ jobs:
       rust: ${{ steps.changes.outputs.rust }}
       web: ${{ steps.changes.outputs.web }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: changes
         with:
@@ -42,7 +42,7 @@ jobs:
       rust: ${{ needs.changes.outputs.rust }}
       web: ${{ needs.changes.outputs.web }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix flake check
@@ -51,7 +51,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build
@@ -63,7 +63,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - uses: pnpm/action-setup@v6
