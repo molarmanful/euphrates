@@ -1,6 +1,5 @@
-import type { EuEnvOpts } from '$lib/wasm/euph'
-
-import { shim } from './shim'
+import { $init, type EuEnvOpts, runEuph } from '$lib/wasm/euph'
+import { cli } from '@bytecodealliance/preview2-shim'
 
 export type RunnerMsg =
   | { type: 'done' }
@@ -21,21 +20,26 @@ addEventListener('message', (
 ) => {
   const inputIter = textEncoder.encode(input).values()
 
-  void (async () => {
-    const mod = await shim({
-      readStdin: len => new Uint8Array(inputIter.take(Number(len))),
-      writeStdout({ buffer }) {
-        post({ type: 'out', data: buffer }, [buffer])
-      },
-      writeStderr({ buffer }) {
-        post({ type: 'err', data: buffer }, [buffer])
-      },
-    })
+  cli._setStdin({
+    blockingRead: len => new Uint8Array(inputIter.take(Number(len))),
+  })
+  cli._setStdout({
+    write({ buffer }) {
+      post({ type: 'out', data: buffer }, [buffer])
+    },
+  })
+  cli._setStderr({
+    write({ buffer }) {
+      post({ type: 'err', data: buffer }, [buffer])
+    },
+  })
 
+  void (async () => {
     try {
-      mod.runEuph(code, opts)
-    } catch {
-      void 0
+      await $init
+      runEuph(code, opts)
+    } catch (error) {
+      console.error(error)
     }
     post({ type: 'done' })
     close()

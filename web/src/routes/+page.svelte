@@ -31,14 +31,15 @@
   })
 
   const setParams = async () => {
+    const compressed = await Promise.all(
+      Object.entries(params)
+        .filter(([, { value }]) => value)
+        .map(async ([k, { value }]) => [k, await compress(value)]),
+    )
     replaceState(
       `?${new URLSearchParams(
         [
-          ...await Promise.all(
-            Object.entries(params)
-              .filter(([, { value }]) => value)
-              .map(async ([k, { value }]) => [k, await compress(value)]),
-          ),
+          ...compressed,
           ...opts.debug ? [['debug', '']] : [],
         ],
       )}`,

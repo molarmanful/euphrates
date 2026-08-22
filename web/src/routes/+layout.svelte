@@ -7,13 +7,13 @@
 
   let { children }: { children: Snippet } = $props()
 
-  let loaded = $state(false)
+  let isLoaded = $state(false)
 
   $effect(() => {
-    loaded = true
+    isLoaded = true
   })
 </script>
 
-<div class={['transition-opacity', loaded ? 'opacity-100' : 'opacity-[0.01%]']}>
+<div class={['transition-opacity', isLoaded ? 'opacity-100' : 'opacity-[0.01%]']}>
   {@render children()}
 </div>
