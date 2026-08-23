@@ -8,11 +8,17 @@ const textDecoder = new TextDecoder()
 export class Glue {
   #worker = $state.raw<Worker>()
   #out = $state('')
+
+  running = $derived(!!this.#worker)
+
+  #stop() {
+    this.#worker?.terminate()
+    this.#worker = void 0
+  }
+
   get out() {
     return this.#out
   }
-
-  running = $derived(!!this.#worker)
 
   run(code: string, input: string, opts: EuEnvOpts) {
     this.#stop()
@@ -41,11 +47,6 @@ export class Glue {
       },
     )
     this.#worker.postMessage($state.snapshot({ code, input, opts }))
-  }
-
-  #stop() {
-    this.#worker?.terminate()
-    this.#worker = void 0
   }
 
   interrupt() {

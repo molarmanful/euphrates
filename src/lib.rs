@@ -2,7 +2,6 @@
 #![feature(iterator_try_reduce)]
 #![feature(iterator_try_collect)]
 #![feature(trait_alias)]
-#![feature(bool_to_result)]
 #![feature(iter_intersperse)]
 #![allow(clippy::same_length_and_capacity)]
 // FIXME
