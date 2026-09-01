@@ -42,7 +42,7 @@ rustyline = "18.0.0"
 ctrlc = "3.5.2"
 
 [build-dependencies]
-itertools = "0.14.0"
+itertools = "0.15.0"
 
 [lints.clippy]
 pedantic = "warn"
