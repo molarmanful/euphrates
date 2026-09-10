@@ -35,7 +35,11 @@ use crate::{
     types::EuRes,
 };
 
-type EuDef = fn(&mut EuEnv) -> EuRes<()>;
+pub struct EuDef {
+    pub def: fn(&mut EuEnv) -> EuRes<()>,
+    pub sigs: &'static [&'static str],
+    pub doc: &'static str,
+}
 
 pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     // stack

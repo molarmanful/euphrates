@@ -209,7 +209,7 @@ impl<'eu> EuEnv<'eu> {
                 Ok(())
             }
         } else if let Some(f) = CORE.get(w) {
-            f(self)
+            (f.def)(self)
                 .with_context(|| format!("`{w}` failed"))
                 .map_err(Into::into)
         } else {

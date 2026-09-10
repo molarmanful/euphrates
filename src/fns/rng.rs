@@ -5,18 +5,30 @@ use crate::{
     types::EuType,
 };
 
-#[crabtime::function]
-fn rand(name: String) {
-    let f = name.to_lowercase();
-    crabtime::output! {
-        pub const RAND_{{name}}: EuDef = |env| {
-            let n: {{f}} = env.ctx.rng.borrow_mut().random();
-            env.push(EuType::{{f}}(n));
+macro_rules! rand {
+    ($t:ident) => {
+        |env| {
+            let n: $t = env.ctx.rng.borrow_mut().random();
+            env.push(EuType::$t(n));
             Ok(())
-        };
-    }
+        }
+    };
 }
 
-rand!(I32);
-rand!(I64);
-rand!(F64);
+pub const RAND_I32: EuDef = EuDef {
+    def: rand!(i32),
+    sigs: &[],
+    doc: "",
+};
+
+pub const RAND_I64: EuDef = EuDef {
+    def: rand!(i64),
+    sigs: &[],
+    doc: "",
+};
+
+pub const RAND_F64: EuDef = EuDef {
+    def: rand!(f64),
+    sigs: &[],
+    doc: "",
+};
