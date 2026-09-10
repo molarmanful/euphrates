@@ -29,13 +29,7 @@ impl EuType<'_> {
     }
 
     pub fn at(self, index: isize) -> EuRes<Option<Self>> {
-        let check = |len: usize| {
-            if index < 0 {
-                len.checked_add_signed(index)
-            } else {
-                Some(index.cast_unsigned())
-            }
-        };
+        let check = |len: usize| norm_index(index, len);
 
         match self {
             Self::Opt(o) => Ok((index == 0 || index == -1).then(|| o.map(|t| *t)).flatten()),
@@ -87,15 +81,7 @@ impl EuType<'_> {
     }
 
     pub fn remove_index(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
-        let check = |len: usize| {
-            if len == 0 {
-                None
-            } else if index < 0 {
-                len.checked_add_signed(index)
-            } else {
-                Some(index.cast_unsigned())
-            }
-        };
+        let check = |len: usize| norm_index(index, len);
 
         match self {
             Self::Vec(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i)), self)),
@@ -146,15 +132,7 @@ impl EuType<'_> {
     }
 
     pub fn swap_remove_index(mut self, index: isize) -> EuRes<(Option<Self>, Self)> {
-        let check = |len: usize| {
-            if len == 0 {
-                None
-            } else if index < 0 {
-                len.checked_add_signed(index)
-            } else {
-                Some(index.cast_unsigned())
-            }
-        };
+        let check = |len: usize| norm_index(index, len);
 
         match self {
             Self::Vec(ref mut ts) => {
@@ -203,7 +181,7 @@ impl EuType<'_> {
                 }),
                 self,
             )),
-            _ => Self::Vec(self.to_vec()?).remove_index(index),
+            _ => Self::Vec(self.to_vec()?).swap_remove_index(index),
         }
     }
 
@@ -362,4 +340,13 @@ impl EuType<'_> {
     pub fn pop_front(self) -> EuRes<(Option<Self>, Self)> {
         self.remove_index(0)
     }
+}
+
+fn norm_index(index: isize, len: usize) -> Option<usize> {
+    if index < 0 {
+        len.checked_add_signed(index)
+    } else {
+        Some(index.cast_unsigned())
+    }
+    .filter(|&i| i < len)
 }
