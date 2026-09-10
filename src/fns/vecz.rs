@@ -88,8 +88,8 @@ pub const MOVE_FRONT: EuDef = |env| {
 };
 
 pub const MOVE: EuDef = |env| {
-    let a1 = env.arg("a1 (key)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (key)")?;
+    let a0 = env.arg("a0")?;
     let (t, ts) = a0.remove(&a1).map(|(t, ts)| (EuType::opt(t), ts))?;
     env.push(ts);
     env.push(t);
@@ -97,8 +97,8 @@ pub const MOVE: EuDef = |env| {
 };
 
 pub const MOVE_INDEX: EuDef = |env| {
-    let a1 = env.arg("a1 (index)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (index)")?;
+    let a0 = env.arg("a0")?;
     let (t, ts) = a1.vecz1_2(|n| {
         a0.remove_index(n.try_isize()?)
             .map(|(t, ts)| (EuType::opt(t), ts))
@@ -109,22 +109,22 @@ pub const MOVE_INDEX: EuDef = |env| {
 };
 
 pub const DELETE: EuDef = |env| {
-    let a1 = env.arg("a1 (key)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (key)")?;
+    let a0 = env.arg("a0")?;
     env.push(a0.remove(&a1)?.1);
     Ok(())
 };
 
 pub const DELETE_INDEX: EuDef = |env| {
-    let a1 = env.arg("a1 (index)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (index)")?;
+    let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.remove_index(n.try_isize()?).map(|(_, ts)| ts))?);
     Ok(())
 };
 
 pub const SWAP_MOVE: EuDef = |env| {
-    let a1 = env.arg("a1 (key)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (key)")?;
+    let a0 = env.arg("a0")?;
     let (t, ts) = a0.swap_remove(&a1).map(|(t, ts)| (EuType::opt(t), ts))?;
     env.push(ts);
     env.push(t);
@@ -132,8 +132,8 @@ pub const SWAP_MOVE: EuDef = |env| {
 };
 
 pub const SWAP_MOVE_INDEX: EuDef = |env| {
-    let a1 = env.arg("a1 (index)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (index)")?;
+    let a0 = env.arg("a0")?;
     let (t, ts) = a1.vecz1_2(|n| {
         a0.swap_remove_index(n.try_isize()?)
             .map(|(t, ts)| (EuType::opt(t), ts))
@@ -144,22 +144,22 @@ pub const SWAP_MOVE_INDEX: EuDef = |env| {
 };
 
 pub const SWAP_DELETE: EuDef = |env| {
-    let a1 = env.arg("a1 (key)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (key)")?;
+    let a0 = env.arg("a0")?;
     env.push(a0.swap_remove(&a1)?.1);
     Ok(())
 };
 
 pub const SWAP_DELETE_INDEX: EuDef = |env| {
-    let a1 = env.arg("a1 (index)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (index)")?;
+    let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.swap_remove_index(n.try_isize()?).map(|(_, ts)| ts))?);
     Ok(())
 };
 
 pub const AT: EuDef = |env| {
-    let a1 = env.arg("a1 (index)").unwrap();
-    let a0 = env.arg("a0").unwrap();
+    let a1 = env.arg("a1 (index)")?;
+    let a0 = env.arg("a0")?;
     env.push(a1.vecz1(|n| a0.at(n.try_isize()?).map(EuType::opt))?);
     Ok(())
 };
