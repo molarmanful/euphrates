@@ -52,6 +52,7 @@ impl EuType<'_> {
                     it.nth(index.cast_unsigned()).transpose()
                 }
             }
+            Self::Str(ref s) => Ok(char_at(s, index).map(|(_, c)| Self::Char(c))),
             _ => Self::Vec(self.to_vec()?).at(index),
         }
     }
@@ -106,9 +107,9 @@ impl EuType<'_> {
             Self::Res(_) => Self::opt(self.to_opt()).pop_back(),
             Self::Expr(ref mut ts) => Ok((check(ts.len()).map(|i| ts.remove(i).into()), self)),
             Self::Str(ref mut s) => Ok((
-                check(s.len()).map(|i| {
+                char_at(s, index).map(|(b, _)| {
                     let mut r = s.mutate();
-                    Self::Char(r.remove(i))
+                    Self::Char(r.remove(b))
                 }),
                 self,
             )),
@@ -175,10 +176,17 @@ impl EuType<'_> {
                 ))
             }
             Self::Str(ref mut s) => Ok((
-                check(s.len()).map(|i| {
-                    let mut r = s.mutate();
-                    Self::Char(r.remove(i))
-                }),
+                char_at(s, index)
+                    .zip(char_at(s, -1))
+                    .map(|((b, c), (lb, lc))| {
+                        let mut r = s.mutate();
+                        r.truncate(lb);
+                        if lb != b {
+                            let mut buf = [0u8; 4];
+                            r.replace_range(b..b + c.len_utf8(), lc.encode_utf8(&mut buf));
+                        }
+                        Self::Char(c)
+                    }),
                 self,
             )),
             _ => Self::Vec(self.to_vec()?).swap_remove_index(index),
@@ -273,14 +281,15 @@ impl EuType<'_> {
                 Ok(self)
             }
             Self::Str(s) => {
-                let a = check(s.len())?;
-                let mut res = s.slice(0..a);
+                let a = check(s.chars().count())?;
+                let b = char_at(&s, a.cast_signed()).map_or_else(|| s.len(), |(b, _)| b);
+                let mut res = s.slice(0..b);
                 if let Self::Char(c) = t {
                     res.push(c);
                 } else {
                     res.push_str(&t.to_string());
                 }
-                res.push_str(&s.slice(a..));
+                res.push_str(&s.slice(b..));
                 Ok(Self::Str(res))
             }
             _ => Self::Vec(self.to_vec()?).insert(index, t),
@@ -349,4 +358,12 @@ fn norm_index(index: isize, len: usize) -> Option<usize> {
         Some(index.cast_unsigned())
     }
     .filter(|&i| i < len)
+}
+
+fn char_at(s: &str, index: isize) -> Option<(usize, char)> {
+    if index < 0 {
+        s.char_indices().nth_back(index.unsigned_abs() - 1)
+    } else {
+        s.char_indices().nth(index.cast_unsigned())
+    }
 }
