@@ -67,7 +67,6 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    #[must_use]
     pub fn repeat(self) -> impl EuSeqT<'eu> {
         iter::repeat(Ok(self))
     }
@@ -78,7 +77,6 @@ impl<'eu> EuType<'eu> {
     }
 
     #[inline]
-    #[must_use]
     pub fn cycle(self) -> impl EuSeqT<'eu> {
         match self {
             Self::Seq(it) => it.cycle(),

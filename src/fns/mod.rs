@@ -210,6 +210,8 @@ pub const CORE: phf::Map<&str, EuDef> = phf::phf_map! {
     // vecz
     ":" => GET,
     "has" => HAS,
+    "len" => LEN,
+    "size" => SIZE,
     ":+" => PUSH_BACK,
     "+:" => PUSH_FRONT,
     "ins" => INSERT,

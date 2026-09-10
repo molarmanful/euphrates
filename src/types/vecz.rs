@@ -58,6 +58,35 @@ impl EuType<'_> {
     }
 
     #[must_use]
+    pub fn len(self) -> usize {
+        match self {
+            Self::Vec(ts) => ts.len(),
+            Self::Map(kvs) => kvs.len(),
+            Self::Set(ts) => ts.len(),
+            Self::Opt(o) => o.is_some().into(),
+            Self::Res(r) => r.is_ok().into(),
+            Self::Expr(ts) => ts.len(),
+            Self::Seq(it) => it.count(),
+            Self::Str(s) => s.chars().count(),
+            _ => 1,
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        !bool::from(self)
+    }
+
+    #[must_use]
+    pub fn size(self) -> usize {
+        match self {
+            Self::Str(s) => s.len(),
+            Self::Char(c) => c.len_utf8(),
+            _ => self.len(),
+        }
+    }
+
+    #[must_use]
     pub fn has(self, t: &Self) -> bool {
         match self {
             Self::Set(ts) => ts.contains(t),

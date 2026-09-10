@@ -48,6 +48,18 @@ pub const HAS: EuDef = |env| {
     Ok(())
 };
 
+pub const LEN: EuDef = |env| {
+    let a0 = env.arg("a0")?;
+    env.push(EuType::ibig(a0.len()));
+    Ok(())
+};
+
+pub const SIZE: EuDef = |env| {
+    let a0 = env.arg("a0")?;
+    env.push(EuType::ibig(a0.size()));
+    Ok(())
+};
+
 f_2_to_try_1!(PUSH_BACK);
 f_2_to_try_1!(PUSH_FRONT);
 
