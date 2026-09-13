@@ -26,8 +26,8 @@ use crate::{
 macro_rules! f64_f_1_to_1 {
     ($f:ident) => {
         |env| {
-            let a0 = env.arg("a0")?.try_f64()?;
-            env.push(EuType::f64(a0.$f()));
+            let a0 = env.arg("a0")?;
+            env.push(a0.vecz1(|t| Ok(EuType::f64(t.try_f64()?.$f())))?);
             Ok(())
         }
     };
@@ -36,9 +36,9 @@ macro_rules! f64_f_1_to_1 {
 macro_rules! f64_f_2_to_1 {
     ($f:ident) => {
         |env| {
-            let a1 = env.arg("a1")?.try_f64()?;
-            let a0 = env.arg("a0")?.try_f64()?;
-            env.push(EuType::f64(a0.$f(a1)));
+            let a1 = env.arg("a1")?;
+            let a0 = env.arg("a0")?;
+            env.push(a0.vecz2(a1, |a, b| Ok(EuType::f64(a.try_f64()?.$f(b.try_f64()?))))?);
             Ok(())
         }
     };
@@ -47,10 +47,13 @@ macro_rules! f64_f_2_to_1 {
 macro_rules! f64_f_1_to_2 {
     ($f:ident) => {
         |env| {
-            let a0 = env.arg("a0")?.try_f64()?;
-            let (b0, b1) = a0.$f();
-            env.push(EuType::f64(b0));
-            env.push(EuType::f64(b1));
+            let a0 = env.arg("a0")?;
+            let (b0, b1) = a0.vecz1_2(|t| {
+                let (b0, b1) = t.try_f64()?.$f();
+                Ok((EuType::f64(b0), EuType::f64(b1)))
+            })?;
+            env.push(b0);
+            env.push(b1);
             Ok(())
         }
     };
