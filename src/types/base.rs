@@ -277,12 +277,12 @@ impl<'eu> EuType<'eu> {
 
     pub fn eval_to_map(self, scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> EuRes<Self> {
         self.vecz1(|f| {
-            EuEnv::apply(f.to_expr()?, &[], scope, ctx)?
+            let kvs: EuRes<OrderMap<Self, Self>> = EuEnv::apply(f.to_expr()?, &[], scope, ctx)?
                 .stack
                 .into_iter()
                 .map(EuType::to_pair)
-                .try_collect()
-                .map(|kvs| EuType::Map(Rc::new(kvs)))
+                .try_collect();
+            Ok(Self::opt(kvs.ok().map(Self::map_)))
         })
     }
 
