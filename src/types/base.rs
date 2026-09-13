@@ -74,7 +74,7 @@ pub enum EuType<'eu> {
     #[debug("[{}]", _0.iter().map(|t| format!("{t:?}")).join(" "))]
     #[display("{}", _0.iter().join(""))]
     Vec(EcoVec<Self>),
-    #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} {v:?}")).join(", "))]
+    #[debug("{{{}}}", _0.iter().map(|(k, v)| format!("{k:?} {v:?},")).join(" "))]
     #[display("{}", _0.iter().map(|(k, v)| format!("{k}{v}")).join(" "))]
     Map(Rc<OrderMap<Self, Self>>),
     #[debug("Set:({})", _0.iter().map(|t| format!("{t:?}")).join(" "))]
