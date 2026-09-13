@@ -128,9 +128,17 @@ fn gen_impl_neg() {
     let types = ["I32", "I64", "IBig", "F64"];
     let arms = types
         .map(|t| {
-            let n = t.to_lowercase();
-            crabtime::quote! {
-                Self::{{t}}(n) => Ok(Self::{{t}}(-n)),
+            if t != "IBig" && t.chars().next() == Some('I') {
+                crabtime::quote! {
+                    Self::{{t}}(n) => n
+                        .checked_neg()
+                        .map(Self::{{t}})
+                        .ok_or_else(|| anyhow!("neg on `{n:?}` is undefined").into()),
+                }
+            } else {
+                crabtime::quote! {
+                    Self::{{t}}(n) => Ok(Self::{{t}}(-n)),
+                }
             }
         })
         .join("");
