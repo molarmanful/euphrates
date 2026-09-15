@@ -250,41 +250,29 @@ impl<'eu> EuEnv<'eu> {
         T::IntoIter: 'eu,
     {
         if self.queue.peek().is_none() {
-            self.load_iter(ts);
+            let it: EuIter<'eu> = Box::new(ts.into_iter());
+            self.queue = it.peekable();
+            Ok(())
         } else {
-            let mut env = self.frame(ts);
-            env.eval()?;
-            self.stack = env.stack;
+            self.eval_eager(ts)
         }
-        Ok(())
     }
 
-    pub fn load_iter<T>(&mut self, ts: T)
-    where
-        T: IntoIterator<Item = EuSyn<'eu>>,
-        T::IntoIter: 'eu,
-    {
-        let empty: EuIter<'eu> = Box::new(iter::empty());
-        let it: EuIter<'eu> = Box::new(
-            ts.into_iter()
-                .chain(mem::replace(&mut self.queue, empty.peekable())),
-        );
-        self.queue = it.peekable();
-    }
-
-    #[must_use]
-    pub fn frame<T>(&self, ts: T) -> Self
+    pub fn eval_eager<T>(&mut self, ts: T) -> EuRes<()>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
         let it: EuIter<'eu> = Box::new(ts.into_iter());
-        Self {
+        let mut env = Self {
             queue: it.peekable(),
-            stack: self.stack.clone(),
+            stack: mem::take(&mut self.stack),
             scope: self.scope.clone(),
             ctx: self.ctx,
-        }
+        };
+        let res = env.eval();
+        self.stack = env.stack;
+        res
     }
 
     pub fn bind_args(&mut self, bs: &EcoVec<EuBind<'eu>>) -> EuRes<()> {

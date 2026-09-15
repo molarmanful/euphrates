@@ -283,7 +283,7 @@ pub const DIP: EuDef = EuDef {
     def: |env| {
         let a1 = env.arg("a1 (eval)")?.to_expr()?;
         let a0 = env.arg("a0")?;
-        env.stack = EuEnv::apply(a1, &env.stack, env.scope.clone(), env.ctx)?.stack;
+        env.eval_eager(a1)?;
         env.push(a0);
         Ok(())
     },
