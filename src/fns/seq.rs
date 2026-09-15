@@ -38,7 +38,7 @@ pub const UNFOLD: EuDef = EuDef {
     def: |env| {
         let a1 = env.arg("a1 (eval)")?;
         let a0 = env.arg("a0")?;
-        env.push(a0.unfold_env(a1, env.scope.clone(), env.ctx)?);
+        env.push(a0.unfold_env(a1, env.cx())?);
         Ok(())
     },
     sigs: &[],

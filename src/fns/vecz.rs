@@ -11,7 +11,7 @@ macro_rules! f_env_2_to_try_1 {
         |env| {
             let a1 = env.arg("a1 (eval)")?;
             let a0 = env.arg("a0")?;
-            env.push(a0.$f(a1, env.scope.clone(), env.ctx)?);
+            env.push(a0.$f(a1, env.cx())?);
             Ok(())
         }
     };
@@ -23,7 +23,7 @@ macro_rules! f_env_3_to_try_1 {
             let a2 = env.arg("a2 (eval)")?;
             let a1 = env.arg(concat!("a1", $a1))?;
             let a0 = env.arg("a0")?;
-            env.push(a0.$f(a1, a2, env.scope.clone(), env.ctx)?);
+            env.push(a0.$f(a1, a2, env.cx())?);
             Ok(())
         }
     };

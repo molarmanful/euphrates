@@ -32,8 +32,7 @@ use winnow::Parser;
 use crate::{
     env::{
         EuEnv,
-        EuEnvCtx,
-        EuScope,
+        EuEnvCx,
     },
     parser::euphrates,
     types::{
@@ -218,8 +217,8 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_vec(self, scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> EuRes<Self> {
-        self.vecz1(|f| EuEnv::apply(f.to_expr()?, &[], scope, ctx).map(|env| Self::Vec(env.stack)))
+    pub fn eval_to_vec(self, cx: EuEnvCx<'eu>) -> EuRes<Self> {
+        self.vecz1(|f| EuEnv::apply(f.to_expr()?, &[], cx).map(|env| Self::Vec(env.stack)))
     }
 
     pub fn to_seq(self) -> EuSeq<'eu> {
@@ -275,9 +274,9 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_map(self, scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> EuRes<Self> {
+    pub fn eval_to_map(self, cx: EuEnvCx<'eu>) -> EuRes<Self> {
         self.vecz1(|f| {
-            let kvs: EuRes<OrderMap<Self, Self>> = EuEnv::apply(f.to_expr()?, &[], scope, ctx)?
+            let kvs: EuRes<OrderMap<Self, Self>> = EuEnv::apply(f.to_expr()?, &[], cx)?
                 .stack
                 .into_iter()
                 .map(EuType::to_pair)
@@ -300,9 +299,9 @@ impl<'eu> EuType<'eu> {
         }
     }
 
-    pub fn eval_to_set(self, scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> EuRes<Self> {
+    pub fn eval_to_set(self, cx: EuEnvCx<'eu>) -> EuRes<Self> {
         self.vecz1(|f| {
-            EuEnv::apply(f.to_expr()?, &[], scope, ctx)
+            EuEnv::apply(f.to_expr()?, &[], cx)
                 .map(|env| EuType::Set(Rc::new(env.stack.into_iter().collect())))
         })
     }

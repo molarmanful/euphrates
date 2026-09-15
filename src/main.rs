@@ -17,6 +17,7 @@ use euph::{
     env::{
         EuEnv,
         EuEnvCtx,
+        EuEnvCx,
     },
 };
 use imbl::GenericHashMap;
@@ -69,7 +70,7 @@ fn main() {
 
     match res
         .map_err(Into::into)
-        .and_then(|code| EuEnv::apply_str(&code, &[], GenericHashMap::new(), &ctx))
+        .and_then(|code| EuEnv::apply_str(&code, &[], EuEnvCx::new(GenericHashMap::new(), &ctx)))
     {
         Ok(env) => {
             if cli.debug || cli.dump {
@@ -96,11 +97,11 @@ fn repl() -> anyhow::Result<()> {
     })?;
 
     let ctx = EuEnvCtx::new(EuEnvOpts { debug: false }, interrupt, rand::rng());
-    let mut env = EuEnv::new([], &[], GenericHashMap::new(), &ctx);
+    let mut env = EuEnv::new([], &[], EuEnvCx::new(GenericHashMap::new(), &ctx));
 
     loop {
         match rl.readline("euph> ") {
-            Ok(code) => match EuEnv::apply_str(&code, &[], env.scope.clone(), env.ctx) {
+            Ok(code) => match EuEnv::apply_str(&code, &[], env.cx()) {
                 Ok(res) => {
                     env = res;
                     println!("{env}");

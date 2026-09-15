@@ -46,12 +46,7 @@ pub const ERR: EuDef = EuDef {
 pub const EVAL_RES: EuDef = EuDef {
     def: |env| {
         let a0 = env.arg("a0 (eval)")?.to_expr()?;
-        env.push(EuType::res_str(EuEnv::apply_n_1(
-            a0,
-            &env.stack,
-            env.scope.clone(),
-            env.ctx,
-        )));
+        env.push(EuType::res_str(EuEnv::apply_n_1(a0, &env.stack, env.cx())));
         Ok(())
     },
     sigs: &[],

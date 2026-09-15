@@ -270,9 +270,7 @@ pub const SUB_STACK: EuDef = EuDef {
     def: |env| {
         let a1 = env.arg("a1 (eval)")?.to_expr()?;
         let a0 = env.arg("a0")?.to_vec()?;
-        env.push(EuType::Vec(
-            EuEnv::apply(a1, &a0, env.scope.clone(), env.ctx)?.stack,
-        ));
+        env.push(EuType::Vec(EuEnv::apply(a1, &a0, env.cx())?.stack));
         Ok(())
     },
     sigs: &[],

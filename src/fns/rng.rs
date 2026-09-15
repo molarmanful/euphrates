@@ -8,7 +8,7 @@ use crate::{
 macro_rules! rand {
     ($t:ident) => {
         |env| {
-            let n: $t = env.ctx.rng.borrow_mut().random();
+            let n: $t = env.rng().borrow_mut().random();
             env.push(EuType::$t(n));
             Ok(())
         }

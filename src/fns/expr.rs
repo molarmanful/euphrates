@@ -33,7 +33,7 @@ pub const EVAL: EuDef = EuDef {
 pub const TAP: EuDef = EuDef {
     def: |env| {
         env.arg("a0 (eval)")?.for_rec(&mut |f| {
-            EuEnv::apply(f, &env.stack, env.scope.clone(), env.ctx)?;
+            EuEnv::apply(f, &env.stack, env.cx())?;
             Ok(())
         })
     },

@@ -47,26 +47,31 @@ use crate::{
 };
 
 #[derive(Debug, Display)]
-#[debug("stack: {stack:?}\nscope: {scope:?}")]
+#[debug("stack: {stack:?}\nscope: {:?}", self.scope())]
 #[display("{stack:?}")]
 pub struct EuEnv<'eu> {
     pub queue: Peekable<EuIter<'eu>>,
     pub stack: EcoVec<EuType<'eu>>,
-    pub scope: EuScope<'eu>,
-    pub ctx: &'eu EuEnvCtx,
+    cx: EuEnvCx<'eu>,
 }
 
-pub struct EuEnvCtx {
-    pub opts: EuEnvOpts,
-    pub interrupt: Arc<AtomicBool>,
-    pub rng: RefCell<Box<dyn Rng>>,
+#[derive(Clone)]
+pub struct EuEnvCx<'eu> {
+    scope: EuScope<'eu>,
+    ctx: &'eu EuEnvCtx,
 }
 
 pub type EuScope<'eu> =
     imbl::GenericHashMap<LocalHipStr<'eu>, EuType<'eu>, hash::RandomState, imbl::shared_ptr::RcK>;
 
+pub struct EuEnvCtx {
+    opts: EuEnvOpts,
+    interrupt: Arc<AtomicBool>,
+    rng: RefCell<Box<dyn Rng>>,
+}
+
 impl<'eu> EuEnv<'eu> {
-    pub fn new<T>(ts: T, args: &[EuType<'eu>], scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> Self
+    pub fn new<T>(ts: T, args: &[EuType<'eu>], cx: EuEnvCx<'eu>) -> Self
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
@@ -75,53 +80,76 @@ impl<'eu> EuEnv<'eu> {
         Self {
             queue: it.peekable(),
             stack: args.into(),
-            scope,
-            ctx,
+            cx,
         }
     }
 
     #[inline]
-    pub fn apply<T>(
-        ts: T,
-        args: &[EuType<'eu>],
-        scope: EuScope<'eu>,
-        ctx: &'eu EuEnvCtx,
-    ) -> EuRes<EuEnv<'eu>>
+    #[must_use]
+    pub fn cx(&self) -> EuEnvCx<'eu> {
+        self.cx.clone()
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn scope(&self) -> &EuScope<'eu> {
+        &self.cx.scope
+    }
+
+    #[inline]
+    pub fn scope_mut(&mut self) -> &mut EuScope<'eu> {
+        &mut self.cx.scope
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn opts(&self) -> &EuEnvOpts {
+        &self.cx.ctx.opts
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn interrupt(&self) -> &Arc<AtomicBool> {
+        &self.cx.ctx.interrupt
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn rng(&self) -> &RefCell<Box<dyn Rng>> {
+        &self.cx.ctx.rng
+    }
+
+    #[inline]
+    pub fn apply<T>(ts: T, stack: &[EuType<'eu>], cx: EuEnvCx<'eu>) -> EuRes<EuEnv<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        let mut env = Self::new(ts, args, scope, ctx);
+        let mut env = Self::new(ts, stack, cx);
         env.eval()?;
         Ok(env)
     }
 
     #[inline]
-    pub fn apply_n_1<T>(
-        ts: T,
-        args: &[EuType<'eu>],
-        scope: EuScope<'eu>,
-        ctx: &'eu EuEnvCtx,
-    ) -> EuRes<EuType<'eu>>
+    pub fn apply_n_1<T>(ts: T, args: &[EuType<'eu>], cx: EuEnvCx<'eu>) -> EuRes<EuType<'eu>>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope, ctx).and_then(|mut env| env.pop())
+        Self::apply(ts, args, cx).and_then(|mut env| env.pop())
     }
 
     #[inline]
     pub fn apply_n_2<T>(
         ts: T,
         args: &[EuType<'eu>],
-        scope: EuScope<'eu>,
-        ctx: &'eu EuEnvCtx,
+        cx: EuEnvCx<'eu>,
     ) -> EuRes<(EuType<'eu>, EuType<'eu>)>
     where
         T: IntoIterator<Item = EuSyn<'eu>>,
         T::IntoIter: 'eu,
     {
-        Self::apply(ts, args, scope, ctx).and_then(|mut env| {
+        Self::apply(ts, args, cx).and_then(|mut env| {
             env.check_nargs(2)?;
             #[expect(clippy::missing_panics_doc, reason = "infallible")]
             let a1 = env.stack.pop().unwrap();
@@ -132,31 +160,25 @@ impl<'eu> EuEnv<'eu> {
     }
 
     #[inline]
-    pub fn apply_str(
-        s: &str,
-        args: &[EuType<'eu>],
-        scope: EuScope<'eu>,
-        ctx: &'eu EuEnvCtx,
-    ) -> EuRes<EuEnv<'eu>> {
+    pub fn apply_str(s: &str, args: &[EuType<'eu>], cx: EuEnvCx<'eu>) -> EuRes<EuEnv<'eu>> {
         Self::apply(
             euphrates.parse(s).map_err(|e| anyhow!(e.to_string()))?,
             args,
-            scope,
-            ctx,
+            cx,
         )
     }
 
     pub fn eval(&mut self) -> EuRes<()> {
         while let Some(t) = self.queue.next() {
             #[cfg(not(target_arch = "wasm32"))]
-            if !self.ctx.interrupt.load(Ordering::SeqCst) {
+            if !self.interrupt().load(Ordering::SeqCst) {
                 return Err(anyhow!("interrupted").into());
             }
-            if self.ctx.opts.debug {
+            if self.opts().debug {
                 println!("{t:?}\n>>>");
             }
             self.eval_syn(t)?;
-            if self.ctx.opts.debug {
+            if self.opts().debug {
                 println!("{self:?}\n<<<\n");
             }
         }
@@ -170,14 +192,12 @@ impl<'eu> EuEnv<'eu> {
             EuSyn::Move(s) => self.eval_move(&s),
             EuSyn::Get(k) => self.eval_get(&k),
             EuSyn::Vec(ts) => {
-                self.push(EuType::vec(
-                    Self::apply(ts, &[], self.scope.clone(), self.ctx)?.stack,
-                ));
+                self.push(EuType::vec(Self::apply(ts, &[], self.cx())?.stack));
                 Ok(())
             }
             EuSyn::Map(ts) => {
                 self.push(EuType::Map(Rc::new(
-                    Self::apply(ts, &[], self.scope.clone(), self.ctx)?
+                    Self::apply(ts, &[], self.cx())?
                         .stack
                         .into_iter()
                         .map(EuType::to_pair)
@@ -201,7 +221,7 @@ impl<'eu> EuEnv<'eu> {
     }
 
     fn eval_word(&mut self, w: &str) -> EuRes<()> {
-        if let Some(v) = self.scope.get(w) {
+        if let Some(v) = self.scope().get(w) {
             if let EuType::Expr(ts) = v {
                 self.eval_iter(ts.clone())
             } else {
@@ -218,7 +238,7 @@ impl<'eu> EuEnv<'eu> {
     }
 
     fn eval_var(&mut self, w: &str) -> EuRes<()> {
-        if let Some(v) = self.scope.get(w) {
+        if let Some(v) = self.scope().get(w) {
             self.push(v.clone());
             Ok(())
         } else {
@@ -227,7 +247,7 @@ impl<'eu> EuEnv<'eu> {
     }
 
     fn eval_move(&mut self, w: &str) -> EuRes<()> {
-        if let Some(v) = self.scope.remove(w) {
+        if let Some(v) = self.scope_mut().remove(w) {
             self.push(v);
             Ok(())
         } else {
@@ -267,8 +287,7 @@ impl<'eu> EuEnv<'eu> {
         let mut env = Self {
             queue: it.peekable(),
             stack: mem::take(&mut self.stack),
-            scope: self.scope.clone(),
-            ctx: self.ctx,
+            cx: self.cx(),
         };
         let res = env.eval();
         self.stack = env.stack;
@@ -293,7 +312,7 @@ impl<'eu> EuEnv<'eu> {
 
         match b {
             EuBind::Word(w) => {
-                self.scope.insert(w.clone(), t);
+                self.scope_mut().insert(w.clone(), t);
             }
 
             EuBind::Tag(w, bs) => {
@@ -386,6 +405,12 @@ impl<'eu> EuEnv<'eu> {
     pub fn clear_queue(&mut self) {
         let queue: EuIter<'_> = Box::new(iter::empty());
         self.queue = queue.peekable();
+    }
+}
+
+impl<'eu> EuEnvCx<'eu> {
+    pub fn new(scope: EuScope<'eu>, ctx: &'eu EuEnvCtx) -> Self {
+        Self { scope, ctx }
     }
 }
 

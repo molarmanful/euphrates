@@ -20,7 +20,10 @@ use std::sync::{
 
 use env::EuEnv;
 
-use crate::env::EuEnvCtx;
+use crate::env::{
+    EuEnvCtx,
+    EuEnvCx,
+};
 
 wit_bindgen::generate!();
 
@@ -30,7 +33,7 @@ impl Guest for Glue {
     fn run_euph(code: String, opts: EuEnvOpts) {
         let ctx = EuEnvCtx::new(opts, Arc::new(AtomicBool::new(true)), rand::rng());
 
-        match EuEnv::apply_str(&code, &[], imbl::GenericHashMap::new(), &ctx) {
+        match EuEnv::apply_str(&code, &[], EuEnvCx::new(imbl::GenericHashMap::new(), &ctx)) {
             Ok(env) => println!("{env}"),
             Err(e) => {
                 eprintln!("ERR:");

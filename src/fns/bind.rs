@@ -57,7 +57,7 @@ pub const MAP: EuBindDef = EuBindDef {
             match b {
                 EuBind::Word(w) => {
                     let k = EuType::Str(w.clone());
-                    env.scope.insert(w.clone(), get_key(kvs, &k)?.clone());
+                    env.scope_mut().insert(w.clone(), get_key(kvs, &k)?.clone());
                 }
                 EuBind::Bind(b0, b1) => {
                     if let Some(k) = b0.clone().to_free() {
