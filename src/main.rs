@@ -1,16 +1,16 @@
-use std::sync::{
-    Arc,
-    atomic::AtomicBool,
-};
-#[cfg(not(target_arch = "wasm32"))]
 use std::{
     fs,
     io,
     path,
-    sync::atomic::Ordering,
+    sync::{
+        Arc,
+        atomic::{
+            AtomicBool,
+            Ordering,
+        },
+    },
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 use clap::Parser;
 use euph::{
     EuEnvOpts,
@@ -20,13 +20,11 @@ use euph::{
     },
 };
 use imbl::GenericHashMap;
-#[cfg(not(target_arch = "wasm32"))]
 use rustyline::{
     DefaultEditor,
     error::ReadlineError,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -47,10 +45,6 @@ struct Cli {
     dump: bool,
 }
 
-#[cfg(target_arch = "wasm32")]
-fn main() {}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let cli = Cli::parse();
 
@@ -92,7 +86,6 @@ fn main() {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn repl() -> anyhow::Result<()> {
     let mut rl = DefaultEditor::new()?;
 

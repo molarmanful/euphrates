@@ -54,6 +54,7 @@
           cranePkg =
             o@{
               cargoTest ? false,
+              cargoExtraArgs ? "--locked",
               ...
             }:
             craneLib.buildPackage (
@@ -63,8 +64,8 @@
                   filter =
                     path: type: (builtins.match ".*wit$" path != null) || (craneLib.filterCargoSources path type);
                 };
-                checkPhaseCargoCommand = "cargo fmt --check && cargo clippy ${
-                  if cargoTest then "&& cargo test" else ""
+                checkPhaseCargoCommand = "cargo fmt --check && cargoWithProfile clippy ${cargoExtraArgs} ${
+                  if cargoTest then "&& cargoWithProfile test ${cargoExtraArgs}" else ""
                 }";
                 nativeBuildInputs = with pkgs; [ mold ];
               }
@@ -80,6 +81,7 @@
 
             wasm = cranePkg {
               CARGO_BUILD_TARGET = "wasm32-wasip2";
+              cargoExtraArgs = "--locked --lib";
             };
           };
 
